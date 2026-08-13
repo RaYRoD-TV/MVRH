@@ -1,10 +1,8 @@
 # Multiverse VR Hub
 
-![Multiverse VR Hub](pictures/mvre.png)
-
-One small exe that installs my VR ports onto your own copies of the games. Pick a game, hit Play.. it grabs the official PC port, applies my VR patch & keeps everything updated on its own. Plug in a Quest & Send to Quest installs the standalone build straight to your headset.
-
 **Download:** [latest release](https://github.com/RaYRoD-TV/MVRH/releases/latest) -- one file, drop it anywhere & run it.
+
+One small exe that installs my VR ports onto your own copies of the games. Pick a game, hit Play.. it grabs the official PC port, applies my VR patch & keeps everything updated on its o
 
 **On it now:** Mario Kart 64, Banjo-Kazooie, Super Mario 64, Dr. Robotnik's Ring Racers, Star Fox 64 & Sonic Robo Blast 2. Super Smash Bros., F-Zero X & Diddy Kong Racing are next.
 
