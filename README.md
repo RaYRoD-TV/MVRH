@@ -1,8 +1,6 @@
-
-
 # Multiverse VR Hub
 
-<img width="2030" height="1260" alt="mvre" src="https://github.com/user-attachments/assets/f370f0da-bb17-4c29-be14-abc7450996c1" />
+https://github.com/user-attachments/assets/7965a487-edc8-42b6-9211-202f07b71e33
 
 **Download:** [latest release](https://github.com/RaYRoD-TV/MVRH/releases/latest) -- one file, drop it anywhere & run it.
 
