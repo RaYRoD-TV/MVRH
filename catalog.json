@@ -1,0 +1,264 @@
+{
+  "games": [
+    {
+      "id": "mk64",
+      "name": "Mario Kart 64 VR",
+      "group": "N64",
+      "status": "available",
+      "version": "4",
+      "installDir": "mvrh/games/MarioKart64",
+      "patchDir": "launcher/MarioKart64",
+      "officialHome": "https://github.com/HarbourMasters/SpaghettiKart",
+      "officialName": "SpaghettiKart",
+      "officialZip": "spaghetti-windows.zip",
+      "exeName": "Spaghettify.exe",
+      "patchFile": "mk64vr.patch",
+      "romName": "Mario Kart 64",
+      "romBytes": 12582912,
+      "romFile": "baserom.us.z64",
+      "assetPack": "mk64.o2r",
+      "questActivity": "com.rayrod.spaghettikart/.SpaghettiKartActivity",
+      "questData": [
+        "$ROM"
+      ],
+      "whatsNew": "Item boxes & kart sprites draw whole again, & the Quest build starts first try when it comes from the hub.",
+      "changelog": [
+        "Patch 4 - Item boxes & kart sprites draw whole again. The whole-course view was leaving bad depth behind & everything drawn after it got clipped.",
+        "Patch 4 - The Quest build starts first try when installed through the hub, instead of opening an Android permission screen & closing.",
+        "Patch 3 - Track surfaces don't break into flat patches & smears in VR anymore. The course was drawing bits of itself twice in whole-course views.",
+        "Patch 3 - The first person flip cam carries you through banana spins again instead of just leaning sideways.",
+        "Patch 2 - First release through the hub: full VR via SpaghettiKart, view modes, motion controllers."
+      ],
+      "addons": [
+        {
+          "id": "reloaded-hd",
+          "name": "MK64 Reloaded HD textures",
+          "note": "GhostlyDark's HD retexture, built for SpaghettiKart",
+          "url": "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-sk-hd.o2r",
+          "bytes": 444322816,
+          "sha256": "",
+          "into": "mods",
+          "file": "mk64-reloaded-hd.o2r"
+        },
+        {
+          "id": "reloaded-4k",
+          "name": "MK64 Reloaded 4K textures",
+          "note": "The same pack at 4K. Much bigger, & it wants a card that can take it.",
+          "url": "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-sk-4k.o2r",
+          "bytes": 1232797696,
+          "sha256": "",
+          "into": "mods",
+          "file": "mk64-reloaded-4k.o2r"
+        }
+      ],
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-4.zip",
+      "payloadSha256": "8b36e7322be893773e855ab793daa469594e3c8de7d7dc736f584fc5add9078c",
+      "payloadBytes": 4491999,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-4/MarioKart64-VR-Quest-4.apk",
+      "questApkSha256": "f0412181d0f8ebe7ed764171df4a60615004ada06da5ef9e5e3613e6c311db29",
+      "questApkBytes": 21000903
+    },
+    {
+      "id": "banjo",
+      "name": "Banjo-Kazooie VR",
+      "group": "N64",
+      "status": "available",
+      "version": "2",
+      "installDir": "mvrh/games/BanjoKazooie",
+      "patchDir": "launcher/BanjoKazooie",
+      "officialHome": "https://github.com/HarbourMasters/Lighthouse",
+      "officialName": "Lighthouse",
+      "officialZip": "Lighthouse-Split-Rock-Delta-Win64.zip",
+      "exeName": "Lighthouse.exe",
+      "patchFile": "banjovr.patch",
+      "whatsNew": "Notes & jiggies don't turn invisible in VR when the game camera looks away from them.",
+      "changelog": [
+        "Patch 2 - Notes & jiggies don't turn invisible in VR when the game camera looks away from them.",
+        "Patch 2 - First release through the hub: per-eye VR via the Lighthouse port, first person, diorama, motion controllers."
+      ],
+      "romName": "Banjo-Kazooie",
+      "romBytes": 16777216,
+      "romFile": "baserom.us.z64",
+      "assetPack": "bk.o2r",
+      "questActivity": "com.rayrod.lighthouse/.LighthouseActivity",
+      "questStatus": "coming soon",
+      "questData": [
+        "$ROM",
+        "lighthouse.o2r"
+      ],
+      "forbiddenPaths": [
+        "%TEMP%",
+        "OneDrive"
+      ],
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/BanjoKazooie-VR-2.zip",
+      "payloadSha256": "1c0a4948529d998bc1d107b470ef82ebca168ea192c632937d83567e707f0b03",
+      "payloadBytes": 4113797
+    },
+    {
+      "id": "sm64",
+      "name": "Super Mario 64 VR",
+      "group": "N64",
+      "status": "available",
+      "version": "4",
+      "installDir": "mvrh/games/SuperMario64",
+      "patchDir": "launcher/SuperMario64",
+      "officialHome": "https://github.com/coop-deluxe/sm64coopdx",
+      "officialName": "sm64coopdx",
+      "officialZip": "sm64coopdx_Windows.zip",
+      "exeName": "sm64coopdx.exe",
+      "patchFile": "sm64vr.patch",
+      "whatsNew": "Coins & bombs stay visible whichever way you look, & first person follows your head right away with no recenter needed.",
+      "changelog": [
+        "Patch 4 - Coins, bombs & other flat objects stay visible whichever way you turn your head. They were facing the game camera instead of your eyes & vanished edge-on.",
+        "Patch 4 - First person follows your head from the moment you switch to it. No more pressing recenter first.",
+        "Patch 3 - First person no longer lets the right stick tilt the view up & down, whatever the Stick Look setting says. Turning stays on the stick, pitch stays on your head. Third person still follows the setting.",
+        "Patch 2 - Starts on every PC now. It was missing three runtime files & wouldn't launch on machines without them.",
+        "Patch 2 - First release through the hub: online co-op with full VR, per-eye stereo, a world-locked HUD."
+      ],
+      "romName": "Super Mario 64",
+      "romBytes": 8388608,
+      "romFile": "baserom.us.z64",
+      "assetPack": "",
+      "questActivity": "com.rayrod.sm64vr/.sm64coopdxActivity",
+      "launchArgs": [
+        "--skip-update-check"
+      ],
+      "launchNote": "This one's got its own updater. The hub starts it with that switched off so it can't swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-4.zip",
+      "payloadSha256": "83324c5bb654e9fdefc967aa5519fa851d8fc1155d24f0d5918cd3c906176630",
+      "payloadBytes": 3685754,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest-4/SuperMario64-VR-Quest-4.apk",
+      "questApkSha256": "487dec59a173631f85e2f7e046a1f09faf72e89dadf0c70c293b0790c643315e",
+      "questApkBytes": 99188240
+    },
+    {
+      "id": "dkr",
+      "name": "Dr. Robotnik's Ring Racers VR",
+      "status": "available",
+      "version": "3",
+      "installDir": "mvrh/games/RingRacers",
+      "patchDir": "launcher/RingRacers",
+      "officialHome": "https://github.com/KartKrewDev/RingRacers",
+      "officialName": "Ring Racers",
+      "officialZip": "Dr.Robotnik.s-Ring-Racers-v2.4-Assets.zip",
+      "exeName": "ringracers.exe",
+      "launchEnv": [
+        "RINGRACERSWADDIR="
+      ],
+      "patchFile": "dkrvr.patch",
+      "whatsNew": "The VR shaders ship with the patch now. That clears the big black panel in the headset, the black mirror window, the blurry picture & a crash when you change Screen Effect.",
+      "changelog": [
+        "Patch 3 - The VR shaders ship with the patch now. Clears the big black panel floating in the headset, the black desktop mirror window & the overly blurry picture in VR.",
+        "Patch 3 - Changing Screen Effect in Video Options doesn't crash the game anymore.",
+        "Patch 2 - Fixed a crash at startup from a missing shader value.",
+        "Patch 2 - First release through the hub: native OpenXR, four view modes, controllers with rumble, comfort options."
+      ],
+      "questActivity": "tv.rayrod.ringracers/.RingRacersActivity",
+      "questStatus": "coming soon",
+      "questData": [
+        "bios.pk3",
+        "models.dat",
+        "data/",
+        "models/"
+      ],
+      "launchNote": "If it won't open at all, grab the Microsoft Visual C++ Redistributable for x64 & try again. Free download from Microsoft, most PCs already have it.",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/RingRacers-VR-3.zip",
+      "payloadSha256": "adf7bba25c4352f370e935e2e3299f87a6dfc9c99cfec95b0195bf7dd40ca7bf",
+      "payloadBytes": 7062930
+    },
+    {
+      "id": "sf64",
+      "name": "Star Fox 64 VR",
+      "group": "N64",
+      "status": "available",
+      "version": "2",
+      "installDir": "mvrh/games/StarFox64",
+      "patchDir": "launcher/StarFox64",
+      "officialHome": "https://github.com/HarbourMasters/Starship",
+      "officialName": "Starship",
+      "officialZip": "Starship-Barnard-Alfa-Windows.zip",
+      "exeName": "Starship.exe",
+      "patchFile": "sf64vr.patch",
+      "romName": "Star Fox 64",
+      "romBytes": 12582912,
+      "romFile": "baserom.us.rev1.z64",
+      "assetPack": "sf64.o2r",
+      "questActivity": "com.rayrod.starship/.StarshipActivity",
+      "questStatus": "coming soon",
+      "questData": [
+        "$ROM",
+        "starship.o2r"
+      ],
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-2.zip",
+      "payloadSha256": "0801f65c01581adc1744193a5987ea5f4460960717130fccb027b185b79ee085",
+      "payloadBytes": 3795565
+    },
+    {
+      "id": "srb2",
+      "name": "Sonic Robo Blast 2 VR",
+      "status": "available",
+      "version": "2",
+      "installDir": "mvrh/games/SonicRoboBlast2",
+      "patchDir": "launcher/SonicRoboBlast2",
+      "officialHome": "https://github.com/STJr/SRB2",
+      "officialName": "Sonic Robo Blast 2",
+      "officialZip": "SRB2-v2215-Full.zip",
+      "exeName": "srb2win.exe",
+      "launchEnv": [
+        "SRB2WADDIR="
+      ],
+      "patchFile": "srb2vr.patch",
+      "questActivity": "com.rayrod.srb2vr/org.stjr.srb2.SRB2Game",
+      "questStatus": "coming soon",
+      "questData": [
+        "srb2.pk3",
+        "zones.pk3",
+        "characters.pk3",
+        "music.pk3",
+        "android.pk3",
+        "models.dat",
+        "models/"
+      ],
+      "launchNote": "Won't start? You're probably missing the Microsoft Visual C++ Redistributable for x64. Free from Microsoft, quick install, then give it another go.",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SonicRoboBlast2-VR-2.zip",
+      "payloadSha256": "346c60c312f25cac5237c38dd3569bc9b6434e12ff989e6bddb661c2f08cb017",
+      "payloadBytes": 5294964
+    },
+    {
+      "id": "smash64",
+      "name": "Super Smash Bros. VR",
+      "group": "N64",
+      "status": "coming soon",
+      "officialHome": "https://github.com/fgsfdsfgs/smashbros64",
+      "officialName": "Super Smash Bros."
+    },
+    {
+      "id": "fzerox",
+      "name": "F-Zero X VR",
+      "group": "N64",
+      "status": "coming soon",
+      "officialHome": "https://github.com/fzerox-decomp/fzerox",
+      "officialName": "F-Zero X"
+    },
+    {
+      "id": "dkracing",
+      "name": "Diddy Kong Racing VR",
+      "group": "N64",
+      "status": "coming soon",
+      "officialHome": "https://github.com/DKRDecomp/dkr",
+      "officialName": "Diddy Kong Racing"
+    }
+  ],
+  "cableTool": {
+    "url": "https://dl.google.com/android/repository/platform-tools-latest-windows.zip",
+    "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+    "bytes": 8044989
+  },
+  "hub": {
+    "version": "1.0.7",
+    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.7/MultiverseVRHub.exe",
+    "sha256": "dcf6f1c435541adcd7c45bbe56e2b0469fe5cf61a5d6487f56cbcd7ad2d4067e",
+    "bytes": 3447808,
+    "page": "https://github.com/RaYRoD-TV/MVRH/releases/latest"
+  }
+}
