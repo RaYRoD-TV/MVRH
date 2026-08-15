@@ -1,0 +1,22 @@
+diff --git a/src/menus/options-gameplay-item-toggles.c b/src/menus/options-gameplay-item-toggles.c
+index 1e47aecad..aee71a66c 100644
+--- a/src/menus/options-gameplay-item-toggles.c
++++ b/src/menus/options-gameplay-item-toggles.c
+@@ -212,16 +212,7 @@ void M_HandleItemToggles(INT32 choice)
+ 	else if (M_MenuConfirmPressed(pid))
+ 	{
+ 		M_SetMenuDelay(pid);
+-		if (currentMenu->menuitems[itemOn].mvar1 == 0)
+-		{
+-			//S_StartSound(NULL, sfx_s26d);
+-			if (!shitsfree)
+-			{
+-				shitsfree = TICRATE;
+-				S_StartSound(NULL, sfx_itfree);
+-			}
+-		}
+-		else
++		if (currentMenu->menuitems[itemOn].mvar1 != 0)
+ 		{
+ 			if (currentMenu->menuitems[itemOn].mvar2)
+ 			{

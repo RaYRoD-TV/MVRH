@@ -1,0 +1,24 @@
+diff --git a/src/d_main.h b/src/d_main.h
+index 0a29f929b..a2f219eb9 100644
+--- a/src/d_main.h
++++ b/src/d_main.h
+@@ -19,7 +19,6 @@
+ 
+ extern boolean advancedemo;
+ 
+-// make sure not to write back the config until it's been correctly loaded
+ extern tic_t rendergametic;
+ 
+ extern char srb2home[256]; //Alam: My Home
+@@ -43,6 +42,11 @@ void D_PostEvent(const event_t *ev);
+ void D_ProcessEvents(void);
+ 
+ const char *D_Home(void);
++void D_SetupHome(void);
++
++void D_DefaultSaveGameName(const char *name);
++void D_DefaultLiveEventName(const char *name);
++void D_MakeSaveGamePaths(const char *home);
+ 
+ boolean D_IsPathAllowed(const char *path);
+ boolean D_CheckPathAllowed(const char *path, const char *why);

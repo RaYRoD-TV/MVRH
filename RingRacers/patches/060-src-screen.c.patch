@@ -1,0 +1,76 @@
+diff --git a/src/screen.c b/src/screen.c
+index f24f8692a..ec5f2bbfd 100644
+--- a/src/screen.c
++++ b/src/screen.c
+@@ -64,6 +64,48 @@ CV_PossibleValue_t cv_renderer_t[] = {
+ 	{0, NULL}
+ };
+ 
++// The Screen Effect presets, and the shorter list a headset gets.
++//
++// SalCRT earns its look with a nine-direction blur - dozens of texture reads
++// for every pixel on screen. A monitor absorbs that; two eye buffers at
++// headset resolution do not, and the honest answer is not to offer a setting
++// that would drop frames in someone's face. SalCRT Sharp is the same idea for
++// a handful of reads, so the headset list simply stops at it.
++CV_PossibleValue_t scr_effect_cons_t[] = {
++	{0, "Nearest"},
++	{1, "Sharp Bilinear"},
++	{2, "SalCRT"},
++	{3, "SalCRT Sharp"},
++	{4, "Bilinear"},
++	{0, NULL}
++};
++
++static CV_PossibleValue_t scr_effect_vr_cons_t[] = {
++	{0, "Nearest"},
++	{1, "Sharp Bilinear"},
++	{3, "SalCRT Sharp"},
++	{4, "Bilinear"},
++	{0, NULL}
++};
++
++void SCR_HideVRUnfitScreenEffects(void)
++{
++	if (cv_scr_effect.PossibleValue == scr_effect_vr_cons_t)
++		return;
++
++	cv_scr_effect.PossibleValue = scr_effect_vr_cons_t;
++
++	// A config that already picked SalCRT would now hold a value the list
++	// can't name, and an unnameable value falls back to the FIRST entry the
++	// next time anything sets it - dropping the player to Nearest without
++	// asking. Move them to the preset they actually wanted instead.
++	if (cv_scr_effect.value == 2)
++	{
++		CV_StealthSetValue(&cv_scr_effect, 3);
++		CONS_Printf("VR: SalCRT is too expensive per eye - using SalCRT Sharp.\n");
++	}
++}
++
+ // =========================================================================
+ //                           SCREEN VARIABLES
+ // =========================================================================
+@@ -399,6 +441,22 @@ void SCR_CheckDefaultMode(void)
+ 	}
+ 	else
+ 	{
++		// Fresh config (both cvars untouched): adopt the monitor's native
++		// resolution instead of the ancient 640x400 default, when the mode
++		// list has an exact match for it.
++		if (!strcmp(cv_scr_width.string, cv_scr_width.defaultvalue)
++			&& !strcmp(cv_scr_height.string, cv_scr_height.defaultvalue))
++		{
++			INT32 nativew = 0, nativeh = 0;
++			VID_GetNativeSize(&nativew, &nativeh);
++			if (nativew > 0 && VID_GetModeForSize(nativew, nativeh) >= 0)
++			{
++				CV_StealthSetValue(&cv_scr_width, nativew);
++				CV_StealthSetValue(&cv_scr_height, nativeh);
++				CONS_Printf(M_GetText("Fresh config: defaulting to native resolution\n"));
++			}
++		}
++
+ 		CONS_Printf(M_GetText("Default resolution: %d x %d (%d bits)\n"), cv_scr_width.value,
+ 			cv_scr_height.value, cv_scr_depth.value);
+ 		// see note above

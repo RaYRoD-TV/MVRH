@@ -1,0 +1,4 @@
+name=Sonic Robo Blast 2 VR
+upstream=https://github.com/STJr/SRB2.git
+vanilla=8701ef41f617c06e23a7b8ccd2199c160c5d1dd1
+vanillaRef=SRB2_release_2.2.15

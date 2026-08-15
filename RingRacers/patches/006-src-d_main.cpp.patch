@@ -1,0 +1,477 @@
+diff --git a/src/d_main.cpp b/src/d_main.cpp
+index 6a09fb39f..631fd283b 100644
+--- a/src/d_main.cpp
++++ b/src/d_main.cpp
+@@ -92,7 +92,10 @@
+ #include "k_credits.h"
+ #include "r_debug.hpp"
+ #include "k_director.h"
++#include "k_kart.h" // K_GetKartButtons, for the first-person look-back heading
++#include "k_hazard.h" // K_BoostKick, the landing-dash shove
+ #include "m_pw.h"
++#include "vr/vr.h"
+ 
+ #ifdef HWRENDER
+ #include "hardware/hw_main.h" // 3D View Rendering
+@@ -359,6 +362,138 @@ gamestate_t wipegamestate = GS_LEVEL;
+ INT16 wipetypepre = -1;
+ INT16 wipetypepost = -1;
+ 
++#ifdef HWRENDER
++// Feed the VR module the local kart's interpolated head pose (the anchor for
++// the first-person eye) and its spinout/tumble drama state, once per rendered
++// frame before the eye loop. Uses the same interpolation the renderer will
++// use, so the cockpit doesn't judder against the world at headset rates.
++static void D_FeedVRCockpit(void)
++{
++	player_t *player = &players[displayplayers[0]];
++	mobj_t *mo = player->mo;
++
++	if (mo == NULL)
++		return;
++
++	const fixed_t frac = R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT;
++	interpmobjstate_t interp;
++	R_InterpolateMobjState(mo, frac, &interp);
++
++	// mo->angle is the kart's facing; drawangle adds drift lean and the
++	// spinout spin, which feed the drama channel below instead.
++	const angle_t heading = R_InterpolateAngle(mo->old_angle, mo->angle);
++
++	// Look back. The chase camera already swings a full 180 for this on its
++	// own, but first person composes the eye ABSOLUTELY against the cockpit
++	// heading fed below - it places the eye at the kart's head and points it
++	// down this angle, whatever the camera behind it is doing. So the
++	// camera's swing was being subtracted straight back out and the headset
++	// showed nothing at all. The eye's heading is the only thing that has to
++	// turn; the seat slide keeps the unflipped angle, because a driver
++	// glancing over their shoulder does not slide across the seat.
++	angle_t eyeheading = heading;
++	if (K_GetKartButtons(player) & BT_LOOKBACK)
++		eyeheading += ANGLE_180;
++
++	// Head anchor: the kart origin plus the eye-height knob, scaled with the
++	// kart (tracks growth items and per-map object scale). Flipped gravity
++	// hangs the head below the ceiling-side origin instead.
++	const float eyeheight = vr_fp_eyeheight_units() * FIXED_TO_FLOAT(interp.scale);
++	float pos[3];
++	pos[0] = FIXED_TO_FLOAT(interp.x);
++	pos[1] = FIXED_TO_FLOAT(interp.y);
++	if (mo->eflags & MFE_VERTICALFLIP)
++		pos[2] = FIXED_TO_FLOAT(interp.z + mo->height) - eyeheight;
++	else
++		pos[2] = FIXED_TO_FLOAT(interp.z) + eyeheight;
++
++	// Seat slide: the forward knob moves the head anchor along the kart's own
++	// heading (scaled like the eye height), toward the nose or back off it.
++	const float seatfwd = vr_fp_forward_units() * FIXED_TO_FLOAT(interp.scale);
++	if (seatfwd != 0.0f)
++	{
++		pos[0] += seatfwd * cosf(ANG2RAD(heading));
++		pos[1] += seatfwd * sinf(ANG2RAD(heading));
++	}
++
++	vr_set_cockpit_pose(pos, ANG2RAD(eyeheading),
++		ANG2RAD(R_InterpolateAngle(mo->old_pitch, mo->pitch)),
++		ANG2RAD(R_InterpolateAngle(mo->old_roll, mo->roll)));
++
++	// In third person your own kart is the nearest thing that is never off
++	// screen, so it decides how much separation the eyes can take - and the
++	// Camera Forward knob can bring it right up to your face. Hand over the
++	// distance to its near side and let the module hold the disparity inside
++	// the fusion limit. Every other mode either hides the kart (first person)
++	// or holds everything at arm's length by construction.
++	if (vr_get_view_mode() == VR_VIEW_THIRD_PERSON)
++	{
++		// The camera steps once a tic while the kart glides every frame, so
++		// the gap between them has to be measured at the same moment or the
++		// separation it feeds would pulse at the tic rate - a breathing IPD,
++		// which is a worse thing to sit behind than the one being prevented.
++		const camera_t *cam = &camera[0];
++		const fixed_t camx = cam->old_x + FixedMul(cam->x - cam->old_x, frac);
++		const fixed_t camy = cam->old_y + FixedMul(cam->y - cam->old_y, frac);
++		const fixed_t camz = cam->old_z + FixedMul(cam->z - cam->old_z, frac);
++		const float dx = FIXED_TO_FLOAT(camx - interp.x);
++		const float dy = FIXED_TO_FLOAT(camy - interp.y);
++		const float dz = FIXED_TO_FLOAT(camz - interp.z);
++		const float span = FIXED_TO_FLOAT(mo->radius);
++		const float nearest = sqrtf(dx * dx + dy * dy + dz * dz) - span;
++		// Never hand over a zero: zero is the module's "no limit", and the
++		// camera sitting inside the kart is precisely when the limit matters.
++		vr_set_focus_distance(nearest < 1.0f ? 1.0f : nearest);
++	}
++	else
++	{
++		vr_set_focus_distance(0.0f);
++	}
++
++	// Drama: the states that spin the kart's sprite away from its facing (see
++	// P_MovePlayer). The raw angles are far past anything an eye can be
++	// carried through - a tumble turns drawangle at up to 4725 deg/s - so all
++	// that is handed over is WHICH KIND of thing is happening and which way it
++	// is going. The module shapes it, and holds anything the player did not
++	// ask for to a bounded lean.
++	const boolean tumbling = (player->tumbleBounces > 0);
++	const boolean spinning = (player->spinouttimer > 0 || player->icecube.frozen
++		|| player->carry == CR_SLIDING);
++	const boolean faulting = (player->pflags & PF_FAULT) != 0;
++	const boolean tricking = (player->trickpanel > TRICKSTATE_READY);
++	const boolean dramatic = (tumbling || spinning || faulting);
++
++	int dramakind = VR_DRAMA_NONE;
++	if (tumbling)
++		dramakind = VR_DRAMA_TUMBLE;
++	else if (spinning)
++		dramakind = VR_DRAMA_SPIN;
++	else if (faulting)
++		dramakind = VR_DRAMA_FAULT;
++	else if (tricking)
++	{
++		// The simulation spins the sprite's YAW for every trick direction, so
++		// which axis a trick reads as from the driver's seat has to come from
++		// the trick itself: sideways is a barrel roll, forward or back a flip.
++		// This is the one rotation the player pressed a button for, and until
++		// now it reached the headset as nothing at all.
++		dramakind = (player->trickpanel == TRICKSTATE_LEFT
++			|| player->trickpanel == TRICKSTATE_RIGHT)
++			? VR_DRAMA_TRICK_ROLL : VR_DRAMA_TRICK_FLIP;
++	}
++
++	// The shove of a landing dash, felt in the neck rather than only seen as a
++	// glow. Same channel the first-person boost cue reads, so the flash and
++	// the snap are the same event and land on the same tic.
++	vr_set_boost_kick(FIXED_TO_FLOAT(K_BoostKick(0)));
++
++	vr_set_action_cam(dramatic || tricking, player->exiting != 0);
++	vr_set_drama(dramakind,
++		(INT16)((player->drawangle - mo->angle) >> 16),
++		(INT16)(mo->rollangle >> 16));
++}
++#endif
++
+ static bool D_Display(bool world)
+ {
+ 	bool ranwipe = false;
+@@ -579,6 +714,67 @@ static bool D_Display(bool world)
+ 				}
+ 
+ #ifdef HWRENDER
++				// VR stereo: render the player 1 view once per eye into the
++				// VR render target, with the head pose located this frame.
++				// Splitscreen views don't exist in the headset. When VR is
++				// off (or this frame can't render eyes), the flat path below
++				// runs untouched.
++				//
++				// Stereo is for ACTUAL GAMEPLAY (GS_LEVEL) only, and only
++				// outside theater mode. Skipping the eye loop is what routes
++				// a state to the panel: with no eyes submitted,
++				// I_FinishUpdate puts the finished flat frame on the
++				// head-locked screen. That covers theater mode, the title
++				// screen and the podium ceremony (level-backed states whose
++				// logo/menus/standings only exist as flat 2D - in-eye they'd
++				// be invisible until the HUD overlay layer exists), and every
++				// non-level state, which never reaches this block at all.
++				boolean vrstereo = false;
++
++				if (rendermode == render_opengl && vr_is_active()
++					&& gamestate == GS_LEVEL
++					&& vr_get_view_mode() != VR_VIEW_THEATER)
++				{
++					// Kart pose + drama first, so the eye matrices composed
++					// in vr_begin_frame see this frame's cockpit.
++					D_FeedVRCockpit();
++
++					// Fresh head pose before any eye rendering. (The call in
++					// I_FinishUpdate is a no-op once the frame is begun here;
++					// it still covers the panel path and wipe loops.)
++					vr_begin_frame();
++
++					// The menu flag rides the frame (vr_begin_frame resets
++					// it) and must be up BEFORE the eyes render: the eye
++					// pass dims the world under an open menu, and vr_submit
++					// sizes the quad as a menu screen.
++					vr_set_hud_menu(menuactive);
++
++					viewssnum = 0;
++
++					if (players[displayplayers[0]].mo || players[displayplayers[0]].playerstate == PST_DEAD)
++					{
++						for (i = 0; i < vr_eye_count(); i++)
++						{
++							VID_BeginLegacyGLRenderPass();
++
++							// Binds the VR target over the RHI's framebuffer;
++							// vr_end_eye restores it before the pass ends.
++							if (vr_begin_eye(i))
++							{
++								HWR_RenderPlayerView();
++								vr_end_eye(i);
++								vrstereo = true;
++							}
++
++							VID_EndLegacyGLRenderPass();
++						}
++					}
++				}
++
++				if (!vrstereo)
++				{
++
+ 				if (rendermode == render_opengl)
+ 				{
+ 					VID_BeginLegacyGLRenderPass();
+@@ -653,6 +849,8 @@ static bool D_Display(bool world)
+ 				{
+ 					VID_EndLegacyGLRenderPass();
+ 				}
++
++				} // if (!vrstereo)
+ #endif
+ 
+ 				ps_rendercalltime = I_GetPreciseTime() - ps_rendercalltime;
+@@ -703,7 +901,12 @@ static bool D_Display(bool world)
+ 			}
+ 			if (rendermode != render_none)
+ 			{
+-				VID_DisplayRHIPostimg();
++				// VR stereo frames: the 3D went to the per-eye targets, so
++				// this composite would only smear the stale legacy GL frame
++				// over the backbuffer - which must stay transparent black so
++				// the 2D drawn below composites onto the HUD overlay quad.
++				if (!vr_frame_has_eyes())
++					VID_DisplayRHIPostimg();
+ 			}
+ 
+ 			if (lastdraw)
+@@ -969,6 +1172,11 @@ void D_SRB2Loop(void)
+ 		interp = R_UsingFrameInterpolation() && !dedicated;
+ 		doDisplay = false;
+ 
++		// VR motion controllers: mirror the OpenXR controller state into the
++		// event queue as a synthetic gamepad before this iteration processes
++		// events. Inline no-op without ENABLE_VR; cheap check when inactive.
++		vr_input_bridge_update();
++
+ 		renderisnewtic = (realtics > 0 || singletics);
+ 
+ 		bool timeisprogressing = (!(paused || P_AutoPause()) && !hu_stopped);
+@@ -1037,6 +1245,29 @@ void D_SRB2Loop(void)
+ 
+ 		if ((interp || doDisplay) && !frameskip && g_fast_forward == 0)
+ 		{
++#ifdef HWRENDER
++			// VR: begin the XR frame here, BEFORE the interpolation fraction
++			// is consumed. xrWaitFrame inside blocks until the compositor
++			// wants the next headset frame; left where it was (mid-D_Display),
++			// that variable-length wait landed between the time sample above
++			// and the render, so world positions lagged the displayed moment
++			// by a different offset every frame - the kart visibly jittered
++			// at speed. With the wait already paid, re-sample the fraction so
++			// the world interpolates to the moment this frame displays. (The
++			// vr_begin_frame calls further down are no-ops for this frame.)
++			if (vr_is_active() && rendermode == render_opengl)
++			{
++				vr_begin_frame();
++				if (interp)
++				{
++					const fixed_t nowfrac = I_GetTimeFracNow();
++					if (timeisprogressing)
++						rendertimefrac = nowfrac;
++					rendertimefrac_unpaused = nowfrac;
++				}
++			}
++#endif
++
+ 			if (!renderisnewtic)
+ 				P_ResetInterpHudRandSeed(false);
+ 
+@@ -1626,46 +1857,83 @@ void D_SRB2Main(void)
+ 
+ 	{
+ 		const char *userhome = D_Home(); //Alam: path to home
++		boolean homeset = false;
++
++#ifdef _WIN32
++		// Keep user data (config, saves, gamedata, addons) next to the executable
++		// instead of the shared data install. IdentifyVersion() chdir's the process
++		// to RINGRACERSWADDIR at startup, so a "." home would land in the data dir;
++		// GetModuleFileNameA gives the exe's own folder, keeping the build portable.
++		// An explicit -home still wins (sandboxed config/gamedata tests depend on it).
++		if (!M_CheckParm("-home"))
++		{
++			char exedir[MAX_WADPATH];
++			char *sep;
++
++			if (GetModuleFileNameA(NULL, exedir, sizeof exedir) > 0
++				&& (sep = strrchr(exedir, '\\')) != NULL)
++			{
++				*sep = '\0'; // drop the exe filename, keep its directory
++
++				strlcpy(srb2home, exedir, sizeof srb2home);
++				if (dedicated)
++					snprintf(configfile, sizeof configfile, "%s" PATHSEP "d" CONFIGFILENAME, srb2home);
++				else
++					snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
+ 
+-		if (!userhome)
++				// can't use sprintf since there is %u in savegamename
++				strcatbf(savegamename, srb2home, PATHSEP);
++				strcatbf(gpbackup, srb2home, PATHSEP);
++
++				snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", srb2home);
++
++				homeset = true;
++			}
++		}
++#endif
++
++		if (!homeset)
+ 		{
++			if (!userhome)
++			{
+ #if ((defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)
+-			I_Error("Please set $HOME to your home directory\n");
++				I_Error("Please set $HOME to your home directory\n");
+ #else
+-			if (dedicated)
+-				snprintf(configfile, sizeof configfile, "d" CONFIGFILENAME);
+-			else
+-				snprintf(configfile, sizeof configfile, CONFIGFILENAME);
++				if (dedicated)
++					snprintf(configfile, sizeof configfile, "d" CONFIGFILENAME);
++				else
++					snprintf(configfile, sizeof configfile, CONFIGFILENAME);
+ #endif
+-		}
+-		else
+-		{
+-			// use user specific config file
+-#ifdef DEFAULTDIR
+-			snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
+-			if (dedicated)
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP "d" CONFIGFILENAME, srb2home);
++			}
+ 			else
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
++			{
++				// use user specific config file
++#ifdef DEFAULTDIR
++				snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
++				if (dedicated)
++					snprintf(configfile, sizeof configfile, "%s" PATHSEP "d" CONFIGFILENAME, srb2home);
++				else
++					snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
+ 
+-			// can't use sprintf since there is %u in savegamename
+-			strcatbf(savegamename, srb2home, PATHSEP);
+-			strcatbf(gpbackup, srb2home, PATHSEP);
++				// can't use sprintf since there is %u in savegamename
++				strcatbf(savegamename, srb2home, PATHSEP);
++				strcatbf(gpbackup, srb2home, PATHSEP);
+ 
+-			snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", srb2home);
++				snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", srb2home);
+ #else // DEFAULTDIR
+-			snprintf(srb2home, sizeof srb2home, "%s", userhome);
+-			if (dedicated)
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, userhome);
+-			else
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
++				snprintf(srb2home, sizeof srb2home, "%s", userhome);
++				if (dedicated)
++					snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, userhome);
++				else
++					snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
+ 
+-			// can't use sprintf since there is %u in savegamename
+-			strcatbf(savegamename, userhome, PATHSEP);
+-			strcatbf(gpbackup, userhome, PATHSEP);
++				// can't use sprintf since there is %u in savegamename
++				strcatbf(savegamename, userhome, PATHSEP);
++				strcatbf(gpbackup, userhome, PATHSEP);
+ 
+-			snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", userhome);
++				snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", userhome);
+ #endif // DEFAULTDIR
++			}
+ 		}
+ 
+ 		configfile[sizeof configfile - 1] = '\0';
+@@ -1722,6 +1990,50 @@ void D_SRB2Main(void)
+ 
+ 	// Do this up here so that WADs loaded through the command line can use ExecCfg
+ 	COM_Init();
++
++	// VR: -vr forces it, -novr blocks the auto-probe; otherwise enable when a
++	// headset is connected. Decided before graphics startup so the renderer
++	// can be forced to OpenGL below. (Everything no-ops without ENABLE_VR.)
++	if (!dedicated)
++	{
++		if (M_CheckParm("-vrfake"))
++		{
++			// Measurement harness: the shipped stereo eye loop against a
++			// synthesized head pose, no headset or runtime required.
++			vr_request_enable();
++			vr_request_fake();
++			// -vrfakepitch <deg>: tilt the stand-in head DOWN. A level rig
++			// cannot see the ground at the kart's own feet, so ground art can
++			// only be judged headless once it can look down. Degrees down
++			// rather than signed, because M_IsNextParm drops any value
++			// starting with '-' and the rig would silently stay level.
++			if (M_CheckParm("-vrfakepitch") && M_IsNextParm())
++				vr_set_fake_pitch((float)atof(M_GetNextParm()));
++		}
++		else if (M_CheckParm("-vr"))
++			vr_request_enable();
++		else if (!M_CheckParm("-novr") && vr_headset_present())
++			vr_request_enable();
++
++		if (vr_is_requested())
++		{
++			if (M_CheckParm("-vrfake"))
++				CONS_Printf("VR: fake stereo session via -vrfake (measurement, no headset)\n");
++			else if (M_CheckParm("-vr"))
++				CONS_Printf("VR: enabled via -vr\n");
++			else
++				CONS_Printf("VR: headset detected, VR mode enabled\n");
++
++#ifdef HWRENDER
++			// VR requires the OpenGL renderer. Setting chosenrendermode before
++			// I_StartupGraphics acts exactly like -opengl: rendermode gets forced
++			// and the config's cv_renderer can't override it (see SCR_CheckDefaultMode).
++			// Explicit -renderer/-software/-nogl params still win in I_StartupGraphics.
++			chosenrendermode = render_opengl;
++#endif
++		}
++	}
++
+ 	CONS_Printf("I_StartupGraphics()...\n");
+ 	I_StartupGraphics();
+ 
+@@ -1854,6 +2166,13 @@ void D_SRB2Main(void)
+ 	//--------------------------------------------------------- CONFIG.CFG
+ 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"
+ 
++	// VR: -vrmode overrides the configured view mode for this launch
++	// (0 third person, 1 first person, 2 theater, 3 diorama). After the
++	// config exec on purpose, so the CLI wins; the vr_viewmode cvar is
++	// brought along by vr_set_view_mode.
++	if (vr_is_requested() && M_CheckParm("-vrmode") && M_IsNextParm())
++		vr_set_view_mode(atoi(M_GetNextParm()));
++
+ 	// Load Profiles now that default controls have been defined
+ 	PR_LoadProfiles();	// load control profiles
+ 
+@@ -2325,8 +2644,10 @@ const char *D_Home(void)
+ {
+ 	const char *userhome = NULL;
+ 
+-#ifdef ANDROID
+-	return "/data/data/org.srb2/";
++#ifdef __ANDROID__
++	// Home rides with the game data on shared storage so the player can reach
++	// config and saves; DEFAULTDIR ("user") nests under it.
++	return "/sdcard/RingRacersVR";
+ #endif
+ 
+ 	if (M_CheckParm("-home") && M_IsNextParm())

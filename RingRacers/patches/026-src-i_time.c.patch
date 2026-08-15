@@ -1,0 +1,21 @@
+diff --git a/src/i_time.c b/src/i_time.c
+index bb39070b5..0a5063bd1 100644
+--- a/src/i_time.c
++++ b/src/i_time.c
+@@ -101,6 +101,16 @@ void I_UpdateTime(void)
+ 	}
+ }
+ 
++fixed_t I_GetTimeFracNow(void)
++{
++	const double ticratescaled = (double)TICRATE * FIXED_TO_FLOAT(I_GetTimeScale());
++	const double elapsed = (double)(I_GetPreciseTime() - enterprecise) / I_GetPrecisePrecision();
++	double frac = (tictimer + elapsed) * ticratescaled;
++	if (frac > 1.0)
++		frac = 1.0;
++	return FLOAT_TO_FIXED(frac);
++}
++
+ void I_SleepDuration(precise_t duration)
+ {
+ 	UINT64 precision = I_GetPrecisePrecision();

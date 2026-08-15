@@ -1,0 +1,127 @@
+diff --git a/src/command.c b/src/command.c
+index d91f4f381..acd2c16e1 100644
+--- a/src/command.c
++++ b/src/command.c
+@@ -2380,8 +2380,6 @@ void CV_EnforceExecVersion(void)
+ 
+ static boolean CV_FilterVarByVersion(consvar_t *v, const char *valstr)
+ {
+-	(void)valstr;
+-
+ 	// True means allow the CV change, False means block it
+ 
+ 	// We only care about CV_SAVE because this filters the user's config files
+@@ -2397,6 +2395,113 @@ static boolean CV_FilterVarByVersion(consvar_t *v, const char *valstr)
+ 	}
+ #endif
+ 
++	// Configs before 14.1 carry old VR defaults. Drop the stale values (the
++	// old default, or the old slider cap for eye height) so the new defaults
++	// land; anything hand-tuned stays put.
++	if (cv_execversion.value < GETEXECVERSION(14, 1))
++	{
++		if (!stricmp(v->name, "vr_huddist") && !stricmp(valstr, "240"))
++			return false;
++		if (!stricmp(v->name, "vr_fp_eyeheight")
++			&& (!stricmp(valstr, "24") || !stricmp(valstr, "48")))
++			return false;
++		if (!stricmp(v->name, "vr_hudscale") && !stricmp(valstr, "60"))
++			return false;
++		if (!stricmp(v->name, "vr_renderscale") && !stricmp(valstr, "100"))
++			return false;
++	}
++
++	// 14.2 retuned the VR defaults again (bigger world, higher driver's
++	// head, a much larger diorama). Same deal: drop the old defaults so the
++	// new ones land, keep anything hand-tuned.
++	if (cv_execversion.value < GETEXECVERSION(14, 2))
++	{
++		if (!stricmp(v->name, "vr_worldscale") && !stricmp(valstr, "64"))
++			return false;
++		if (!stricmp(v->name, "vr_fp_eyeheight") && !stricmp(valstr, "64"))
++			return false;
++		if (!stricmp(v->name, "vr_diorama_scale") && !stricmp(valstr, "800"))
++			return false;
++		if (!stricmp(v->name, "vr_diorama_dist") && !stricmp(valstr, "60"))
++			return false;
++		if (!stricmp(v->name, "vr_diorama_height") && !stricmp(valstr, "-25"))
++			return false;
++	}
++
++	// 14.3: render scale ships at native (100) - supersampling is an opt-in,
++	// not the default a fresh headset gets handed.
++	if (cv_execversion.value < GETEXECVERSION(14, 3))
++	{
++		if (!stricmp(v->name, "vr_renderscale") && !stricmp(valstr, "150"))
++			return false;
++	}
++
++	// 14.4: HUD panel pushed back to 1.6m by default.
++	if (cv_execversion.value < GETEXECVERSION(14, 4))
++	{
++		if (!stricmp(v->name, "vr_huddist") && !stricmp(valstr, "110"))
++			return false;
++	}
++
++	// 14.5: burning hazards throw you into a tumble by default now, and the
++	// handling levers default to full grip - stock feel stays one slider away.
++	if (cv_execversion.value < GETEXECVERSION(14, 5))
++	{
++		if (!stricmp(v->name, "hazardtumble") && !stricmp(valstr, "Off"))
++			return false;
++		if (!stricmp(v->name, "handling") && !stricmp(valstr, "50"))
++			return false;
++		if (!stricmp(v->name, "drifthandling")
++			&& (!stricmp(valstr, "50") || !stricmp(valstr, "60")))
++			return false;
++		if (!stricmp(v->name, "trickassist") && !stricmp(valstr, "On"))
++			return false;
++	}
++
++	// 14.6: the headset CRT runs at full strength by default - the stereo
++	// grille removal is what made that comfortable - and the world grew
++	// again (16 units per meter, floor lowered to 8).
++	if (cv_execversion.value < GETEXECVERSION(14, 6))
++	{
++		if (!stricmp(v->name, "vr_effectstrength") && !stricmp(valstr, "30"))
++			return false;
++		if (!stricmp(v->name, "vr_worldscale") && !stricmp(valstr, "32"))
++			return false;
++	}
++
++	// 14.7: the race HUD grew and came nearer by default (scale 150 at a
++	// raised cap, distance 170), and the pause menu screen got its own
++	// distance knob so the two stopped sharing one slider.
++	if (cv_execversion.value < GETEXECVERSION(14, 7))
++	{
++		if (!stricmp(v->name, "vr_hudscale") && !stricmp(valstr, "80"))
++			return false;
++		if (!stricmp(v->name, "vr_huddist") && !stricmp(valstr, "160"))
++			return false;
++	}
++
++	if (cv_execversion.value < GETEXECVERSION(14, 8))
++	{
++		// The monitor mirror at full rate was measured costing 11-16 ms a
++		// frame - it roughly halved the headset's frame rate, and frames the
++		// game misses are frames the compositor invents. Anyone still sitting
++		// on the old default gets the cheaper one; the menu still offers all
++		// three.
++		if (!stricmp(v->name, "vr_mirror") && !stricmp(valstr, "Every Frame"))
++			return false;
++	}
++
++	if (cv_execversion.value < GETEXECVERSION(14, 9))
++	{
++		// The picture filter over the 3D view was briefly defaulted off while
++		// it was breaking ground shadows. The real cause was a leaked GL alpha
++		// test in the effect's own blit, so the default went back to On and
++		// this block now only rescues anyone who saved a config during that
++		// window - it drops a pinned "Off" so they get the look back.
++		if (!stricmp(v->name, "vr_worldeffect") && !stricmp(valstr, "Off"))
++			return false;
++	}
++
+ 	return true;
+ }
+ 

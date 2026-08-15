@@ -1,0 +1,13 @@
+diff --git a/src/p_setup.c b/src/p_setup.c
+index c2b8f2db2..8928aa715 100644
+--- a/src/p_setup.c
++++ b/src/p_setup.c
+@@ -8477,7 +8477,7 @@ static boolean P_LoadAddon(UINT16 numlumps)
+ boolean P_AddWadFile(const char *wadfilename)
+ {
+ 	return D_CheckPathAllowed(wadfilename, "tried to add file") &&
+-		P_LoadAddon(W_InitFile(wadfilename, false, false));
++		P_LoadAddon(W_InitFile(wadfilename, FILEHANDLE_STANDARD, false, false));
+ }
+ 
+ boolean P_AddFolder(const char *folderpath)

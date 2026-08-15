@@ -1,0 +1,164 @@
+diff --git a/src/hwr2/blit_rect.cpp b/src/hwr2/blit_rect.cpp
+index 189177ec5..f58354eea 100644
+--- a/src/hwr2/blit_rect.cpp
++++ b/src/hwr2/blit_rect.cpp
+@@ -17,6 +17,11 @@
+ #include <tcb/span.hpp>
+ 
+ #include "../cxxutil.hpp"
++#include "../screen.h" // cv_scr_effectstrength (the CRT strength dial)
++#include "../vr/vr.h" // vr_is_active (the headset has its own dial)
++#include "crt_dot_pattern.hpp"
++
++extern "C" consvar_t cv_vr_effectstrength;
+ 
+ using namespace srb2;
+ using namespace srb2::hwr2;
+@@ -71,6 +76,9 @@ void BlitRectPass::prepass(Rhi& rhi)
+ 		case BlitRectPass::BlitMode::kCrtSharp:
+ 			desc.name = "crtsharp";
+ 			break;
++		case BlitRectPass::BlitMode::kSoft:
++			desc.name = "softblit";
++			break;
+ 		default:
+ 			std::terminate();
+ 		}
+@@ -93,8 +101,8 @@ void BlitRectPass::prepass(Rhi& rhi)
+ 	{
+ 		dot_pattern_ = rhi.create_texture({
+ 			rhi::TextureFormat::kRGBA,
+-			12,
+-			4,
++			kCrtDotPatternWidth,
++			kCrtDotPatternHeight,
+ 			rhi::TextureWrapMode::kRepeat,
+ 			rhi::TextureWrapMode::kRepeat,
+ 			rhi::TextureFilterMode::kLinear,
+@@ -122,60 +130,12 @@ void BlitRectPass::transfer(Rhi& rhi)
+ 	{
+ 		// Listen. I'm a *very* particular kind of lazy.
+ 		// If I'm being honest, I just don't want to have to embed a .png in the pk3s and deal with that.
+-		static const uint8_t kDotPattern[] = {
+-			255, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 255, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 255, 255,
+-			0, 0, 0, 255,
+-			255, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 255, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 255, 255,
+-			0, 0, 0, 255,
+-
+-			255, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 255, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 255, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-
+-			255, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 255, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 255, 255,
+-			0, 0, 0, 255,
+-			255, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 255, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 255, 255,
+-			0, 0, 0, 255,
+-
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 0, 255,
+-			255, 0, 0, 255,
+-			0, 0, 0, 255,
+-			0, 255, 0, 255,
+-			0, 0, 0, 255,
+-			0, 0, 255, 255,
+-			0, 0, 0, 255,
+-		};
+-		rhi.update_texture(dot_pattern_, {0, 0, 12, 4}, PixelFormat::kRGBA8, tcb::as_bytes(tcb::span(kDotPattern)));
++		rhi.update_texture(
++			dot_pattern_,
++			{0, 0, kCrtDotPatternWidth, kCrtDotPatternHeight},
++			PixelFormat::kRGBA8,
++			tcb::as_bytes(tcb::span(kCrtDotPattern))
++		);
+ 		dot_pattern_needs_upload_ = false;
+ 	}
+ }
+@@ -186,6 +146,14 @@ void BlitRectPass::graphics(Rhi& rhi)
+ 
+ 	RasterizerStateDesc rs {};
+ 	rs.cull = CullMode::kNone;
++	if (blend_premultiplied_)
++	{
++		rs.blend_enabled = true;
++		rs.blend_source_factor_color = BlendFactor::kOne;
++		rs.blend_dest_factor_color = BlendFactor::kOneMinusSourceAlpha;
++		rs.blend_source_factor_alpha = BlendFactor::kOne;
++		rs.blend_dest_factor_alpha = BlendFactor::kOneMinusSourceAlpha;
++	}
+ 
+ 	rhi.set_rasterizer_state(rs);
+ 	rhi.bind_vertex_attrib("a_position", quad_vbo_, VertexAttributeFormat::kFloat3, offsetof(BlitVertex, x), sizeof(BlitVertex));
+@@ -229,6 +197,44 @@ void BlitRectPass::graphics(Rhi& rhi)
+ 		rhi.set_uniform("u_sampler0_size", sampler0_size);
+ 		break;
+ 	}
++	switch (blit_mode_)
++	{
++	case BlitRectPass::BlitMode::kSharpBilinear:
++	case BlitRectPass::BlitMode::kSoft:
++		// These shaders scale their sampling footprint in OUTPUT pixels so
++		// each mode keeps a distinct feel even on a 1:1 native-res blit.
++		rhi.set_uniform("u_output_size", glm::vec2(output_position_.w, output_position_.h));
++		break;
++	default:
++		break;
++	}
++	switch (blit_mode_)
++	{
++	case BlitRectPass::BlitMode::kCrt:
++	case BlitRectPass::BlitMode::kCrtSharp:
++	{
++		// The strength dial ships to the shader INVERTED, as a fade toward
++		// the clean picture: an unset uniform reads 0.0 in GL, so a binary
++		// that predates the dial still renders the full effect. A live
++		// headset session reads its own dial - this pass also feeds the
++		// theater panel, the HUD quad and the mirror there, and a mask
++		// that reads right on a monitor is far too loud across the eyes.
++		const INT32 strength = vr_is_active()
++			? cv_vr_effectstrength.value
++			: cv_scr_effectstrength.value;
++		// .y is a LEVEL: 0 keeps everything, 1 drops the vertical grille, 2
++		// drops the scanlines too. This pass feeds the HUD quad, the theater
++		// panel and the mirror - surfaces whose mask is baked into a texture
++		// and then hung in the room, so it rides the surface and holds still
++		// against its own content. 1 is right here. Only the eye image needs
++		// 2 (see vr_fx_draw), because there the world slides under the mask.
++		rhi.set_uniform("u_effect_fade",
++			glm::vec2(1.f - ((float)strength / 100.f), vr_is_active() ? 1.f : 0.f));
++		break;
++	}
++	default:
++		break;
++	}
+ 	rhi.set_sampler("s_sampler0", 0, texture_);
+ 	switch (blit_mode_)
+ 	{

@@ -1,0 +1,44 @@
+diff --git a/src/hardware/hw_clip.cpp b/src/hardware/hw_clip.cpp
+index 3ea21c16a..67a6959c3 100644
+--- a/src/hardware/hw_clip.cpp
++++ b/src/hardware/hw_clip.cpp
+@@ -78,6 +78,8 @@
+ #include "../tables.h"
+ #include "r_opengl/r_opengl.h"
+ #include "../r_main.h"	// for R_FOV
++#include "../vr/vr.h"	// for the stereo culling fov
++#include "../p_local.h"	// P_FlatViewMode (flat FP/diorama cull opens up)
+ 
+ #ifdef HAVE_SPHEREFRUSTRUM
+ static GLdouble viewMatrix[16];
+@@ -342,6 +344,30 @@ angle_t gld_FrustumAngle(angle_t tiltangle)
+ 	if (abs((signed)tiltangle) > 46 * ANG1)
+ 		return 0xffffffff;
+ 
++	// VR eye pass: the wedge must cover the eye frustum plus the head's
++	// free-look offset from the game camera, not the flat game fov.
++	// vr_cull_fov_deg() folds both in (with margin); 360 means cull nothing.
++	if (vr_stereo_active())
++	{
++		const float vrfull = vr_cull_fov_deg();
++		if (vrfull >= 359.0f)
++			return 0xffffffff;
++		floatangle = 2.0f + tilt + vrfull * 0.5f;
++		a1 = ANG1 * (int)floatangle;
++		if (a1 >= ANGLE_180)
++			return 0xffffffff;
++		return a1;
++	}
++
++	// Flat first person and diorama walk the same road the eye pass did:
++	// the camera yaws instantly with the kart (or hangs high, pitched
++	// down, which the yaw-wedge math mishandles), and the speed-widened
++	// fov outruns the wedge sized for the smoothed chase view - walls the
++	// view can actually see get culled and the world pops in. Same answer
++	// as VR: swallow the geometry, keep the correctness.
++	if (P_FlatViewMode() != VR_VIEW_THIRD_PERSON)
++		return 0xffffffff;
++
+ 	// ok, this is a gross hack that barely works...
+ 	// but at least it doesn't overestimate too much...
+ 	floatangle = 2.0f + (45.0f + (tilt / 1.9f)) * (float)render_fov * 48.0f / render_multiplier / 90.0f;

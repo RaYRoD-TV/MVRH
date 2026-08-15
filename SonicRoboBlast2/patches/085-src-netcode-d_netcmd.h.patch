@@ -1,0 +1,12 @@
+diff --git a/src/netcode/d_netcmd.h b/src/netcode/d_netcmd.h
+index c11575575..f84737144 100644
+--- a/src/netcode/d_netcmd.h
++++ b/src/netcode/d_netcmd.h
+@@ -95,6 +95,7 @@ extern consvar_t cv_overtime;
+ extern consvar_t cv_startinglives;
+ 
+ extern consvar_t cv_gravity, cv_movebob;
++extern consvar_t cv_thinkless;
+ extern consvar_t cv_tailspickup;
+ 
+ // for f_finale.c

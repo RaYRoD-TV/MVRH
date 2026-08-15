@@ -1,0 +1,17 @@
+diff --git a/src/sdl/CMakeLists.txt b/src/sdl/CMakeLists.txt
+index ac2b49281..ec649a7d4 100644
+--- a/src/sdl/CMakeLists.txt
++++ b/src/sdl/CMakeLists.txt
+@@ -22,6 +22,12 @@ if("${CMAKE_SYSTEM_NAME}" MATCHES Windows)
+ 		../win32/Srb2win.rc)
+ endif()
+ 
++if(ANDROID)
++	target_sources(SRB2SDL2 PRIVATE
++		i_android.c
++		i_android.h)
++endif()
++
+ if("${CMAKE_SYSTEM_NAME}" MATCHES Darwin)
+ 	set(MACOSX_BUNDLE_ICON_FILE Srb2mac.icns)
+ 	set_source_files_properties(macosx/Srb2mac.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")

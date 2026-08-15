@@ -1,0 +1,157 @@
+diff --git a/src/doomdef.h b/src/doomdef.h
+index 81ab7bbfb..37b22fc8d 100644
+--- a/src/doomdef.h
++++ b/src/doomdef.h
+@@ -139,9 +139,28 @@ extern FILE *logstream;
+ extern char logfilename[1024];
+ #endif
+ 
++#if defined(LOGMESSAGES) && (defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined(__ANDROID__)
++#define LOGSYMLINK
++#endif
++
+ /* A mod name to further distinguish versions. */
+ #define SRB2APPLICATION "SRB2"
+ 
++// Defines that the game is being compiled for a mobile OS
++#if defined(__ANDROID__) || defined(__IPHONEOS__) || defined(__TVOS__)
++#define MOBILE_PLATFORM
++#endif
++
++// TV support (Android TV would need the remote-key input layer; the Quest
++// build is plain Android and does not define this)
++#if defined(__TVOS__)
++#define TV_PLATFORM
++#endif
++
++#if defined(HAVE_GLES2) || !defined(HAVE_GLES)
++#define HAVE_GL_FRAMEBUFFER
++#endif
++
+ //#define DEVELOP // Disable this for release builds to remove excessive cheat commands and enable MD5 checking and stuff, all in one go. :3
+ #ifdef DEVELOP
+ #define VERSIONSTRING "Development EXE"
+@@ -170,6 +189,21 @@ extern char logfilename[1024];
+ // Comment or uncomment this as necessary.
+ //#define USE_PATCH_DTA
+ 
++// Load Android assets
++#if defined(__ANDROID__)
++#define UNPACK_FILES
++#define USE_ANDROID_PK3
++#endif
++
++#ifdef USE_ANDROID_PK3
++#define ANDROID_PK3_FILENAME "android.pk3"
++#endif
++
++// Virtual keyboard
++#if defined(MOBILE_PLATFORM) && defined(TOUCHINPUTS)
++#define VIRTUAL_KEYBOARD
++#endif
++
+ // Enforce a limit of loaded WAD files.
+ //#define ENFORCE_WAD_LIMIT
+ 
+@@ -200,8 +234,7 @@ extern char logfilename[1024];
+ "You will not be able to connect to\n"\
+ "the Master Server until you update to\n"\
+ "the newest version of the game.\n"\
+-"\n"\
+-"(Press a key)\n"
++"\n%s"
+ 
+ // The string used in the I_Error alert upon trying to host through command line parameters.
+ // Generally less filled with newlines, since Windows gives you lots more room to work with.
+@@ -227,7 +260,7 @@ extern char logfilename[1024];
+ // to an increment in MODVERSION. This might never happen in practice.
+ // If MODVERSION increases, set MINOREXECVERSION to 0.
+ #define MAJOREXECVERSION MODVERSION
+-#define MINOREXECVERSION 0
++#define MINOREXECVERSION 7 // 1: vr_culling Off -> On; 2: vr_menudim 4 -> 8; 3: gr_paletterendering On -> Off; 4: pad cam toggle unbound + crosshair/water defaults; 5: vr_thirddist 100 -> 115; 6: vr_culling back to On (Off tanked VR framerate); 7: screen effect default -> Megatron Shadow at intensity 1
+ // (It would have been nice to use VERSION and SUBVERSION but those are zero'd out for DEVELOP builds)
+ 
+ // Macros
+@@ -495,6 +528,10 @@ enum {
+ #define DEFAULTDIR "srb2"
+ #endif
+ 
++#if defined(__ANDROID__)
++#define SHAREDSTORAGEFOLDER "Sonic Robo Blast 2"
++#endif
++
+ #include "g_state.h"
+ 
+ // commonly used routines - moved here for include convenience
+@@ -537,8 +574,18 @@ void CONS_Debug(INT32 debugflags, const char *fmt, ...) FUNCDEBUG;
+ 
+ // Things that used to be in dstrings.h
+ #define SAVEGAMENAME "srb2sav"
+-extern char savegamename[256];
+-extern char liveeventbackup[256];
++#define SAVEGAMENAMELEN 256
++
++extern char savegamename[2][SAVEGAMENAMELEN];
++extern char liveeventbackup[2][SAVEGAMENAMELEN];
++
++extern char *cursavegamename;
++extern char *curliveeventbackup;
++
++#if defined(__ANDROID__)
++#define USE_GAMEDATA_PATHS
++#define USE_SAVEGAME_PATHS
++#endif
+ 
+ // m_misc.h
+ #ifdef GETTEXT
+@@ -551,6 +598,18 @@ extern char liveeventbackup[256];
+ void M_StartupLocale(void);
+ void *M_Memcpy(void* dest, const void* src, size_t n);
+ char *va(const char *format, ...) FUNCPRINTF;
++
++#if defined(__ANDROID__)
++#include <ndk_strings.h>
++#define M_sprintf Android_sprintf
++#define M_snprintf Android_snprintf
++#define M_vsnprintf Android_vsnprintf
++#else
++#define M_sprintf sprintf
++#define M_snprintf snprintf
++#define M_vsnprintf vsnprintf
++#endif
++
+ char *M_GetToken(const char *inputString);
+ void M_UnGetToken(void);
+ void M_TokenizerOpen(const char *inputString, size_t len);
+@@ -690,13 +749,14 @@ extern int
+ ///	\note	XMOD port.
+ //#define WEIGHTEDRECYCLER
+ 
+-///	Allow loading of savegames between different versions of the game.
+-///	\note	XMOD port.
+-///	    	Most modifications should probably enable this.
+-//#define SAVEGAME_OTHERVERSIONS
++/// Splash screen
++#ifdef MOBILE_PLATFORM
++#define SPLASH_SCREEN
++#endif
+ 
+-///	Shuffle's incomplete OpenGL sorting code.
+-#define SHUFFLE // This has nothing to do with sorting, why was it disabled?
++/// Breadcrumb navigation
++/// https://developer.android.com/training/tv/start/controllers#back-button
++#define BREADCRUMB
+ 
+ ///	Allow the use of the SOC RESETINFO command.
+ ///	\note	Builds that are tight on memory should disable this.
+@@ -714,6 +774,10 @@ extern int
+ /// OpenGL shaders
+ #define GL_SHADERS
+ 
++#if defined(HAVE_GLES2) && !defined(GL_SHADERS)
++#define GL_SHADERS
++#endif
++
+ /// Handle touching sector specials in P_PlayerAfterThink instead of P_PlayerThink.
+ /// \note   Required for proper collision with moving sloped surfaces that have sector specials on them.
+ #define SECTORSPECIALSAFTERTHINK

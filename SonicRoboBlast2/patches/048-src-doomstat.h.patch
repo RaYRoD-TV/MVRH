@@ -1,0 +1,12 @@
+diff --git a/src/doomstat.h b/src/doomstat.h
+index b5b298440..ad45f43f2 100644
+--- a/src/doomstat.h
++++ b/src/doomstat.h
+@@ -641,6 +641,7 @@ extern consvar_t cv_timetic; // display high resolution timer
+ extern consvar_t cv_powerupdisplay; // display powerups
+ extern consvar_t cv_showinput; // display input viewer outside of time attack
+ extern consvar_t cv_showinputjoy; // display joystick in time attack
++extern consvar_t cv_liveshudpos; // lives HUD position
+ extern consvar_t cv_forceskin; // force clients to use the server's skin
+ extern consvar_t cv_downloading; // allow clients to downloading WADs.
+ extern ticcmd_t netcmds[BACKUPTICS][MAXPLAYERS];

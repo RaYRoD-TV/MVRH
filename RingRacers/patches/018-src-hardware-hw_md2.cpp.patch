@@ -1,0 +1,51 @@
+diff --git a/src/hardware/hw_md2.cpp b/src/hardware/hw_md2.cpp
+index beedbc80b..fdf8e7fcd 100644
+--- a/src/hardware/hw_md2.cpp
++++ b/src/hardware/hw_md2.cpp
+@@ -44,6 +44,7 @@
+ #include "hw_model.h"
+ 
+ #include "hw_main.h"
++#include "../vr/vr.h" // where the eyes are, for models that turn to face them
+ #include "../v_video.h"
+ 
+ // SRB2Kart
+@@ -669,11 +670,11 @@ void HWR_AddSpriteModel(size_t spritenum) // For sprites that were added after s
+ 
+ 	// Read the models.dat file
+ 	//Filename checking fixed ~Monster Iestyn and Golden
+-	f = fopen(va("%s" PATHSEP" %s", srb2home, "models.dat"), "rt");
++	f = fopen(va("%s" PATHSEP "%s", srb2home, "models.dat"), "rt");
+ 
+ 	if (!f)
+ 	{
+-		f = fopen(va("%s" PATHSEP" %s", srb2path, "models.dat"), "rt");
++		f = fopen(va("%s" PATHSEP "%s", srb2path, "models.dat"), "rt");
+ 		if (!f)
+ 		{
+ 			CONS_Printf("%s %s\n", M_GetText("Error while loading models.dat:"), strerror(errno));
+@@ -1670,7 +1671,23 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
+ 		}
+ 		else
+ 		{
+-			const fixed_t anglef = AngleFixed((R_PointToAngle(interp.x, interp.y))-ANGLE_180);
++			// A model standing in for a sprite that has no rotations is
++			// turned to FACE THE VIEWER. That viewer is the chase camera,
++			// and in VR the eyes are not there - in first person they sit a
++			// whole chase length up the track, so a ring a few strides away
++			// gets turned toward a point well behind you and you see the
++			// torus edge-on: a gold bar instead of a ring, warping as you
++			// move. Turn it toward where the eyes actually are.
++			fixed_t fromx = viewx, fromy = viewy;
++			float eyeoff[3];
++
++			if (vr_eye_world_offset(eyeoff))
++			{
++				fromx += FLOAT_TO_FIXED(eyeoff[0]);
++				fromy += FLOAT_TO_FIXED(eyeoff[1]);
++			}
++
++			const fixed_t anglef = AngleFixed((R_PointToAngle2(fromx, fromy, interp.x, interp.y))-ANGLE_180);
+ 			p.angley = FIXED_TO_FLOAT(anglef);
+ 		}
+ 

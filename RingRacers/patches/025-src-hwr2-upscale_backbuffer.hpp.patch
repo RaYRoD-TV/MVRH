@@ -1,0 +1,25 @@
+diff --git a/src/hwr2/upscale_backbuffer.hpp b/src/hwr2/upscale_backbuffer.hpp
+index fe0569d3e..35832d9fb 100644
+--- a/src/hwr2/upscale_backbuffer.hpp
++++ b/src/hwr2/upscale_backbuffer.hpp
+@@ -20,6 +20,7 @@ class UpscaleBackbuffer
+ {
+ 	rhi::Handle<rhi::Texture> color_;
+ 	rhi::Handle<rhi::Renderbuffer> depth_;
++	bool transparent_ = false;
+ 
+ public:
+ 	UpscaleBackbuffer();
+@@ -30,7 +31,11 @@ public:
+ 	UpscaleBackbuffer& operator=(const UpscaleBackbuffer&) = delete;
+ 	UpscaleBackbuffer& operator=(UpscaleBackbuffer&&);
+ 
+-	void begin_pass(rhi::Rhi& rhi);
++	// transparent: back the pass with an RGBA target cleared to transparent
++	// black each frame, so 2D draws leave real coverage in the alpha channel
++	// (the VR HUD overlay composites from it). Default keeps the persistent
++	// RGB target the flat game has always used.
++	void begin_pass(rhi::Rhi& rhi, bool transparent = false);
+ 	rhi::Handle<rhi::Texture> color() const noexcept { return color_; }
+ };
+ 

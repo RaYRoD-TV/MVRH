@@ -1,0 +1,78 @@
+diff --git a/src/m_cond.c b/src/m_cond.c
+index ef991c07e..8cd5869ce 100644
+--- a/src/m_cond.c
++++ b/src/m_cond.c
+@@ -14,8 +14,10 @@
+ 
+ #include "m_cond.h"
+ #include "m_random.h" // M_RandomKey
++#include "m_argv.h" // M_CheckParm
+ #include "doomstat.h"
+ #include "z_zone.h"
++#include "vr/vr.h" // vr_is_requested
+ 
+ #include "hu_stuff.h" // CEcho
+ #include "v_video.h" // video flags
+@@ -1286,6 +1288,53 @@ static void M_PrecacheLevelLocks(void)
+ 	}
+ }
+ 
++// The VR build opens the whole game up front on every load - no Goner Setup
++// (the forced Profile Card / PIN step), no tutorial gate, every unlockable -
++// whether or not a headset actually answered this launch; a sleeping or
++// absent HMD still counts as the VR build, and opening must be seamless.
++// Flat builds get the same via -unlockall on the command line. Mirrors the
++// fully-unlocked state the devmode password sets in m_pw.cpp, so it's a save
++// layout the game already supports. Deliberately does NOT touch usedCheats -
++// play and gamedata saving stay completely normal.
++static void M_UnlockAllFromCommandLine(void)
++{
++	INT32 i, count = 0;
++
++#ifndef ENABLE_VR
++	if (!M_CheckParm("-unlockall"))
++		return;
++#endif
++
++	for (i = 0; i < MAXUNLOCKABLES; i++)
++	{
++		if (!unlockables[i].conditionset)
++			continue;
++
++		gamedata->unlocked[i] = true;
++		gamedata->unlockpending[i] = false;
++		count++;
++	}
++
++	// Reveal hidden levels too, same as the devmode password.
++	for (i = 0; i < nummapheaders; i++)
++	{
++		if (!mapheaderinfo[i])
++			continue;
++
++		mapheaderinfo[i]->records.mapvisited |= MV_MAX;
++	}
++
++	// Skip the forced first-boot sequence, the tutorial gate,
++	// and the one-shot Sealed Star alert.
++	gamedata->gonerlevel = GDGONER_DONE;
++	gamedata->sealedswapalerted = true;
++	gamedata->enteredtutorialchallenge = true;
++	gamedata->finishedtutorialchallenge = true;
++	gamedata->tutorialdone = true;
++
++	CONS_Printf("Unlockall: goner setup skipped, %d unlockables unlocked\n", count);
++}
++
+ void M_FinaliseGameData(void)
+ {
+ 	//M_PopulateChallengeGrid(); -- This can be done lazily when we actually need it
+@@ -1308,6 +1357,8 @@ void M_FinaliseGameData(void)
+ 
+ 	// Silent update unlockables in case they're out of sync with conditions
+ 	M_UpdateUnlockablesAndExtraEmblems(false, true);
++
++	M_UnlockAllFromCommandLine();
+ }
+ 
+ void M_SetNetUnlocked(void)

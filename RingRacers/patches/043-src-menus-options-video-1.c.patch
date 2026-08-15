@@ -1,0 +1,48 @@
+diff --git a/src/menus/options-video-1.c b/src/menus/options-video-1.c
+index 39bccb256..56dc23b5d 100644
+--- a/src/menus/options-video-1.c
++++ b/src/menus/options-video-1.c
+@@ -12,6 +12,7 @@
+ #include "../k_menu.h"
+ #include "../v_video.h" // cv_globalgamma
+ #include "../r_fps.h" // fps cvars
++#include "../vr/vr.h" // vr_is_active
+ 
+ // options menu
+ menuitem_t OPTIONS_Video[] =
+@@ -36,6 +37,9 @@ menuitem_t OPTIONS_Video[] =
+ 
+ 	{IT_STRING | IT_CVAR, "Screen Effect", "Uses a special effect when displaying the game.",
+ 		NULL, {.cvar = &cv_scr_effect}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "CRT Strength", "How much of the CRT look lands. Only the CRT effects listen.",
++		NULL, {.cvar = &cv_scr_effectstrength}, 0, 0},
+ 		
+ 	{IT_STRING | IT_SUBMENU, "Color Profile...", "Adjust the color profile of the game's display.",
+ 		NULL, {.submenu = &OPTIONS_VideoColorProfileDef}, 0, 0},
+@@ -49,8 +53,25 @@ menuitem_t OPTIONS_Video[] =
+ 	{IT_STRING | IT_SUBMENU, "Advanced...", "Advanced performance options and experimental rendering features.",
+ 		NULL, {.submenu = &OPTIONS_VideoAdvancedDef}, 0, 0},
+ 
++	// Keep this item last: M_RefreshVideoVROptions trims it off the end of
++	// the menu whenever a VR session isn't running. Routed through
++	// M_VROptions (not IT_SUBMENU) so prevMenu refreshes on every entry -
++	// the pause menu's VR shortcut retargets it at itself otherwise.
++	{IT_STRING | IT_CALL, "VR Options...", "Adjust the headset view, comfort and HUD settings.",
++		NULL, {.routine = M_VROptions}, 0, 0},
++
+ };
+ 
++void M_RefreshVideoVROptions(void)
++{
++	// The VR page only exists while the headset session is live; the flat
++	// game hides it entirely (the same numitems trick that
++	// M_RefreshAdvancedVideoOptions plays with the legacy GL block).
++	OPTIONS_VideoDef.numitems = sizeof (OPTIONS_Video) / sizeof (menuitem_t);
++	if (!vr_is_active())
++		OPTIONS_VideoDef.numitems--;
++}
++
+ menu_t OPTIONS_VideoDef = {
+ 	sizeof (OPTIONS_Video) / sizeof (menuitem_t),
+ 	&OPTIONS_MainDef,

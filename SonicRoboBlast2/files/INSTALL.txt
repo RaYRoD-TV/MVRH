@@ -1,0 +1,33 @@
+SRB2-VR -- Sonic Robo Blast 2 in OpenXR
+=======================================
+
+INSTALL -- one step
+Got the FULL zip (SRB2-VR-full-win64.zip)? Unzip it anywhere and run
+srb2win.exe. That's the whole install -- the game and its assets are included.
+
+Got the small PATCH zip (SRB2-VR-win64.zip)? Copy its files into an existing
+SRB2 v2.2.15 folder (from https://www.srb2.org/download/), overwriting
+srb2win.exe, then run srb2win.exe.
+
+PLAY
+- Headset on (SteamVR, Virtual Desktop/VDXR, Meta or Pimax OpenXR running):
+  the game detects it, switches to VR and boots straight to the menu on a
+  floating screen in the headset.
+- No headset: the game runs flat, exactly like stock SRB2.
+
+CONTROLS (VR controllers)
+- Left stick .......... move          - A / right trigger ... jump / accept
+- Right stick ......... turn          - B / left trigger .... spin / back
+- Either stick ........ menu d-pad    - Y / menu button ..... game menu
+- Left stick click .... re-center the floating screen
+- Right stick click ... first/third person view
+Gamepad, mouse and keyboard all still work.
+
+OPTIONS
+VR Options lives right on the pause menu: world scale, screen distance/size,
+HUD toggle + opacity, recenter, reset to defaults -- all applied live.
+Console: vr_mode, vr_scale, vr_recenter.
+
+SOURCE
+https://github.com/RaYRoD-TV/SRB2-VR -- GPL v2, same as SRB2.
+Sonic Robo Blast 2 is by Sonic Team Junior (https://srb2.org/).

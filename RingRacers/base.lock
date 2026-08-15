@@ -1,0 +1,4 @@
+name=Dr. Robotnik's Ring Racers VR
+upstream=https://github.com/KartKrewDev/RingRacers.git
+vanilla=95cdf5eb6c4b3c02e0a03e88a05c65c1ee9d46f9
+vanillaRef=origin/master

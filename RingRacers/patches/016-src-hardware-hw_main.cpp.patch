@@ -1,0 +1,1244 @@
+diff --git a/src/hardware/hw_main.cpp b/src/hardware/hw_main.cpp
+index c1a5baa24..2b70b2bed 100644
+--- a/src/hardware/hw_main.cpp
++++ b/src/hardware/hw_main.cpp
+@@ -46,9 +46,43 @@
+ #include "hw_md2.h"
+ 
+ // SRB2Kart
++#include "../k_hazard.h" // K_HazardExposure (the heat cast)
+ #include "../k_hitlag.h" // HITLAGJITTERS
+ #include "../r_fps.h"
+ #include "../r_plane.h" // R_FlatDimensionsFromLumpSize
++#include "../vr/vr.h" // stereo eye pass markers
++
++extern "C" consvar_t cv_vr_fp_shadow;
++extern "C" consvar_t cv_vr_shadowlift;
++extern "C" consvar_t cv_vr_shadowinterp;
++extern "C" consvar_t cv_vr_shadowtest;
++
++// Diagnostic rung 1: ground art drawn as a bare quad, no texture. Everything
++// else about it - corners, depth bias, blend, which frame it is built from -
++// stays exactly as it ships. Answers the question eleven attempted fixes all
++// guessed at instead of asking: is the defect in the SHAPE or in the PIXELS?
++static inline boolean vr_shadow_untextured(void)
++{
++	return vr_stereo_active() && cv_vr_shadowtest.value == 1;
++}
++
++// Diagnostic rung 2: take every stereo-only difference back off the quad, so
++// what renders is what the flat game renders. If the smear survives THIS, the
++// quad and its depth are exonerated outright and the cause has to be in how VR
++// presents an identical quad - which is a different half of the search.
++static inline boolean vr_shadow_flatparity(void)
++{
++	return vr_stereo_active() && cv_vr_shadowtest.value == 2;
++}
++
++// How far ground art floats above the ground in stereo, in hundredths of a
++// world unit. Live so the value can be swept in the headset against the thing
++// it trades off: too low and coplanar art z-fights per eye, too high and it
++// slides across the surface it belongs to whenever you move.
++static inline float vr_shadow_lift(void)
++{
++	return (float)cv_vr_shadowlift.value / 100.0f;
++}
+ 
+ /// FINALLY some real clipping that doesn't make walls dissappear AND speeds the game up
+ /// (that was the original comment from SRB2CB, sadly it is a lie and actually slows game down)
+@@ -151,9 +185,31 @@ FTransform atransform;
+ // duplicates of the main code, set after R_SetupFrame() passed them into sharedstruct,
+ // copied here for local use
+ static fixed_t dup_viewx, dup_viewy, dup_viewz;
++
++// Where the EYES are, which is what plane visibility and plane lighting
++// actually want to know: a floor is drawn only when the viewer is above it.
++// Flat and in third person that is the camera, but the diorama parks the eyes
++// well above it and first person lifts them to the driver's head, a whole
++// chase length up the track - so a floor lying between camera and eye gets
++// backface-culled and blinks out, then pops in the moment the camera climbs
++// past it too.
++//
++// The X and Y matter as much as the Z. That backface test is the plane
++// equation evaluated at the viewer: the sector's slope is sampled at the
++// viewer's position and compared against the viewer's height, and BOTH have to
++// be the same viewer or the test weighs one point's floor against another
++// point's head. On any sloped sector the camera sits at a different slope
++// height than the eye - a chase length is a hundred-odd units of run, which on
++// a steep ramp is more height than the driver's head clears - and the ground in
++// front of you culls away. (Flat sectors hide this: their "height at the
++// viewer" is the same everywhere, so a mismatched pair still answers
++// correctly. That is why moving only the Z left the holes behind.)
++static fixed_t dup_eyex, dup_eyey, dup_eyez;
+ static angle_t dup_viewangle;
+ 
++
+ static float gl_viewx, gl_viewy, gl_viewz;
++static float gl_eyex, gl_eyey, gl_eyez;
+ float gl_viewsin, gl_viewcos;
+ 
+ // Maybe not necessary with the new T&L code (needs to be checked!)
+@@ -648,12 +704,15 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
+ 					vx = (horizonpts[0].x - gl_viewx) * farrenderdist / renderdist + gl_viewx;
+ 					vy = (horizonpts[0].z - gl_viewy) * farrenderdist / renderdist + gl_viewy;
+ 					SETUP3DVERT((&horizonpts[5]), vx, vy);
+-					horizonpts[5].y = gl_viewz;
++					// A horizon line is the fake plane that runs out to eye
++					// level: at the camera's height instead it sits low and the
++					// sea meets the sky in the wrong place.
++					horizonpts[5].y = gl_eyez;
+ 
+ 					vx = (horizonpts[3].x - gl_viewx) * farrenderdist / renderdist + gl_viewx;
+ 					vy = (horizonpts[3].z - gl_viewy) * farrenderdist / renderdist + gl_viewy;
+ 					SETUP3DVERT((&horizonpts[4]), vx, vy);
+-					horizonpts[4].y = gl_viewz;
++					horizonpts[4].y = gl_eyez;
+ 
+ 					// Draw
+ 					HWR_ProcessPolygon(&Surf, horizonpts, 6, PolyFlags, shader, true);
+@@ -2396,9 +2455,11 @@ static void HWR_AddPolyObjectPlanes(void)
+ 		if (po_ptrs[i]->translucency >= NUMTRANSMAPS)
+ 			continue;
+ 
++		// Same backface rule as the sector planes above, so a polyobject floor
++		// can't be the one thing in the room still asking the chase camera.
+ 		if (polyobjsector->floorheight <= gl_frontsector->ceilingheight
+ 			&& polyobjsector->floorheight >= gl_frontsector->floorheight
+-			&& (viewz < polyobjsector->floorheight))
++			&& (dup_eyez < polyobjsector->floorheight))
+ 		{
+ 			light = R_GetPlaneLight(gl_frontsector, polyobjsector->floorheight, true);
+ 			if (po_ptrs[i]->translucency > 0)
+@@ -2421,7 +2482,7 @@ static void HWR_AddPolyObjectPlanes(void)
+ 
+ 		if (polyobjsector->ceilingheight >= gl_frontsector->floorheight
+ 			&& polyobjsector->ceilingheight <= gl_frontsector->ceilingheight
+-			&& (viewz > polyobjsector->ceilingheight))
++			&& (dup_eyez > polyobjsector->ceilingheight))
+ 		{
+ 			light = R_GetPlaneLight(gl_frontsector, polyobjsector->ceilingheight, true);
+ 			if (po_ptrs[i]->translucency > 0)
+@@ -2519,8 +2580,10 @@ static void HWR_Subsector(size_t num)
+ 	//gl_cursectorlight.alpha = light;
+ 
+ // ----- end special tricks -----
+-	cullFloorHeight   = P_GetSectorFloorZAt  (gl_frontsector, viewx, viewy);
+-	cullCeilingHeight = P_GetSectorCeilingZAt(gl_frontsector, viewx, viewy);
++	// Sampled where the EYES are, to match the dup_eyez they are weighed
++	// against below - see the dup_eyex note at the top of this file.
++	cullFloorHeight   = P_GetSectorFloorZAt  (gl_frontsector, dup_eyex, dup_eyey);
++	cullCeilingHeight = P_GetSectorCeilingZAt(gl_frontsector, dup_eyex, dup_eyey);
+ 	locFloorHeight    = P_GetSectorFloorZAt  (gl_frontsector, gl_frontsector->soundorg.x, gl_frontsector->soundorg.y);
+ 	locCeilingHeight  = P_GetSectorCeilingZAt(gl_frontsector, gl_frontsector->soundorg.x, gl_frontsector->soundorg.y);
+ 
+@@ -2566,7 +2629,7 @@ static void HWR_Subsector(size_t num)
+ 	// render floor ?
+ #ifdef DOPLANES
+ 	// yeah, easy backface cull! :)
+-	if (cullFloorHeight < dup_viewz)
++	if (cullFloorHeight < dup_eyez)
+ 	{
+ 		if (gl_frontsector->floorpic != skyflatnum)
+ 		{
+@@ -2589,7 +2652,7 @@ static void HWR_Subsector(size_t num)
+ 		}
+ 	}
+ 
+-	if (cullCeilingHeight > dup_viewz)
++	if (cullCeilingHeight > dup_eyez)
+ 	{
+ 		if (gl_frontsector->ceilingpic != skyflatnum)
+ 		{
+@@ -2628,7 +2691,7 @@ static void HWR_Subsector(size_t num)
+ 			fixed_t cullHeight, centerHeight;
+ 
+             // bottom plane
+-			cullHeight   = P_GetFFloorBottomZAt(rover, viewx, viewy);
++			cullHeight   = P_GetFFloorBottomZAt(rover, dup_eyex, dup_eyey);
+ 			centerHeight = P_GetFFloorBottomZAt(rover, gl_frontsector->soundorg.x, gl_frontsector->soundorg.y);
+ 
+ 			if (!(rover->fofflags & FOF_EXISTS) || !(rover->fofflags & FOF_RENDERPLANES))
+@@ -2638,14 +2701,14 @@ static void HWR_Subsector(size_t num)
+ 
+ 			if (centerHeight <= locCeilingHeight &&
+ 			    centerHeight >= locFloorHeight &&
+-			    ((dup_viewz < cullHeight && (rover->fofflags & FOF_BOTHPLANES || !(rover->fofflags & FOF_INVERTPLANES))) ||
+-			     (dup_viewz > cullHeight && (rover->fofflags & FOF_BOTHPLANES || rover->fofflags & FOF_INVERTPLANES))))
++			    ((dup_eyez < cullHeight && (rover->fofflags & FOF_BOTHPLANES || !(rover->fofflags & FOF_INVERTPLANES))) ||
++			     (dup_eyez > cullHeight && (rover->fofflags & FOF_BOTHPLANES || rover->fofflags & FOF_INVERTPLANES))))
+ 			{
+ 				if (rover->fofflags & FOF_FOG)
+ 				{
+ 					UINT8 alpha;
+ 
+-					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_viewz < cullHeight ? true : false);
++					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_eyez < cullHeight ? true : false);
+ 					alpha = HWR_FogBlockAlpha(*gl_frontsector->lightlist[light].lightlevel, rover->master->frontsector->extra_colormap);
+ 
+ 					HWR_AddTransparentFloor(0,
+@@ -2661,7 +2724,7 @@ static void HWR_Subsector(size_t num)
+ 				{
+ 					FBITFIELD blendmode = HWR_GetBlendModeFlag(rover->blend) | HWR_RippleBlend(gl_frontsector, rover, false);
+ 
+-					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_viewz < cullHeight ? true : false);
++					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_eyez < cullHeight ? true : false);
+ 
+ 					HWR_AddTransparentFloor(&levelflats[*rover->bottompic],
+ 					                       &extrasubsectors[num],
+@@ -2674,26 +2737,26 @@ static void HWR_Subsector(size_t num)
+ 				else
+ 				{
+ 					HWR_GetLevelFlat(&levelflats[*rover->bottompic], R_NoEncore(gl_frontsector, &levelflats[*rover->bottompic], false));
+-					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_viewz < cullHeight ? true : false);
++					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_eyez < cullHeight ? true : false);
+ 					HWR_RenderPlane(sub, &extrasubsectors[num], false, *rover->bottomheight, HWR_RippleBlend(gl_frontsector, rover, false) | PF_Occlude, *gl_frontsector->lightlist[light].lightlevel, &levelflats[*rover->bottompic],
+ 					                rover->master->frontsector, 255, *gl_frontsector->lightlist[light].extra_colormap);
+ 				}
+ 			}
+ 
+ 			// top plane
+-			cullHeight   = P_GetFFloorTopZAt(rover, viewx, viewy);
++			cullHeight   = P_GetFFloorTopZAt(rover, dup_eyex, dup_eyey);
+ 			centerHeight = P_GetFFloorTopZAt(rover, gl_frontsector->soundorg.x, gl_frontsector->soundorg.y);
+ 
+ 			if (centerHeight >= locFloorHeight &&
+ 			    centerHeight <= locCeilingHeight &&
+-			    ((dup_viewz > cullHeight && (rover->fofflags & FOF_BOTHPLANES || !(rover->fofflags & FOF_INVERTPLANES))) ||
+-			     (dup_viewz < cullHeight && (rover->fofflags & FOF_BOTHPLANES || rover->fofflags & FOF_INVERTPLANES))))
++			    ((dup_eyez > cullHeight && (rover->fofflags & FOF_BOTHPLANES || !(rover->fofflags & FOF_INVERTPLANES))) ||
++			     (dup_eyez < cullHeight && (rover->fofflags & FOF_BOTHPLANES || rover->fofflags & FOF_INVERTPLANES))))
+ 			{
+ 				if (rover->fofflags & FOF_FOG)
+ 				{
+ 					UINT8 alpha;
+ 
+-					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_viewz < cullHeight ? true : false);
++					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_eyez < cullHeight ? true : false);
+ 					alpha = HWR_FogBlockAlpha(*gl_frontsector->lightlist[light].lightlevel, rover->master->frontsector->extra_colormap);
+ 
+ 					HWR_AddTransparentFloor(0,
+@@ -2709,7 +2772,7 @@ static void HWR_Subsector(size_t num)
+ 				{
+ 					FBITFIELD blendmode = HWR_GetBlendModeFlag(rover->blend) | HWR_RippleBlend(gl_frontsector, rover, false);
+ 
+-					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_viewz < cullHeight ? true : false);
++					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_eyez < cullHeight ? true : false);
+ 
+ 					HWR_AddTransparentFloor(&levelflats[*rover->toppic],
+ 					                        &extrasubsectors[num],
+@@ -2722,7 +2785,7 @@ static void HWR_Subsector(size_t num)
+ 				else
+ 				{
+ 					HWR_GetLevelFlat(&levelflats[*rover->toppic], R_NoEncore(gl_frontsector, &levelflats[*rover->toppic], true));
+-					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_viewz < cullHeight ? true : false);
++					light = R_GetPlaneLight(gl_frontsector, centerHeight, dup_eyez < cullHeight ? true : false);
+ 					HWR_RenderPlane(sub, &extrasubsectors[num], true, *rover->topheight, HWR_RippleBlend(gl_frontsector, rover, true) | PF_Occlude, *gl_frontsector->lightlist[light].lightlevel, &levelflats[*rover->toppic],
+ 					                  rover->master->frontsector, 255, *gl_frontsector->lightlist[light].extra_colormap);
+ 				}
+@@ -3004,6 +3067,80 @@ static void HWR_ClearSprites(void)
+ 	gl_visspritecount = 0;
+ }
+ 
++// The yaw the composed eye view adds on top of the game camera's. Zero flat,
++// and zero on the panel path. This is where the eyes are LOOKING, which is a
++// different question from where they ARE - the only caller left is the
++// behind-you test, which genuinely wants a gaze direction. Anything that
++// orients an object toward the viewer wants the eye's position instead, and
++// asks HWR_BillboardYaw.
++static angle_t HWR_EyeYawDelta(void)
++{
++	if (!vr_stereo_active())
++		return 0;
++
++	const double turn = (double)vr_billboard_yaw_delta() * (4294967296.0 / 6.283185307179586);
++	return (angle_t)(INT64)turn;
++}
++
++// How far in front of the EYES a world point sits, for the "behind the view
++// plane, throw it away" test.
++//
++// Flat, that is the camera's own plane and this is the depth the caller
++// already worked out. In VR it is not: first person looks out from the kart's
++// head, a whole chase length up the track, and free-look turns the head off
++// the camera's axis in every mode - so things alongside and just behind the
++// kart read as "behind you" and get dropped, then pop back in when the camera
++// catches up. Measured from the eye instead, the same simple rule is right
++// again in every mode.
++//
++// Note the test STAYS. Dropping it in VR (an earlier attempt) projects every
++// sprite in the level, and the vissprite budget is finite - past it sprites
++// silently stop being drawn, so removing one cull made whole objects vanish.
++static float HWR_EyeDepth(float wx, float wy, float camdepth)
++{
++	if (!vr_stereo_active())
++		return camdepth;
++
++	// The eye's forward is the camera's yaw plus whatever the composed view
++	// adds - the kart's heading in first person, plus the head's free-look.
++	// One shared value, so both eyes agree on what is behind them.
++	const angle_t look = viewangle + HWR_EyeYawDelta();
++	const float fc = FIXED_TO_FLOAT(FINECOSINE(look >> ANGLETOFINESHIFT));
++	const float fs = FIXED_TO_FLOAT(FINESINE(look >> ANGLETOFINESHIFT));
++
++	return ((wx - gl_eyex) * fc) + ((wy - gl_eyey) * fs);
++}
++
++// The yaw a billboard should square up to.
++//
++// Flat, every card in the level spans across one shared direction - the way
++// the camera faces - and at a monitor's narrow field of view that is close
++// enough to facing you. A headset's field of view is not narrow. A card at the
++// edge of vision is turned up to fifty degrees away from the eye looking at
++// it, which foreshortens the picture and rakes the card away in depth while
++// the picture painted on it still says "I am a ring, face on". Two depth
++// stories about one object is what reads as cross-eyed, and it is worst on the
++// near, busy things - rings, and racers whose skin has no model.
++//
++// Worse, tying cards to a DIRECTION means anything that swings the camera
++// swings every card in the level with it. The race-start fly-in orbits five
++// hundred and sixty degrees in three seconds; on a monitor the cards turn with
++// the camera and you never notice, but in the headset your head is still, so
++// the whole world's sprites visibly spin in place.
++//
++// So in stereo a card faces the eye POSITION instead: square to the line from
++// the head to that particular sprite. Skew goes to zero everywhere in vision,
++// a camera spin turns nothing, and free-look turns nothing either - the card
++// was already facing you. One shared head position, never a per-eye one, so
++// both eyes still get the same card.
++static angle_t HWR_BillboardYaw(fixed_t wx, fixed_t wy)
++{
++	if (!vr_stereo_active())
++		return viewangle;
++
++	return R_PointToAngle2(dup_eyex, dup_eyey, wx, wy);
++}
++
+ // --------------------------------------------------------------------------
+ // HWR_NewVisSprite
+ // --------------------------------------------------------------------------
+@@ -3134,11 +3271,21 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ 	fixed_t groundz;
+ 	fixed_t slopez;
+ 	pslope_t *groundslope;
++	boolean percorner = false;
+ 
+ 	// uncapped/interpolation
+ 	interpmobjstate_t interp = {0};
+ 
+-	if (R_UsingFrameInterpolation() && !paused)
++	// The pause menu is the one state where these shadows look right in the
++	// headset, and the only thing pausing changes in this function is that the
++	// quad stops being sampled between tics. So in stereo, draw it the way
++	// pause draws it: at the tic position, stepping 35 times a second with the
++	// ground it belongs to instead of gliding smoothly across it. The ground
++	// query below is frozen with it so both halves agree.
++	const boolean freeze = vr_stereo_active() && !cv_vr_shadowinterp.value;
++	r_shadow_freeze_interp = freeze;
++
++	if (R_UsingFrameInterpolation() && !paused && !freeze)
+ 	{
+ 		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+ 	}
+@@ -3151,7 +3298,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ 	if (thing->hitlag > 0 && (thing->eflags & MFE_DAMAGEHITLAG))
+ 	{
+ 		fixed_t jitters = HITLAGJITTERS;
+-		if (R_UsingFrameInterpolation() && !paused)
++		if (R_UsingFrameInterpolation() && !paused && !freeze)
+ 			jitters += (rendertimefrac / HITLAGDIV);
+ 		fixed_t mul = thing->hitlag * jitters;
+ 
+@@ -3172,6 +3319,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ 	interp.z += thing->sprzoff;
+ 
+ 	groundz = R_GetShadowZ(thing, &groundslope);
++	r_shadow_freeze_interp = false; // cleared here so every early return below is safe
+ 
+ 	gpatch = (patch_t *)W_CachePatchName("DSHADOW", PU_SPRITE);
+ 	if (!(gpatch && ((GLPatch_t *)gpatch->hardware)->mipmap->format)) return;
+@@ -3204,26 +3352,90 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ 	shadowVerts[1].z = shadowVerts[2].z = fy - offset;
+ 	shadowVerts[0].z = shadowVerts[3].z = fy + offset;
+ 
+-	for (i = 0; i < 4; i++)
+-	{
+-		float oldx = shadowVerts[i].x;
+-		float oldy = shadowVerts[i].z;
+-		shadowVerts[i].x = fx + ((oldx - fx) * gl_viewcos) - ((oldy - fy) * gl_viewsin);
+-		shadowVerts[i].z = fy + ((oldx - fx) * gl_viewsin) + ((oldy - fy) * gl_viewcos);
+-	}
+-
+-	if (groundslope)
++	// Flat spins the quad to the camera's yaw; the blob is round, so on a
++	// monitor that shows nothing. Stereo skips it under the same law as the
++	// splat angle above: ground art lies STILL. The rotation is shared by
++	// both eyes (viewangle), so it never split the pair - but on a SLOPE the
++	// corner heights resample wherever the spun corners land, and in first
++	// person the camera yaws fast enough mid-corner that the blob visibly
++	// wobbles against the ground it is supposed to be part of.
++	if (!vr_stereo_active() || vr_shadow_flatparity())
+ 	{
+ 		for (i = 0; i < 4; i++)
+ 		{
+-			slopez = P_GetSlopeZAt(groundslope, FLOAT_TO_FIXED(shadowVerts[i].x), FLOAT_TO_FIXED(shadowVerts[i].z));
+-			shadowVerts[i].y = FIXED_TO_FLOAT(slopez) + flip * 0.05f;
++			float oldx = shadowVerts[i].x;
++			float oldy = shadowVerts[i].z;
++			shadowVerts[i].x = fx + ((oldx - fx) * gl_viewcos) - ((oldy - fy) * gl_viewsin);
++			shadowVerts[i].z = fy + ((oldx - fx) * gl_viewsin) + ((oldy - fy) * gl_viewcos);
+ 		}
+ 	}
+-	else
+-	{
+-		for (i = 0; i < 4; i++)
+-			shadowVerts[i].y = FIXED_TO_FLOAT(groundz) + flip * 0.05f;
++
++	// The same coplanar-art rule the floor splats follow: 0.05 units above the
++	// ground is thinner than the per-eye depth error, so in stereo each eye
++	// resolves the z-fight against the floor differently and every drop shadow
++	// reads doubled and smeary. The splat pass already lifts by 0.4; the drop
++	// shadow was the missed sibling.
++	{
++		// A shadow is painted ON the ground, so it must not be lifted OFF it.
++		// The old stereo value floated the quad 0.4 units up to win the depth
++		// test, but the ground ahead of you is seen at a grazing angle in every
++		// VR view mode, and at a grazing angle altitude turns into sideways
++		// travel: the shadow slides across the grass as the angle changes, i.e.
++		// it smears whenever you move and snaps right the moment you stop. Flat
++		// never showed it because 0.05 is eight times smaller on a screen with a
++		// fraction of the angular resolution. Depth bias is the correct tool -
++		// it wins the depth test without moving the art - so the quad now takes
++		// PF_Decal below and keeps the flat height. The knob stays live in case
++		// a map needs more.
++		const float shadowlift = flip *
++			((vr_stereo_active() && !vr_shadow_flatparity()) ? vr_shadow_lift() : 0.05f);
++
++		// The single-plane drape below follows ONE slope - the caster's.
++		// Rolling terrain is many small sloped sectors, and a corner landing
++		// in a neighbouring sector dives under that sector's ground, where
++		// the depth test eats it: from the headset's down-looking first
++		// person the blob reads as a warped, chewed smear. The flat game's
++		// low chase camera only ever sees the blob edge-on, so it never
++		// shows there. In stereo, sample the ground under EACH corner -
++		// except on FOFs (platforms), where the corner sectors' floors are
++		// the wrong surface and the single-plane drape stays right.
++		// The FOF probe must compare like with like. R_GetShadowZ runs its OWN
++		// R_InterpolateMobjState and picks its floor at the INTERPOLATED
++		// position, so the sector floor it is measured against is sampled
++		// there too - and at the subsector the interpolated point actually
++		// lands in, which at kart speed is not always the one the thing's tic
++		// position sits in.
++		if (vr_stereo_active() && !vr_shadow_flatparity()
++			&& !(thing->eflags & MFE_VERTICALFLIP))
++		{
++			const subsector_t *ss = R_PointInSubsector(interp.x, interp.y);
++			const fixed_t secfloor = P_GetSectorFloorZAt(ss->sector, interp.x, interp.y);
++			percorner = (abs(groundz - secfloor) < 4*FRACUNIT);
++		}
++
++		if (percorner)
++		{
++			for (i = 0; i < 4; i++)
++			{
++				const fixed_t cx = FLOAT_TO_FIXED(shadowVerts[i].x);
++				const fixed_t cy = FLOAT_TO_FIXED(shadowVerts[i].z);
++				const subsector_t *ss = R_PointInSubsector(cx, cy);
++				shadowVerts[i].y = FIXED_TO_FLOAT(P_GetSectorFloorZAt(ss->sector, cx, cy)) + shadowlift;
++			}
++		}
++		else if (groundslope)
++		{
++			for (i = 0; i < 4; i++)
++			{
++				slopez = P_GetSlopeZAt(groundslope, FLOAT_TO_FIXED(shadowVerts[i].x), FLOAT_TO_FIXED(shadowVerts[i].z));
++				shadowVerts[i].y = FIXED_TO_FLOAT(slopez) + shadowlift;
++			}
++		}
++		else
++		{
++			for (i = 0; i < 4; i++)
++				shadowVerts[i].y = FIXED_TO_FLOAT(groundz) + shadowlift;
++		}
+ 	}
+ 
+ 	shadowVerts[0].s = shadowVerts[3].s = 0;
+@@ -3260,6 +3472,25 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ 		blendmode |= PF_ColorMapped;
+ 	}
+ 
++	// Depth bias instead of altitude: SetBlend pushes decals by -3/-16 in an eye
++	// pass, which is what keeps a coplanar shadow out of the per-eye z-fight
++	// without floating it off the ground and letting it slide.
++	if (vr_stereo_active() && !vr_shadow_flatparity())
++		blendmode |= PF_Decal;
++
++	// Diagnostic: draw the shadow with no texture at all, so the only thing
++	// left is the quad itself - same corners, same depth bias, same blend.
++	// Ten fixes have now missed this bug, and every one of them assumed which
++	// half it lived in. A solid shape that still smears puts it in the quad's
++	// geometry or its depth; a solid shape that sits perfectly still puts it
++	// in the texture fetch. One look, half the search space gone.
++	if (vr_shadow_untextured())
++	{
++		blendmode &= ~PF_ColorMapped;
++		blendmode |= PF_NoTexture;
++		shader = SHADER_NONE;
++	}
++
+ 	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, blendmode|PF_Modulated, shader, false);
+ }
+ 
+@@ -3303,6 +3534,19 @@ static void HWR_RotateSpritePolyToAim(gl_vissprite_t *spr, FOutVector *wallVerts
+ 		{
+ 			basey = FIXED_TO_FLOAT(interp.z + spr->mobj->height);
+ 		}
++
++		// This leans the card back about its own horizontal axis, so the axis
++		// it leans ALONG has to be the card's own facing - the one the span
++		// was built from - and not the camera's. They used to be the same
++		// thing. In stereo they are not: the span faces this sprite from the
++		// eye (HWR_BillboardYaw) while these two still pointed down the
++		// camera's nose, so the top edge slid one way and the bottom edge
++		// another and the quad stopped being FLAT. A folded card gives the
++		// two eyes triangles lying in different planes - the one shape
++		// binocular vision cannot make sense of at all.
++		const float leancos = FIXED_TO_FLOAT(FINECOSINE(spr->bbyaw >> ANGLETOFINESHIFT));
++		const float leansin = FIXED_TO_FLOAT(FINESINE(spr->bbyaw >> ANGLETOFINESHIFT));
++
+ 		// Rotate sprites to fully billboard with the camera
+ 		// X, Y, AND Z need to be manipulated for the polys to rotate around the
+ 		// origin, because of how the origin setting works I believe that should
+@@ -3310,17 +3554,17 @@ static void HWR_RotateSpritePolyToAim(gl_vissprite_t *spr, FOutVector *wallVerts
+ 		wallVerts[2].y = wallVerts[3].y = (spr->gzt - basey) * gl_viewludsin + basey;
+ 		wallVerts[0].y = wallVerts[1].y = (lowy - basey) * gl_viewludsin + basey;
+ 		// translate back to be around 0 before translating back
+-		wallVerts[3].x += ((spr->gzt - basey) * gl_viewludcos) * gl_viewcos;
+-		wallVerts[2].x += ((spr->gzt - basey) * gl_viewludcos) * gl_viewcos;
++		wallVerts[3].x += ((spr->gzt - basey) * gl_viewludcos) * leancos;
++		wallVerts[2].x += ((spr->gzt - basey) * gl_viewludcos) * leancos;
+ 
+-		wallVerts[0].x += ((lowy - basey) * gl_viewludcos) * gl_viewcos;
+-		wallVerts[1].x += ((lowy - basey) * gl_viewludcos) * gl_viewcos;
++		wallVerts[0].x += ((lowy - basey) * gl_viewludcos) * leancos;
++		wallVerts[1].x += ((lowy - basey) * gl_viewludcos) * leancos;
+ 
+-		wallVerts[3].z += ((spr->gzt - basey) * gl_viewludcos) * gl_viewsin;
+-		wallVerts[2].z += ((spr->gzt - basey) * gl_viewludcos) * gl_viewsin;
++		wallVerts[3].z += ((spr->gzt - basey) * gl_viewludcos) * leansin;
++		wallVerts[2].z += ((spr->gzt - basey) * gl_viewludcos) * leansin;
+ 
+-		wallVerts[0].z += ((lowy - basey) * gl_viewludcos) * gl_viewsin;
+-		wallVerts[1].z += ((lowy - basey) * gl_viewludcos) * gl_viewsin;
++		wallVerts[0].z += ((lowy - basey) * gl_viewludcos) * leansin;
++		wallVerts[1].z += ((lowy - basey) * gl_viewludcos) * leansin;
+ 	}
+ }
+ 
+@@ -3465,7 +3709,14 @@ static void HWR_SplitSprite(gl_vissprite_t *spr)
+ 
+ 	if (HWR_UseShader())
+ 	{
+-		shader = (R_ThingIsPaperSprite(spr->mobj) || R_ThingIsFloorSprite(spr->mobj)) ? SHADER_SPRITE : SHADER_SPRITECLIPHACK;
++		// The clip hack's vertex shader lies about depth (z -= 80/z) to pull
++		// upright sprites out of the floor on a monitor. The stereo eye pass
++		// hands its depth buffer to the compositor, whose reprojection then
++		// moves exactly these sprites by the lie instead of their distance -
++		// springs and enemies stop fusing while everything with honest depth
++		// stays solid. Stereo takes the plain sprite shader instead.
++		shader = (R_ThingIsPaperSprite(spr->mobj) || R_ThingIsFloorSprite(spr->mobj) || vr_stereo_active())
++			? SHADER_SPRITE : SHADER_SPRITECLIPHACK;
+ 		blend |= PF_ColorMapped;
+ 	}
+ 
+@@ -3720,7 +3971,14 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
+ 		float xoffset, yoffset;
+ 		float leftoffset, topoffset;
+ 		float scale = spr->scale;
+-		float zoffset = (P_MobjFlip(spr->mobj) * 0.05f);
++		// VR: the flat 0.05 unit float above the ground is thinner than the
++		// per-eye depth error at splat distances, so each eye resolves the
++		// z-fight against the floor differently and coplanar art (spike
++		// strips, stickers, shadows) shimmers "cross-eyed". A centimeter of
++		// real lift is invisible from kart height and clears the error band
++		// in both eyes at once.
++		float zoffset = (P_MobjFlip(spr->mobj)
++			* ((vr_stereo_active() && !vr_shadow_flatparity()) ? vr_shadow_lift() : 0.05f));
+ 		pslope_t *splatslope = NULL;
+ 		INT32 i;
+ 
+@@ -3728,10 +3986,30 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
+ 		if (renderflags & RF_SHADOWEFFECTS)
+ 			scale *= spr->shadowscale;
+ 
++		// A floor splat lies IN the ground; the shadow under a ring is a
++		// flattened copy of the ring itself. The flat game spins the quad to
++		// the CAMERA's yaw - fine on a monitor, where the camera turns slowly
++		// and every splat turns together.
++		//
++		// In the headset THREE angle sources have now each failed a live
++		// test. Aiming each splat at the head spins it as you drive past (the
++		// bearing sweeps a half-circle in a heartbeat). The object's own
++		// angle whirls on anything that spins - rings - and reads as
++		// mirror-flipping. The camera's yaw rotates every shadow in the level
++		// the moment the kart turns, which in first person is FAST, and reads
++		// as the shadows smearing across the ground mid-corner.
++		//
++		// A shadow is ground art: it must lie STILL. So in stereo the quad
++		// takes a constant world angle - decoupled from the camera, the head
++		// and the object alike. Round shadow copies look identical at any
++		// fixed angle, and the asymmetric splat art (arrows, stickers) is
++		// flagged SRF_3D / RF_NOSPLATBILLBOARD and keeps its own angle above.
+ 		if (spr->rotateflags & SRF_3D || renderflags & RF_NOSPLATBILLBOARD)
+ 			angle = spr->angle;
++		else if (vr_stereo_active() && !vr_shadow_flatparity())
++			angle = 0;
+ 		else
+-			angle = viewangle;
++			angle = spr->bbyaw;
+ 
+ 		if (!spr->rotated)
+ 			angle += spr->mobj->rollangle;
+@@ -3963,13 +4241,31 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
+ 
+ 		if (HWR_UseShader())
+ 		{
++			// Same depth-honesty rule as HWR_SplitSprite: no clip hack in the
++			// stereo eye pass (see the comment there).
+ 			shader = (R_ThingIsPaperSprite(spr->mobj)
+ 				|| R_ThingIsFloorSprite(spr->mobj)
+ 				|| (spr->mobj->terrain && spr->mobj->terrain->floorClip)
++				|| vr_stereo_active()
+ 				) ? SHADER_SPRITE : SHADER_SPRITECLIPHACK;
+ 			blend |= PF_ColorMapped;
+ 		}
+ 
++		// Ground art carries its depth bias rather than altitude in stereo -
++		// same rule as the drop shadow. A floor splat lifted off the floor
++		// slides across it at grazing angles.
++		if (splat && vr_stereo_active() && !vr_shadow_flatparity())
++			blend |= PF_Decal;
++
++		// Same diagnostic as the drop shadow: strip the texture off ground
++		// art and leave only the quad. See HWR_DrawDropShadow.
++		if (splat && vr_shadow_untextured())
++		{
++			blend &= ~PF_ColorMapped;
++			blend |= PF_NoTexture;
++			shader = SHADER_NONE;
++		}
++
+ 		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated, shader, false);
+ 
+ 		if (use_linkdraw_hack)
+@@ -4533,7 +4829,23 @@ static void HWR_DrawSprites(void)
+ 		else
+ #endif
+ 		{
+-			if (spr->mobj && spr->mobj->shadowscale && cv_shadow.value && !skipshadow)
++			// VR first person hides the local kart. Whether its ground shadow
++			// goes with it is a look call: the flat game's own first person
++			// hides both (R_ThingVisible takes the shadow along with the
++			// sprite), so vr_fp_shadow Off is flat parity and On keeps a
++			// reference under you. Decided BEFORE the shadow draws, because
++			// the shadow is drawn before the sprite is skipped further down.
++			boolean fphidden = false;
++			if (vr_fp_hide_player() && spr->mobj)
++			{
++				mobj_t *pmo = players[displayplayers[0]].mo;
++				fphidden = (spr->mobj == pmo
++					|| ((spr->mobj->flags2 & MF2_LINKDRAW) && spr->mobj->tracer == pmo));
++			}
++			const boolean fpnoshadow = (fphidden && !cv_vr_fp_shadow.value);
++
++			if (spr->mobj && spr->mobj->shadowscale && cv_shadow.value && !skipshadow
++				&& !fpnoshadow)
+ 			{
+ 				HWR_DrawDropShadow(spr->mobj, spr->mobj->shadowscale);
+ 			}
+@@ -4545,7 +4857,7 @@ static void HWR_DrawSprites(void)
+ 				// the linkdraw sprite because the linkdraw sprite does not modify the z-buffer.
+ 				// The !skipshadow check is there in case there are multiple linkdraw sprites connected
+ 				// to the same tracer, so the tracer's shadow only gets drawn once.
+-				if (cv_shadow.value && !skipshadow && spr->dispoffset < 0 && spr->mobj->tracer->shadowscale)
++				if (cv_shadow.value && !skipshadow && !fpnoshadow && spr->dispoffset < 0 && spr->mobj->tracer->shadowscale)
+ 				{
+ 					HWR_DrawDropShadow(spr->mobj->tracer, spr->mobj->tracer->shadowscale);
+ 					skipshadow = true;
+@@ -4559,6 +4871,13 @@ static void HWR_DrawSprites(void)
+ 				skipshadow = false;
+ 			}
+ 
++			// The local kart sits on the eye in first person, so its sprite
++			// (and anything linkdrawn onto it) is skipped. Finishing the race
++			// un-hides it for the post-race camera (vr_fp_hide_player goes
++			// false). The shadow decision was made above, before it drew.
++			if (fphidden)
++				continue;
++
+ 			if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
+ 			{
+ 				if (!cv_glmodels.value || md2_playermodels[((skin_t*)(spr->mobj->skin))->skinnum].notfound || md2_playermodels[((skin_t*)(spr->mobj->skin))->skinnum].scale < 0.0f)
+@@ -4619,7 +4938,23 @@ static void HWR_AddSprites(sector_t *sec)
+ 
+ 	// Handle all things in sector.
+ 	// If a limit exists, handle things a tiny bit different.
+-	limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale;
++	// VR widens the draw distance instead of abandoning it: a kart popping in
++	// near the player reads as a glitch in stereo, but "every sprite in the
++	// level, twice a frame" is a measured CPU cost. Double the flat setting,
++	// floored at 16384 units - far enough that a card is subpixel when it
++	// appears - and capped at the Penultimate rung so the fixed-point product
++	// below cannot overflow. Infinite (0) stays infinite.
++	if (vr_stereo_active() && cv_drawdist.value != 0)
++	{
++		INT32 vrdist = 2 * cv_drawdist.value;
++		if (vrdist < 16384)
++			vrdist = 16384;
++		if (vrdist > 24576)
++			vrdist = 24576;
++		limit_dist = (fixed_t)vrdist * mapobjectscale;
++	}
++	else
++		limit_dist = vr_stereo_active() ? 0 : (fixed_t)(cv_drawdist.value) * mapobjectscale;
+ 	for (thing = sec->thinglist; thing; thing = thing->snext)
+ 	{
+ 		if (R_ThingWithinDist(thing, limit_dist))
+@@ -4685,6 +5020,7 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 	float tracertz = 0.0f;
+ 	float x1, x2;
+ 	float rightsin, rightcos;
++	angle_t bbangle = viewangle;
+ 	float this_scale, this_xscale, this_yscale;
+ 	float spritexscale, spriteyscale;
+ 	float shadowheight = 1.0f, shadowscale = 1.0f;
+@@ -4774,7 +5110,8 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 	tz = (tr_x * gl_viewcos) + (tr_y * gl_viewsin);
+ 
+ 	// thing is behind view plane?
+-	if (tz < ZCLIP_PLANE && !(papersprite || splat))
++	if (HWR_EyeDepth(FIXED_TO_FLOAT(interp.x), FIXED_TO_FLOAT(interp.y), tz) < ZCLIP_PLANE
++		&& !(papersprite || splat))
+ 	{
+ 		if (cv_glmodels.value) //Yellow: Only MD2's dont disappear
+ 		{
+@@ -4819,6 +5156,12 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ #endif
+ 	}
+ 
++	if (sprdef->numframes == 0 && !(thing->skin && thing->sprite == SPR_PLAY))
++	{
++		R_WarnMissingSprite(thing->sprite, "HWR_ProjectSprite");
++		return;
++	}
++
+ 	if (rot >= sprdef->numframes)
+ 	{
+ 		CONS_Alert(CONS_ERROR, M_GetText("HWR_ProjectSprite: invalid sprite frame %s/%s for %s\n"),
+@@ -4960,13 +5303,18 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 
+ 	if (papersprite)
+ 	{
++		// Paper sprites stand in the world at their own angle; nothing
++		// squares them up to anyone.
++		bbangle = interp.angle;
+ 		rightsin = FIXED_TO_FLOAT(FINESINE(interp.angle >> ANGLETOFINESHIFT));
+ 		rightcos = FIXED_TO_FLOAT(FINECOSINE(interp.angle >> ANGLETOFINESHIFT));
+ 	}
+ 	else
+ 	{
+-		rightsin = FIXED_TO_FLOAT(FINESINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
+-		rightcos = FIXED_TO_FLOAT(FINECOSINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
++		bbangle = HWR_BillboardYaw(interp.x, interp.y);
++
++		rightsin = FIXED_TO_FLOAT(FINESINE((bbangle + ANGLE_90)>>ANGLETOFINESHIFT));
++		rightcos = FIXED_TO_FLOAT(FINECOSINE((bbangle + ANGLE_90)>>ANGLETOFINESHIFT));
+ 	}
+ 
+ 	flip = !flip != !hflip;
+@@ -5069,7 +5417,8 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 
+ 	if (thing->subsector->sector->cullheight)
+ 	{
+-		if (HWR_DoCulling(thing->subsector->sector->cullheight, viewsector->cullheight, gl_viewz, gz, gzt))
++		// "Is the viewer above the cull plane" - the eyes are the viewer.
++		if (HWR_DoCulling(thing->subsector->sector->cullheight, viewsector->cullheight, gl_eyez, gz, gzt))
+ 			return;
+ 	}
+ 
+@@ -5081,12 +5430,15 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 
+ 	if (heightsec != -1 && phs != -1) // only clip things which are in special sectors
+ 	{
+-		if (gl_viewz < FIXED_TO_FLOAT(sectors[phs].floorheight) ?
++		// Above or below the water line is asked of the eyes too, or things
++		// vanish because the chase camera is on the other side of a surface
++		// the driver's head is not.
++		if (gl_eyez < FIXED_TO_FLOAT(sectors[phs].floorheight) ?
+ 		FIXED_TO_FLOAT(interp.z) >= FIXED_TO_FLOAT(sectors[heightsec].floorheight) :
+ 		gzt < FIXED_TO_FLOAT(sectors[heightsec].floorheight))
+ 			return;
+-		if (gl_viewz > FIXED_TO_FLOAT(sectors[phs].ceilingheight) ?
+-		gzt < FIXED_TO_FLOAT(sectors[heightsec].ceilingheight) && gl_viewz >= FIXED_TO_FLOAT(sectors[heightsec].ceilingheight) :
++		if (gl_eyez > FIXED_TO_FLOAT(sectors[phs].ceilingheight) ?
++		gzt < FIXED_TO_FLOAT(sectors[heightsec].ceilingheight) && gl_eyez >= FIXED_TO_FLOAT(sectors[heightsec].ceilingheight) :
+ 		FIXED_TO_FLOAT(interp.z) >= FIXED_TO_FLOAT(sectors[heightsec].ceilingheight))
+ 			return;
+ 	}
+@@ -5120,7 +5472,10 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 		// NOTE: This check has the same flaw as the view plane check at the beginning of HWR_ProjectSprite:
+ 		// the view aiming angle is not taken into account, leading to sprites disappearing too early when they
+ 		// can still be seen when looking down/up at steep angles.
+-		if (tracertz < ZCLIP_PLANE)
++		// Measured from the eye like the sprite's own check above - dropping
++		// a whole linkdraw chain by the camera's plane takes the karts' own
++		// trails with it.
++		if (HWR_EyeDepth(FIXED_TO_FLOAT(tracer_interp.x), FIXED_TO_FLOAT(tracer_interp.y), tracertz) < ZCLIP_PLANE)
+ 			return;
+ 
+ 		// if the sprite is behind the tracer, invert dispoffset, putting the sprite behind the tracer
+@@ -5208,6 +5563,7 @@ static void HWR_ProjectSprite(mobj_t *thing)
+ 	vis->bbox = false;
+ 
+ 	vis->angle = interp.angle;
++	vis->bbyaw = bbangle;
+ }
+ 
+ #ifdef HWPRECIP
+@@ -5258,8 +5614,8 @@ static void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
+ 	// rotation around vertical axis
+ 	tz = (tr_x * gl_viewcos) + (tr_y * gl_viewsin);
+ 
+-	// thing is behind view plane?
+-	if (tz < ZCLIP_PLANE)
++	// thing is behind view plane? (measured from the eyes - see HWR_EyeDepth)
++	if (HWR_EyeDepth(FIXED_TO_FLOAT(interp.x), FIXED_TO_FLOAT(interp.y), tz) < ZCLIP_PLANE)
+ 		return;
+ 
+ 	tr_x = FIXED_TO_FLOAT(interp.x);
+@@ -5288,8 +5644,9 @@ static void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
+ 	lumpoff = sprframe->lumpid[0];
+ 	flip = sprframe->flip; // Will only be 0x00 or 0xFF
+ 
+-	rightsin = FIXED_TO_FLOAT(FINESINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
+-	rightcos = FIXED_TO_FLOAT(FINECOSINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
++	const angle_t bbangle = HWR_BillboardYaw(interp.x, interp.y);
++	rightsin = FIXED_TO_FLOAT(FINESINE((bbangle + ANGLE_90)>>ANGLETOFINESHIFT));
++	rightcos = FIXED_TO_FLOAT(FINECOSINE((bbangle + ANGLE_90)>>ANGLETOFINESHIFT));
+ 	if (flip)
+ 	{
+ 		x1 = FIXED_TO_FLOAT(spritecachedinfo[lumpoff].width - spritecachedinfo[lumpoff].offset);
+@@ -5334,6 +5691,7 @@ static void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
+ 
+ 	vis->precip = true;
+ 	vis->bbox = false;
++	vis->bbyaw = bbangle;
+ }
+ #endif
+ 
+@@ -5369,8 +5727,8 @@ static void HWR_ProjectBoundingBox(mobj_t *thing)
+ 	// rotation around vertical axis
+ 	tz = (tr_x * gl_viewcos) + (tr_y * gl_viewsin);
+ 
+-	// thing is behind view plane?
+-	if (tz < ZCLIP_PLANE)
++	// thing is behind view plane? (measured from the eyes - see HWR_EyeDepth)
++	if (HWR_EyeDepth(FIXED_TO_FLOAT(interp.x), FIXED_TO_FLOAT(interp.y), tz) < ZCLIP_PLANE)
+ 		return;
+ 
+ 	tr_x += gl_viewx;
+@@ -5389,6 +5747,7 @@ static void HWR_ProjectBoundingBox(mobj_t *thing)
+ 
+ 	vis->precip = false;
+ 	vis->bbox = true;
++	vis->bbyaw = viewangle; // never billboarded, but never left as garbage either
+ }
+ 
+ // ==========================================================================
+@@ -5540,7 +5899,11 @@ static void HWR_DrawSkyBackground(player_t *player)
+ {
+ 	HWD.pfnSetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
+ 
+-	if (cv_glskydome.value)
++	// VR always takes the dome: the flat fallback is a camera-space quad a
++	// few units from the eye, and the per-eye views hand it real parallax -
++	// the sky splits into a doubled image. The dome plus the mono-sky view
++	// keeps it fused at infinity.
++	if (cv_glskydome.value || vr_stereo_active())
+ 	{
+ 		FTransform dometransform;
+ 		const float fpov = FIXED_TO_FLOAT(R_FOV(viewssnum)+player->fovadd);
+@@ -5568,7 +5931,9 @@ static void HWR_DrawSkyBackground(player_t *player)
+ 		dometransform.scalez = 1;
+ 		dometransform.fovxangle = fpov; // Tails
+ 		dometransform.fovyangle = fpov; // Tails
+-		HWR_RollTransform(&dometransform, viewroll);
++		// The sky must stay level with the world: same roll strip as
++		// atransform under the VR horizon lock.
++		HWR_RollTransform(&dometransform, vr_horizon_locked() ? 0 : viewroll);
+ 		dometransform.splitscreen = r_splitscreen;
+ 
+ 		HWR_GetTexture(texturetranslation[skytexture], skytexture);
+@@ -5579,9 +5944,16 @@ static void HWR_DrawSkyBackground(player_t *player)
+ 			HWR_BuildSkyDome();
+ 		}
+ 
++		// VR: the sky must sit at infinity, so the eye view drops its head
++		// translation for this draw (the dome has no position of its own, but
++		// the stereo pre-multiply would add IPD and give it a readable depth).
++		vr_mono_sky(true);
++
+ 		HWD.pfnSetShader(SHADER_SKY); // sky shader
+ 		HWD.pfnSetTransform(&dometransform);
+ 		HWD.pfnRenderSkyDome(&gl_sky);
++
++		vr_mono_sky(false);
+ 	}
+ 	else
+ 	{
+@@ -5761,7 +6133,10 @@ static void HWR_SetTransformAiming(FTransform *trans, player_t *player, boolean
+ {
+ 	// 1 = always on
+ 	// 2 = chasecam only
+-	if (cv_glshearing.value == 1 || (cv_glshearing.value == 2 && R_IsViewpointThirdPerson(player, skybox)))
++	// (never in a VR eye pass: shearing fakes pitch by translating the
++	// projection, which fights the HMD's real pitch and zeroes the aim angle)
++	if (!vr_stereo_active() &&
++		(cv_glshearing.value == 1 || (cv_glshearing.value == 2 && R_IsViewpointThirdPerson(player, skybox))))
+ 	{
+ 		fixed_t fixedaiming = AIMINGTODY(aimingangle);
+ 		trans->viewaiming = FIXED_TO_FLOAT(fixedaiming);
+@@ -5774,6 +6149,16 @@ static void HWR_SetTransformAiming(FTransform *trans, player_t *player, boolean
+ 		gl_aimingangle = aimingangle;
+ 	}
+ 
++	// VR first person + horizon lock: the HMD is the only source of pitch,
++	// so the chase cam's aim must not tilt the eye view. The VR module
++	// computes the kart-head offset with the same zeroed pitch (see
++	// vr_set_game_view), keeping the world level under the eye.
++	if (vr_horizon_locked())
++	{
++		gl_aimingangle = 0;
++		trans->shearing = false;
++	}
++
+ 	trans->anglex = (float)(gl_aimingangle>>ANGLETOFINESHIFT)*(360.0f/(float)FINEANGLES);
+ }
+ 
+@@ -5811,6 +6196,14 @@ static void HWR_RenderViewpoint(player_t *player, boolean drawSkyTexture, boolea
+ 	dup_viewx = viewx;
+ 	dup_viewy = viewy;
+ 	dup_viewz = viewz;
++
++	{
++		float eyeoff[3] = { 0.0f, 0.0f, 0.0f };
++		vr_eye_world_offset(eyeoff); // leaves the zeroes outside stereo
++		dup_eyex = viewx + FLOAT_TO_FIXED(eyeoff[0]);
++		dup_eyey = viewy + FLOAT_TO_FIXED(eyeoff[1]);
++		dup_eyez = viewz + FLOAT_TO_FIXED(eyeoff[2]);
++	}
+ 	dup_viewangle = viewangle;
+ 
+ 	// set window position
+@@ -5819,6 +6212,9 @@ static void HWR_RenderViewpoint(player_t *player, boolean drawSkyTexture, boolea
+ 	gl_viewx = FIXED_TO_FLOAT(dup_viewx);
+ 	gl_viewy = FIXED_TO_FLOAT(dup_viewy);
+ 	gl_viewz = FIXED_TO_FLOAT(dup_viewz);
++	gl_eyex = FIXED_TO_FLOAT(dup_eyex);
++	gl_eyey = FIXED_TO_FLOAT(dup_eyey);
++	gl_eyez = FIXED_TO_FLOAT(dup_eyez);
+ 	gl_viewsin = FIXED_TO_FLOAT(viewsin);
+ 	gl_viewcos = FIXED_TO_FLOAT(viewcos);
+ 
+@@ -5851,7 +6247,9 @@ static void HWR_RenderViewpoint(player_t *player, boolean drawSkyTexture, boolea
+ 
+ 	atransform.fovxangle = fpov; // Tails
+ 	atransform.fovyangle = fpov; // Tails
+-	HWR_RollTransform(&atransform, viewroll);
++	// VR horizon lock also strips camera roll (matches the aim zeroing in
++	// HWR_SetTransformAiming above).
++	HWR_RollTransform(&atransform, vr_horizon_locked() ? 0 : viewroll);
+ 	atransform.splitscreen = r_splitscreen;
+ 
+ 	gl_fovlud = (float)(1.0l/tan((double)(fpov*M_PIl/360l)));
+@@ -5973,6 +6371,31 @@ void HWR_RenderSkyboxView(player_t *player)
+ 	// note: sets viewangle, viewx, viewy, viewz
+ 	R_SkyboxFrame(viewssnum);
+ 
++	// VR: the skybox pass renders a miniature world from its own viewpoint,
++	// so only the rotation half of the first-person compose applies (a
++	// kart-head translation means nothing in skybox space), and the eye/head
++	// translation shrinks to the ratio the skybox viewpoint itself tracks
++	// the camera at (R_SkyboxFrame divides by skybox_scalex) - full-size IPD
++	// in the miniature space cross-eyes everything living in the skybox. No
++	// centerpoint means no tracking: the skybox sits at infinity. The x
++	// scale stands in for all three axes; per-axis skybox scales are rare
++	// and the IPD is horizontal anyway.
++	{
++		float parallax = 0.0f;
++		if (player->skybox.centerpoint && mapheaderinfo[gamemap-1])
++		{
++			const INT16 scale = mapheaderinfo[gamemap-1]->skybox_scalex;
++			if (scale > 0)
++				parallax = 1.0f / (float)scale;
++			else if (scale < 0)
++				parallax = (float)(-scale);
++		}
++		vr_set_sky_parallax_scale(parallax);
++
++		const float vpos[3] = { FIXED_TO_FLOAT(viewx), FIXED_TO_FLOAT(viewy), FIXED_TO_FLOAT(viewz) };
++		vr_set_game_view(vpos, ANG2RAD(viewangle), ANG2RAD(aimingangle), ANG2RAD(viewroll), true);
++	}
++
+ 	HWR_RenderViewpoint(player, drawsky, false);
+ }
+ 
+@@ -5995,6 +6418,14 @@ void HWR_RenderPlayerView(void)
+ {
+ 	HWD.pfnResetRenderState();
+ 
++	// Re-assert the texture filter every world render. The GL backend forces
++	// mipmapped minification while a headset session is live, and a session can
++	// come up or go down long after gr_filtermode was last touched - the cvar's
++	// onchange only fires on an edit and HWR_Switch only on a renderer change,
++	// so neither sees that edge. Free when nothing changed: the backend
++	// compares the effective filters and only flushes on a real difference.
++	HWD.pfnSetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_glfiltermode.value);
++
+ 	player_t * player = &players[displayplayers[viewssnum]];
+ 
+ 	const boolean skybox = (player->skybox.viewpoint && cv_skybox.value); // True if there's a skybox object and skyboxes are on
+@@ -6017,13 +6448,40 @@ void HWR_RenderPlayerView(void)
+ 
+ 		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_CONTRAST, maplighting.contrast);
+ 		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_BACKLIGHT, maplighting.backlight);
++
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_SUPERSAMPLE, cv_glsupersample.value);
+ 	}
+ 
+ 	if (viewssnum == 0) // Only do it if it's the first screen being rendered
+ 		HWD.pfnClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
+ 
++	// VR: the skybox pass composes its backdrop against the MAIN view's yaw,
++	// and until here the module still held whatever the PREVIOUS world pass
++	// stored - one frame stale for the first eye of the frame. While the
++	// camera yaws, that frame of lag put the first eye's whole backdrop at a
++	// different heading than the second eye's: the distant environment went
++	// cross-eyed exactly while turning, and the sky swam against the track.
++	// Feed THIS frame's main view before anything composes against it.
++	// ...and both eyes have to agree about whether there IS a sky this frame.
++	// drawsky is a leftover from the last viewpoint that was walked, so the
++	// first eye reads whatever the second eye left behind on the PREVIOUS
++	// frame. On the frame a sky flat comes into or out of view the two eyes
++	// therefore disagree about the entire backdrop - one draws it, one does
++	// not. Latch the first eye's answer and hand the same one to the second.
++	static boolean skythisframe = false;
++	if (!vr_stereo_active() || vr_current_eye() <= 0)
++		skythisframe = drawsky;
++	const boolean wantsky = vr_stereo_active() ? skythisframe : drawsky;
++
++	if (vr_stereo_active() && skybox && wantsky)
++	{
++		R_SetupFrame(viewssnum);
++		const float vpos[3] = { FIXED_TO_FLOAT(viewx), FIXED_TO_FLOAT(viewy), FIXED_TO_FLOAT(viewz) };
++		vr_set_game_view(vpos, ANG2RAD(viewangle), ANG2RAD(aimingangle), ANG2RAD(viewroll), false);
++	}
++
+ 	ps_hw_skyboxtime = I_GetPreciseTime();
+-	if (skybox && drawsky) // If there's a skybox and we should be drawing the sky, draw the skybox
++	if (skybox && wantsky) // If there's a skybox and we should be drawing the sky, draw the skybox
+ 		HWR_RenderSkyboxView(player); // This is drawn before everything else so it is placed behind
+ 	ps_hw_skyboxtime = I_GetPreciseTime() - ps_hw_skyboxtime;
+ 
+@@ -6031,8 +6489,43 @@ void HWR_RenderPlayerView(void)
+ 	R_SetupFrame(viewssnum);
+ 	framecount++; // timedemo
+ 
++	// VR: hand the module the exact interpolated view this render will feed
++	// the transform chain, so first person can anchor the eye to the kart
++	// relative to it. (Fed per eye; the values only change between frames.)
++	{
++		const float vpos[3] = { FIXED_TO_FLOAT(viewx), FIXED_TO_FLOAT(viewy), FIXED_TO_FLOAT(viewz) };
++		vr_set_game_view(vpos, ANG2RAD(viewangle), ANG2RAD(aimingangle), ANG2RAD(viewroll), false);
++
++		// Diorama: the eye parks well behind the chase camera, and near a
++		// wall that spot can land inside geometry. Trace the camera->eye
++		// segment against the level and hand the module the fraction that
++		// is actually clear; it slides the eye in along the segment
++		// (instantly in, eased back out) so the view never clips a wall.
++		float dioffs[3];
++		if (vr_stereo_active() && vr_current_eye() == 0 && vr_diorama_eye_offset(dioffs))
++		{
++			// The trace runs in fixed point; cap the segment so extreme
++			// knob combinations can't overflow it. A blocker past the cap
++			// counts as clear.
++			const float dilen = sqrtf(dioffs[0]*dioffs[0] + dioffs[1]*dioffs[1] + dioffs[2]*dioffs[2]);
++			float used = 1.0f;
++			if (dilen > 8192.0f)
++			{
++				used = 8192.0f / dilen;
++				dioffs[0] *= used;
++				dioffs[1] *= used;
++				dioffs[2] *= used;
++			}
++			const fixed_t clear = P_TraceCameraClearance(viewx, viewy, viewz,
++				viewx + FLOAT_TO_FIXED(dioffs[0]),
++				viewy + FLOAT_TO_FIXED(dioffs[1]),
++				viewz + FLOAT_TO_FIXED(dioffs[2]));
++			vr_set_diorama_clearance(clear >= FRACUNIT ? 1.0f : FIXED_TO_FLOAT(clear) * used);
++		}
++	}
++
+ 	HWR_RenderViewpoint(player,
+-			!skybox && drawsky, // Don't draw the regular sky if there's a skybox
++			!skybox && wantsky, // Don't draw the regular sky if there's a skybox
+ 			true); // Main view is profiled
+ 
+ 	HWR_DoPostProcessor(player);
+@@ -6268,8 +6761,15 @@ void HWR_DoPostProcessor(player_t *player)
+ 		FOutVector      v[4];
+ 		FSurfaceInfo Surf;
+ 
+-		v[0].x = v[2].y = v[3].x = v[3].y = -4.0f;
+-		v[0].y = v[1].x = v[1].y = v[2].x = 4.0f;
++		// VR eye pass: the stock +/-4 extents only cover ~90 degrees and the
++		// eye frustum is wider - the flash would cut off mid-view with hard
++		// edges the eyes can't fuse (it reads as a doubled overlay). Stretch
++		// the quad past any headset fov; it's a flat tint, so only coverage
++		// changes.
++		const float fext = vr_stereo_active() ? 40.0f : 4.0f;
++
++		v[0].x = v[2].y = v[3].x = v[3].y = -fext;
++		v[0].y = v[1].x = v[1].y = v[2].x = fext;
+ 		v[0].z = v[1].z = v[2].z = v[3].z = 4.0f; // 4.0 because of the same reason as with the sky, just after the screen is cleared so near clipping plane is 3.99
+ 
+ 		// This won't change if the flash palettes are changed unfortunately, but it works for its purpose
+@@ -6286,15 +6786,126 @@ void HWR_DoPostProcessor(player_t *player)
+ 		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
+ 	}
+ 
+-	// Capture the screen for intermission and screen waving
+-	if(gamestate != GS_INTERMISSION)
++	// Burning. The heat washes over the view while a hazardous surface is
++	// under you and drains away once you're clear, so the picture agrees with
++	// what the controller and the speakers are already saying.
++	//
++	// This is a flat tint on a quad, deliberately - the same shape as the
++	// flash above and the dim below. A heat WARP would be the obvious choice
++	// and is the wrong one: screen-space distortion in an eye pass re-projects
++	// a window-sized capture through the wrong frustum and reads as double
++	// vision, which is exactly why the drunken-vision code further down stands
++	// down in stereo. A tint only changes coverage, so it is safe in both.
++	{
++		const fixed_t burn = K_HazardExposure(R_GetViewNumber());
++
++		if (burn > 0)
++		{
++			FOutVector      v[4];
++			FSurfaceInfo Surf;
++
++			// Same wide extents as the flash: the stock +/-4 only covers
++			// about 90 degrees, and the eye frustum is wider.
++			const float fext = vr_stereo_active() ? 40.0f : 4.0f;
++
++			v[0].x = v[2].y = v[3].x = v[3].y = -fext;
++			v[0].y = v[1].x = v[1].y = v[2].x = fext;
++			v[0].z = v[1].z = v[2].z = v[3].z = 4.0f;
++
++			// Additive heat: red with just enough green to glow like fire
++			// instead of staining the world flat red, and a slow pulse over
++			// the top so it breathes rather than sitting there like a filter
++			// someone switched on. Held well under a full wash - you still
++			// have to be able to see the corner you're trying to get out of.
++			// 256 fine units a tic is a lap of the table roughly every second.
++			const fixed_t pulse = FRACUNIT
++				+ FixedMul(FRACUNIT/6, FINESINE((leveltime * 256) & FINEMASK));
++
++			Surf.PolyColor.s.red = 0xff;
++			Surf.PolyColor.s.green = 0x30;
++			Surf.PolyColor.s.blue = 0x00;
++			Surf.PolyColor.s.alpha = (UINT8)((0x44 * FixedMul(burn, pulse)) / FRACUNIT);
++
++			HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
++		}
++	}
++
++	// Boost, seen from inside. First person hides your own kart, and its
++	// afterimages trail behind the eye where they can never be seen - so the
++	// boost reads on the picture instead: a cool rush over the view that
++	// fades as the boost spends itself. Every other view keeps the
++	// afterimages and skips this. Same safe flat-quad shape as the heat
++	// above, and deliberately no pulse - a rush, not a warning.
++	{
++		const boolean firstperson =
++			(P_FlatViewMode() == VR_VIEW_FIRST_PERSON)
++			|| (vr_is_active() && vr_get_view_mode() == VR_VIEW_FIRST_PERSON);
++		const fixed_t cue = firstperson ? K_BoostCue(R_GetViewNumber()) : 0;
++
++		if (cue > 0)
++		{
++			FOutVector v[4];
++			FSurfaceInfo Surf;
++
++			const float fext = vr_stereo_active() ? 40.0f : 4.0f;
++
++			v[0].x = v[2].y = v[3].x = v[3].y = -fext;
++			v[0].y = v[1].x = v[1].y = v[2].x = fext;
++			v[0].z = v[1].z = v[2].z = v[3].z = 4.0f;
++
++			// Cold speed against the heat's fire: mostly blue, held well
++			// under the burn's ceiling. It has to land instantly and then
++			// get out of the way of the track ahead.
++			Surf.PolyColor.s.red = 0x58;
++			Surf.PolyColor.s.green = 0xa0;
++			Surf.PolyColor.s.blue = 0xff;
++			// The kick punches the cue on the tic a launch lands, so a landing
++			// dash arrives as a flash that decays into the steady glow rather
++			// than fading up like every other boost. Same colour - it is the
++			// same event, said louder for the moment it happens.
++			const fixed_t kick = K_BoostKick(R_GetViewNumber());
++			const fixed_t lit = std::min<fixed_t>(FRACUNIT, cue + (kick * 2) / 3);
++			Surf.PolyColor.s.alpha = (UINT8)((0x30 * lit) / FRACUNIT);
++
++			HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
++		}
++	}
++
++	// VR: a menu quad is composited over this stereo scene. Dim the world so
++	// geometry near the quad's depth doesn't fight the menu for the eyes
++	// (undimmed, the overlap reads as doubled/shimmering). Same wide-quad
++	// trick as the flash above; flat frames draw the menu into the same
++	// image instead, so they never take this.
++	if (vr_menu_dim_active())
++	{
++		FOutVector      v[4];
++		FSurfaceInfo Surf;
++
++		v[0].x = v[2].y = v[3].x = v[3].y = -40.0f;
++		v[0].y = v[1].x = v[1].y = v[2].x = 40.0f;
++		v[0].z = v[1].z = v[2].z = v[3].z = 4.0f;
++
++		Surf.PolyColor.s.red = Surf.PolyColor.s.green = Surf.PolyColor.s.blue = 0;
++		Surf.PolyColor.s.alpha = 0x70;
++
++		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Translucent|PF_NoTexture|PF_NoDepthTest);
++	}
++
++	// Capture the screen for intermission and screen waving. Never from a VR
++	// eye pass: the capture is sized to the desktop window and would grab a
++	// window-sized corner of the (much larger) eye target.
++	if(gamestate != GS_INTERMISSION && !vr_stereo_active())
+ 		HWD.pfnMakeScreenTexture();
+ 
+ 	if (r_splitscreen) // Not supported in splitscreen - someone want to add support?
+ 		return;
+ 
+ 	// Drunken vision! WooOOooo~
+-	if (*type == postimg_water || *type == postimg_heat)
++	// Skipped in VR: the warp redraws that window-sized screen capture over
++	// each eye, so both eyes get the same smeared rectangle at different
++	// frustum angles - pure double vision (and screen-space warping is
++	// nauseating in a headset anyway; the underwater tint still shows).
++	if ((*type == postimg_water || *type == postimg_heat) && !vr_stereo_active())
+ 	{
+ 		// 10 by 10 grid. 2 coordinates (xy)
+ 		float v[SCREENVERTS][SCREENVERTS][2];

@@ -1,0 +1,131 @@
+diff --git a/README.md b/README.md
+index 56ff2d02d..1e9b1a1a1 100644
+--- a/README.md
++++ b/README.md
+@@ -1,22 +1,111 @@
+-# Sonic Robo Blast 2
+-[![latest release](https://badgen.net/github/release/STJr/SRB2/stable)](https://github.com/STJr/SRB2/releases/latest)
++# SRB2-VR -- Sonic Robo Blast 2 in OpenXR
+ 
+-[![Build status](https://ci.appveyor.com/api/projects/status/399d4hcw9yy7hg2y?svg=true)](https://ci.appveyor.com/project/STJr/srb2)
+-[![Build status](https://travis-ci.org/STJr/SRB2.svg?branch=master)](https://travis-ci.org/STJr/SRB2)
+-[![CircleCI](https://circleci.com/gh/STJr/SRB2/tree/master.svg?style=svg)](https://circleci.com/gh/STJr/SRB2/tree/master)
++A native **PCVR (OpenXR) port of [Sonic Robo Blast 2](https://srb2.org/)**, built
++directly on the current official release (**2.2.15**) as a fork of
++[STJr/SRB2](https://github.com/STJr/SRB2).
+ 
+-[Sonic Robo Blast 2](https://srb2.org/) is a 3D Sonic the Hedgehog fangame based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
++I made this because the existing VR build was never open sourced and its
++developer disappeared -- leaving it stuck on an outdated version of the game,
++missing content from newer updates, and without support for newer headsets (it
++wouldn't run on my Pimax Dream Air). This port fixes all of that: it tracks the
++**current** SRB2 release, the full source is here under the same GPL license as
++SRB2 itself, and it targets plain **OpenXR** -- so it runs on any conformant
++runtime (SteamVR, Virtual Desktop's VDXR, Oculus/Meta, Pimax) instead of being
++tied to one vendor.
+ 
+-## Dependencies
+-- SDL2 (Linux/OS X only)
+-- SDL2-Mixer (Linux/OS X only)
+-- libupnp (Linux/OS X only)
+-- libgme (Linux/OS X only)
+-- libopenmpt (Linux/OS X only)
++## What you get
+ 
+-## Compiling
++- **Head-tracked stereoscopic VR** rendered through SRB2's own camera and
++  renderer -- it feels like the normal game, in VR. Four view modes, cycled
++  any time with a right-stick click (or `vr_viewmode` in the console):
++  **Third Person**, **First Person**, **Theater** (the flat game on a big
++  screen) and **Diorama** (the level as a miniature you stand over, with
++  its own scale and placement sliders). Anti-aliased eye rendering (MSAA,
++  up to 8x, on by default), render-scale supersampling, and live stereo
++  depth and head-motion comfort sliders, all in Options → VR Options.
++- **Full menus, HUD, and console in the headset** on a world-locked floating
++  screen, from the moment the game boots. Screen distance/size, HUD opacity and
++  more are adjustable live in the new **Options → VR Options** menu, and the
++  screen re-centers automatically when you put the headset on (or on demand).
++- **Native VR controller support** via the OpenXR action system: left stick
++  moves, right stick turns, A jumps, B spins, the triggers throw rings (right
++  is fire, left is fire normal), holding the right grip locks on, the left
++  grip tosses the flag, and X, Y and left-stick click are Custom 1-3.
++  Right-stick click cycles the view mode. In menus the sticks work as
++  a d-pad, A confirms, B or left trigger backs out, the grips page between
++  menu sections, and left-stick click re-centers the screen. From the pause
++  menu, the right trigger jumps straight into VR Options for live tuning.
++  Quest 3 controllers get their native profile. A regular gamepad and
++  mouse/keyboard still work too.
++- **Runs with or without a headset.** Start the exe with a headset on and it
++  boots straight into VR; start it without one and it's just regular SRB2.
+ 
+-See [SRB2 Wiki/Source code compiling](http://wiki.srb2.org/wiki/Source_code_compiling)
++## Design goals
++
++1. **Track the current game.** The VR layer is a small, well-isolated set of
++   changes (one new module in `src/vr/` plus surgical hooks) so rebasing onto
++   new SRB2 releases stays easy. This fork is meant to be kept up to date.
++2. **Open source.** Everything needed to build it is in this repo.
++3. **Run everywhere OpenXR runs.** No vendor SDKs -- just `openxr-loader`.
++
++## Quick start (playing)
++
++Download `SRB2-VR-full-win64.zip` from [Releases](../../releases), unzip it
++anywhere, run `srb2win.exe`. The game and all its assets are included. If a
++headset is on (SteamVR, Virtual Desktop/VDXR, Meta, Pimax) the game detects it
++and boots into VR; if not, it runs like the regular game.
++
++(Already have SRB2 2.2.15 installed? The small `SRB2-VR-win64.zip` drops into
++your existing folder instead.)
++
++In-game: **Options → VR Options** has everything (VR mode Auto/On/Off, world
++scale, screen distance/size, HUD, recenter); the console has `vr_mode`,
++`vr_scale` and `vr_recenter`.
++
++## Building
++
++Windows: CMake + Visual Studio + [vcpkg](https://github.com/microsoft/vcpkg)
++(manifest mode pulls all dependencies, including `openxr-loader`, automatically).
++
++```
++build_srb2_vs.bat      REM configure + build Debug and Release
++rebuild_release.bat    REM fast reconfigure + Release build
++```
++
++Set `VCPKG_ROOT` if your vcpkg lives somewhere other than `C:\vcpkg`.
++
++## Automation
++
++Everything after a commit is hands-off:
++
++- **CI** builds the fork on every push and PR to `vr` and uploads the packaged
++  zip as an artifact (`.github/workflows/build.yml`).
++- **Releases** are one command: `publish_release.bat 2.2.15-vr2` tags and
++  pushes, and CI builds, packages and publishes the GitHub release.
++- **Upstream tracking**: a weekly job compares the fork's base against the
++  latest official SRB2 release and opens an issue with rebase instructions the
++  moment a new version ships. `update_upstream.bat <tag>` does the rebase.
++
++## Status
++
++Working today: head tracking, first/third person, menus/HUD/console in the
++headset, VR controllers, live VR options. In progress: stereo depth (both eyes
++currently render the same image -- head tracking still gives strong presence),
++comfort options, and in-world HUD placement.
++
++## Attribution
++
++- **[Sonic Robo Blast 2](https://srb2.org/)** is made by
++  **[Sonic Team Junior](https://github.com/STJr)** -- this project is a fork of
++  their work and inherits its [GPL v2 license](LICENSE). All credit for the
++  game itself belongs to them.
++- SRB2 is based on a modified version of
++  [Doom Legacy](http://doomlegacy.sourceforge.net/).
++- VR support uses the Khronos [OpenXR](https://www.khronos.org/openxr/) API via
++  the official `openxr-loader`.
+ 
+ ## Disclaimer
+-Sonic Team Junior is in no way affiliated with SEGA or Sonic Team. We do not claim ownership of any of SEGA's intellectual property used in SRB2.
++
++Sonic Team Junior is in no way affiliated with SEGA or Sonic Team, and neither
++is this fork. No ownership is claimed of any of SEGA's intellectual property
++used in SRB2.

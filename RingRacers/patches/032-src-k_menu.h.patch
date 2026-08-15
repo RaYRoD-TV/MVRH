@@ -1,0 +1,65 @@
+diff --git a/src/k_menu.h b/src/k_menu.h
+index 7f1a3409d..bc8a2a260 100644
+--- a/src/k_menu.h
++++ b/src/k_menu.h
+@@ -426,6 +426,7 @@ typedef enum
+ 	vaopt_spacer11,
+ 	vaopt_texturequal,
+ 	vaopt_anisotropic,
++	vaopt_supersample,
+ 	vaopt_spacer12,
+ 	vaopt_billboarding,
+ 	vaopt_perspective,
+@@ -472,6 +473,9 @@ extern menu_t OPTIONS_VideoColorProfileDef;
+ extern menuitem_t OPTIONS_VideoAdvanced[];
+ extern menu_t OPTIONS_VideoAdvancedDef;
+ 
++extern menuitem_t OPTIONS_VideoVR[];
++extern menu_t OPTIONS_VideoVRDef;
++
+ extern menuitem_t OPTIONS_Sound[];
+ extern menu_t OPTIONS_SoundDef;
+ 
+@@ -588,6 +592,7 @@ typedef enum
+ 	mpause_spectatetoggle,
+ 	mpause_psetup,
+ 	mpause_cheats,
++	mpause_vroptions,
+ 	mpause_options,
+ 
+ 	mpause_title,
+@@ -720,6 +725,7 @@ struct menucmd_t
+ 
+ 	UINT16 delay; // menu wait
+ 	UINT32 delayCount; // num times ya did menu wait (to make the wait shorter each time)
++	UINT16 dpad_mag; // strongest direction input this frame, 0..JOYAXISRANGE; paces analog repeat
+ };
+ 
+ extern menucmd_t menucmd[MAXSPLITSCREENPLAYERS];
+@@ -1163,6 +1169,8 @@ void M_GameplayOptions(INT32 choice);
+ void M_ServerOptions(INT32 choice);
+ 
+ void M_RefreshAdvancedVideoOptions(void);
++void M_RefreshVideoVROptions(void);
++void M_VROptions(INT32 choice); // straight into the VR page (pause menu shortcut)
+ 
+ void M_HandleItemToggles(INT32 choice);	// For item toggling
+ void M_EraseData(INT32 choice);	// For data erasing
+@@ -1269,6 +1277,9 @@ extern struct pausemenu_s {
+ 	boolean closing;		// When this is set, the open offset goes backwards to close the menu smoothly.
+ 
+ 	UINT8 splitscreenfocusid; // This is not exclusively visual, but thog dont care. For selecting splitscreen players to individually change their spectator state.
++
++	boolean ltriggerheld;	// Trigger state as of the last menu input tic. Primed held on open,
++	boolean rtriggerheld;	// so the L2/R2 options shortcuts only fire on a fresh press.
+ } pausemenu;
+ 
+ void M_OpenPauseMenu(void);
+@@ -1391,7 +1402,6 @@ void M_DrawProfileControls(void);
+ void M_DrawVideoModes(void);
+ void M_DrawItemToggles(void);
+ void M_DrawProfileErase(void);
+-extern tic_t shitsfree;
+ 
+ // Extras menu:
+ void M_DrawExtrasBack(void);

@@ -1,0 +1,26 @@
+diff --git a/src/doomdef.h b/src/doomdef.h
+index 13a235e78..545ca73f2 100644
+--- a/src/doomdef.h
++++ b/src/doomdef.h
+@@ -158,7 +158,7 @@ extern char logfilename[1024];
+ // to an increment in MODVERSION. This might never happen in practice.
+ // If MODVERSION increases, set MINOREXECVERSION to 0.
+ #define MAJOREXECVERSION MODVERSION
+-#define MINOREXECVERSION 0
++#define MINOREXECVERSION 9
+ // (It would have been nice to use VERSION and SUBVERSION but those are zero'd out for DEVELOP builds)
+ 
+ // Macros
+@@ -439,7 +439,11 @@ enum {
+ };
+ 
+ // Name of local directory for config files and savegames
+-#if (((defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)) && !defined (__APPLE__)
++#if defined (__ANDROID__)
++// A dot-directory would be invisible in every Android file manager; config
++// and saves sit in a plain folder beside the game data instead.
++#define DEFAULTDIR "user"
++#elif (((defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)) && !defined (__APPLE__)
+ #define DEFAULTDIR ".ringracers"
+ #else
+ #define DEFAULTDIR "ringracers"

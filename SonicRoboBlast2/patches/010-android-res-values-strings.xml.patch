@@ -1,0 +1,11 @@
+diff --git a/android/res/values/strings.xml b/android/res/values/strings.xml
+deleted file mode 100644
+index 20f67d16f..000000000
+--- a/android/res/values/strings.xml
++++ /dev/null
+@@ -1,5 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<resources>
+-    <string name="hello">Hello World, SRB2Game!</string>
+-    <string name="app_name">SRB2</string>
+-</resources>

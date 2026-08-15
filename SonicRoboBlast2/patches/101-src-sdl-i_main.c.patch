@@ -1,0 +1,141 @@
+diff --git a/src/sdl/i_main.c b/src/sdl/i_main.c
+index b2177e563..a0fb73540 100644
+--- a/src/sdl/i_main.c
++++ b/src/sdl/i_main.c
+@@ -17,6 +17,7 @@
+ /// \file
+ /// \brief Main program, simply calls D_SRB2Main and D_SRB2Loop, the high level loop.
+ 
++#if !defined(__ANDROID__)
+ #include "../doomdef.h"
+ #include "../m_argv.h"
+ #include "../d_main.h"
+@@ -31,8 +32,6 @@
+ #include <errno.h>
+ #endif
+ 
+-#include "time.h" // For log timestamps
+-
+ #ifdef HAVE_SDL
+ 
+ #ifdef HAVE_TTF
+@@ -50,11 +49,6 @@
+ extern int SDL_main(int argc, char *argv[]);
+ #endif
+ 
+-#ifdef LOGMESSAGES
+-FILE *logstream = NULL;
+-char logfilename[1024];
+-#endif
+-
+ #ifndef DOXYGEN
+ #ifndef O_TEXT
+ #define O_TEXT 0
+@@ -70,93 +64,6 @@ char logfilename[1024];
+ typedef BOOL (WINAPI *p_IsDebuggerPresent)(VOID);
+ #endif
+ 
+-#ifdef LOGMESSAGES
+-static void InitLogging(void)
+-{
+-	const char *logdir = NULL;
+-	time_t my_time;
+-	struct tm * timeinfo;
+-	const char *format;
+-	const char *reldir;
+-	int left;
+-	boolean fileabs;
+-#if defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)
+-	const char *link;
+-#endif
+-
+-	logdir = D_Home();
+-
+-	my_time = time(NULL);
+-	timeinfo = localtime(&my_time);
+-
+-	if (M_CheckParm("-logfile") && M_IsNextParm())
+-	{
+-		format = M_GetNextParm();
+-		fileabs = M_IsPathAbsolute(format);
+-	}
+-	else
+-	{
+-		format = "log-%Y-%m-%d_%H-%M-%S.txt";
+-		fileabs = false;
+-	}
+-
+-	if (fileabs)
+-	{
+-		strftime(logfilename, sizeof logfilename, format, timeinfo);
+-	}
+-	else
+-	{
+-		if (M_CheckParm("-logdir") && M_IsNextParm())
+-			reldir = M_GetNextParm();
+-		else
+-			reldir = "logs";
+-
+-		if (M_IsPathAbsolute(reldir))
+-		{
+-			left = snprintf(logfilename, sizeof logfilename,
+-					"%s"PATHSEP, reldir);
+-		}
+-		else
+-#ifdef DEFAULTDIR
+-		if (logdir)
+-		{
+-			left = snprintf(logfilename, sizeof logfilename,
+-					"%s"PATHSEP DEFAULTDIR PATHSEP"%s"PATHSEP, logdir, reldir);
+-		}
+-		else
+-#endif/*DEFAULTDIR*/
+-		{
+-			left = snprintf(logfilename, sizeof logfilename,
+-					"."PATHSEP"%s"PATHSEP, reldir);
+-		}
+-
+-		strftime(&logfilename[left], sizeof logfilename - left,
+-				format, timeinfo);
+-	}
+-
+-	M_MkdirEachUntil(logfilename,
+-			M_PathParts(logdir) - 1,
+-			M_PathParts(logfilename) - 1, 0755);
+-
+-#if defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)
+-	logstream = fopen(logfilename, "w");
+-#ifdef DEFAULTDIR
+-	if (logdir)
+-		link = va("%s/"DEFAULTDIR"/latest-log.txt", logdir);
+-	else
+-#endif/*DEFAULTDIR*/
+-		link = "latest-log.txt";
+-	unlink(link);
+-	if (symlink(logfilename, link) == -1)
+-	{
+-		I_OutputMsg("Error symlinking latest-log.txt: %s\n", strerror(errno));
+-	}
+-#else/*defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)*/
+-	logstream = fopen("latest-log.txt", "wt+");
+-#endif/*defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)*/
+-}
+-#endif
+-
+ 
+ /**	\brief	The main function
+ 
+@@ -191,7 +98,7 @@ int main(int argc, char **argv)
+ 
+ #ifdef LOGMESSAGES
+ 	if (!M_CheckParm("-nolog"))
+-		InitLogging();
++		I_InitLogging();
+ #endif/*LOGMESSAGES*/
+ 
+ 	//I_OutputMsg("I_StartupSystem() ...\n");
+@@ -235,3 +142,4 @@ int main(int argc, char **argv)
+ 	return 0;
+ }
+ #endif
++#endif

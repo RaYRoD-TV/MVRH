@@ -1,0 +1,50 @@
+diff --git a/src/g_input.c b/src/g_input.c
+index 4fbdf5e75..7c1cb87f9 100644
+--- a/src/g_input.c
++++ b/src/g_input.c
+@@ -749,7 +749,9 @@ void G_DefineDefaultControls(void)
+ 		gamecontroldefault[i][GC_CUSTOM1      ][1] = KEY_JOY1+1; // B
+ 		gamecontroldefault[i][GC_CUSTOM2      ][1] = KEY_JOY1+3; // Y
+ 		gamecontroldefault[i][GC_CUSTOM3      ][1] = KEY_JOY1+8; // Left Stick
+-		gamecontroldefault[i][GC_CAMTOGGLE    ][1] = KEY_JOY1+4; // LB
++		// No pad binding for the cam toggle: on a shoulder button it kept
++		// reading as "the view changed by itself" (it flips the chase cam),
++		// and in VR the view mode owns the camera anyway. Keyboard 'v' stays.
+ 		gamecontroldefault[i][GC_CENTERVIEW   ][1] = KEY_JOY1+5; // RB
+ 		gamecontroldefault[i][GC_SCREENSHOT   ][1] = KEY_JOY1+6; // Back
+ 		gamecontroldefault[i][GC_SYSTEMMENU   ][0] = KEY_JOY1+7; // Start
+@@ -765,7 +767,6 @@ void G_DefineDefaultControls(void)
+ 		gamecontrolbisdefault[i][GC_CUSTOM1      ][1] = KEY_2JOY1+1; // B
+ 		gamecontrolbisdefault[i][GC_CUSTOM2      ][1] = KEY_2JOY1+3; // Y
+ 		gamecontrolbisdefault[i][GC_CUSTOM3      ][1] = KEY_2JOY1+8; // Left Stick
+-		gamecontrolbisdefault[i][GC_CAMTOGGLE    ][1] = KEY_2JOY1+4; // LB
+ 		gamecontrolbisdefault[i][GC_CENTERVIEW   ][1] = KEY_2JOY1+5; // RB
+ 		gamecontrolbisdefault[i][GC_SCREENSHOT   ][1] = KEY_2JOY1+6; // Back
+ 		//gamecontrolbisdefault[i][GC_SYSTEMMENU   ][0] = KEY_2JOY1+7; // Start
+@@ -894,6 +895,26 @@ static INT32 G_FilterKeyByVersion(INT32 numctrl, INT32 keyidx, INT32 player, INT
+ 	else if (keyidx == 1 && *keynum2 == KEY_PAUSE)
+ 		return -1; // skip setting control
+ 
++	// Configs from before exec minor 4 carry the old LB = Chase Toggle pad
++	// default; drop exactly that binding so the shoulder button stops
++	// flipping the camera. Any hand-picked key passes through untouched.
++	if (numctrl == GC_CAMTOGGLE && GETMINOREXECVERSION(cv_execversion.value) < 4)
++	{
++		const INT32 oldpad = (player == 1) ? KEY_2JOY1+4 : KEY_JOY1+4;
++		if (keyidx == 0 && *keynum1 == oldpad)
++		{
++			if (*keynum2 && *keynum2 != oldpad)
++			{
++				*keynum1 = *keynum2; // shift down keynum2 and continue
++				*keynum2 = 0;
++			}
++			else
++				return -1; // skip setting control
++		}
++		else if (keyidx == 1 && *keynum2 == oldpad)
++			return -1; // skip setting control
++	}
++
+ 	if (GETMAJOREXECVERSION(cv_execversion.value) < 27 && ( // v2.1.22
+ 		numctrl == GC_WEAPONNEXT || numctrl == GC_WEAPONPREV || numctrl == GC_TOSSFLAG ||
+ 		numctrl == GC_SPIN || numctrl == GC_CAMRESET || numctrl == GC_JUMP ||

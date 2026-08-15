@@ -1,0 +1,61 @@
+diff --git a/src/m_cond.c b/src/m_cond.c
+index 9706f76c8..b975a9e37 100644
+--- a/src/m_cond.c
++++ b/src/m_cond.c
+@@ -13,6 +13,7 @@
+ #include "m_cond.h"
+ #include "doomstat.h"
+ #include "z_zone.h"
++#include "command.h" // cv_vrunlockall (the opt-in unlock-everything toggle)
+ 
+ #include "hu_stuff.h" // CEcho
+ #include "v_video.h" // video flags
+@@ -47,6 +48,48 @@ INT32 numextraemblems = 0;
+ // Temporary holding place for nights data for the current map
+ nightsdata_t ntemprecords[MAXPLAYERS];
+ 
++// The opt-in "everything unlocked" toggle (defined with the VR cvar family in
++// i_openxr.c, applied here where the unlockable state lives). Forces the unlock
++// state IN MEMORY ONLY: while the forced arrays exist, G_SaveGameData refuses to
++// write (M_UnlockAllApplied below), so the real gamedata.dat is never touched.
++// Deliberately NOT routed through usedCheats -- that flag also locks save slots,
++// continues, and mid-game saving, and unlocking extras shouldn't cost normal
++// play. Turning the toggle off mid-session can't un-force the arrays; a restart
++// reloads clean progress (nothing was saved).
++extern consvar_t cv_vrunlockall;
++
++// Sticky for the session: once the arrays are forced they stay forced, so the
++// gamedata write-lock must outlive the cvar being toggled back Off.
++static boolean unlockall_applied = false;
++
++boolean M_UnlockAllApplied(void)
++{
++	return unlockall_applied;
++}
++
++void M_ApplyUnlockEverything(void)
++{
++	INT32 i;
++
++	if (!cv_vrunlockall.value)
++		return;
++	if (!clientGamedata || !serverGamedata)
++		return; // config executes before the gamedata exists; d_main re-applies after load
++
++	unlockall_applied = true;
++
++	for (i = 0; i < MAXUNLOCKABLES; i++)
++		clientGamedata->unlocked[i] = serverGamedata->unlocked[i] = true;
++
++	// Visited+beaten satisfies the platter and record-attack list gates without
++	// claiming perfect clears the player never earned.
++	for (i = 0; i < NUMMAPS; i++)
++	{
++		clientGamedata->mapvisited[i] |= (MV_VISITED|MV_BEATEN);
++		serverGamedata->mapvisited[i] |= (MV_VISITED|MV_BEATEN);
++	}
++}
++
+ // Create a new gamedata_t, for start-up
+ gamedata_t *M_NewGameDataStruct(void)
+ {

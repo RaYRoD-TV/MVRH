@@ -1,0 +1,20 @@
+diff --git a/src/p_saveg.cpp b/src/p_saveg.cpp
+index 7622609b4..024ac44de 100644
+--- a/src/p_saveg.cpp
++++ b/src/p_saveg.cpp
+@@ -470,6 +470,7 @@ static void P_NetArchivePlayers(savebuffer_t *save)
+ 		WRITEUINT8(save->p, players[i].startboost);
+ 		WRITEUINT8(save->p, players[i].neostartboost);
+ 		WRITEUINT8(save->p, players[i].dropdashboost);
++		WRITEUINT8(save->p, players[i].landdash);
+ 		WRITEUINT8(save->p, players[i].aciddropdashboost);
+ 
+ 		WRITEUINT16(save->p, players[i].flashing);
+@@ -1157,6 +1158,7 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
+ 		players[i].startboost = READUINT8(save->p);
+ 		players[i].neostartboost = READUINT8(save->p);
+ 		players[i].dropdashboost = READUINT8(save->p);
++		players[i].landdash = READUINT8(save->p);
+ 		players[i].aciddropdashboost = READUINT8(save->p);
+ 
+ 		players[i].flashing = READUINT16(save->p);

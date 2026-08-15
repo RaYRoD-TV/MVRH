@@ -1,0 +1,132 @@
+diff --git a/src/sdl/i_system.cpp b/src/sdl/i_system.cpp
+index 42a5f466f..b7449f68e 100644
+--- a/src/sdl/i_system.cpp
++++ b/src/sdl/i_system.cpp
+@@ -143,7 +143,9 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
+ #include <errno.h>
+ #endif
+ 
+-#if (defined(__linux__) && defined(__USE_GNU)) || (defined (__unix__) || defined (UNIXCOMMON)) && !defined(__linux__) || defined(__APPLE__)
++// Bionic ships execinfo.h but hides the declarations below API 33, so Android
++// stays off the backtrace path entirely.
++#if ((defined(__linux__) && defined(__USE_GNU)) || (defined (__unix__) || defined (UNIXCOMMON)) && !defined(__linux__) || defined(__APPLE__)) && !defined(__ANDROID__)
+ #include <execinfo.h>
+ #include <time.h>
+ #define UNIXBACKTRACE
+@@ -154,7 +156,14 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
+ #endif
+ 
+ // Locations for searching for bios.pk3
+-#if defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)
++#if defined (__ANDROID__)
++// The player drops the game folder on shared storage; these are the places
++// the release notes name, most obvious first.
++#define DEFAULTWADLOCATION1 "/sdcard/RingRacersVR"
++#define DEFAULTWADLOCATION2 "/sdcard/RingRacers"
++#define DEFAULTWADLOCATION3 "/sdcard/Download/RingRacersVR"
++#define DEFAULTWADLOCATION4 "/sdcard/Download/RingRacers"
++#elif defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)
+ #define DEFAULTWADLOCATION1 "/usr/local/share/games/RingRacers"
+ #define DEFAULTWADLOCATION2 "/usr/local/games/RingRacers"
+ #define DEFAULTWADLOCATION3 "/usr/share/games/RingRacers"
+@@ -197,6 +206,7 @@ static char returnWadPath[256];
+ #include "../k_pwrlv.h"
+ #include "../r_main.h" // Frame interpolation/uncapped
+ #include "../r_fps.h"
++#include "../vr/vr.h" // synthetic VR gamepad (VR_GAMEPAD_DEVICE_ID, rumble routing)
+ 
+ #include "../k_menu.h"
+ 
+@@ -1283,6 +1293,13 @@ void I_GetGamepadGuid(INT32 device_id, char *out, int out_len)
+ 		return;
+ 	}
+ 
++	if (device_id == VR_GAMEPAD_DEVICE_ID)
++	{
++		// Stable pseudo-guid for the synthetic VR gamepad (no SDL handle).
++		strcpy(out, "76727872000000000000000000000000");
++		return;
++	}
++
+ 	controller = SDL_GetGamepadFromID(device_id - 1);
+ 	if (controller == NULL)
+ 	{
+@@ -1310,6 +1327,12 @@ void I_GetGamepadName(INT32 device_id, char *out, int out_len)
+ 	I_Assert(out != NULL);
+ 	I_Assert(out_len > 0);
+ 
++	if (device_id == VR_GAMEPAD_DEVICE_ID)
++	{
++		snprintf(out, out_len, "VR Motion Controllers");
++		return;
++	}
++
+ 	controller = SDL_GetGamepadFromID(device_id - 1);
+ 	if (controller == NULL)
+ 	{
+@@ -1323,10 +1346,38 @@ void I_GetGamepadName(INT32 device_id, char *out, int out_len)
+ 	out[out_len - 1] = 0;
+ }
+ 
++// The synthetic VR gamepad has no SDL handle; route its rumble to the motion
++// controllers instead. The game re-issues rumble every tic while a condition
++// holds and sends explicit zeroes to stop, so the duration below is only a
++// safety net against a lost stop.
++static boolean VrRumbleShim(INT32 device_id, UINT16 a, UINT16 b)
++{
++	if (device_id != VR_GAMEPAD_DEVICE_ID)
++	{
++		return false;
++	}
++
++	UINT16 strength = (a > b) ? a : b;
++	if (strength == 0)
++	{
++		vr_controller_rumble_stop();
++	}
++	else
++	{
++		vr_controller_rumble((float)strength / 65535.0f, 0.25f);
++	}
++	return true;
++}
++
+ void I_GamepadRumble(INT32 device_id, UINT16 low_strength, UINT16 high_strength)
+ {
+ 	I_Assert(device_id > 0); // Gamepad devices are always ID 1 or higher
+ 
++	if (VrRumbleShim(device_id, low_strength, high_strength))
++	{
++		return;
++	}
++
+ 	SDL_Gamepad *controller = SDL_GetGamepadFromID(device_id - 1);
+ 	if (controller == NULL)
+ 	{
+@@ -1340,6 +1391,11 @@ void I_GamepadRumbleTriggers(INT32 device_id, UINT16 left_strength, UINT16 right
+ {
+ 	I_Assert(device_id > 0); // Gamepad devices are always ID 1 or higher
+ 
++	if (VrRumbleShim(device_id, left_strength, right_strength))
++	{
++		return;
++	}
++
+ 	SDL_Gamepad *controller = SDL_GetGamepadFromID(device_id - 1);
+ 	if (controller == NULL)
+ 	{
+@@ -1984,8 +2040,12 @@ FUNCIERROR void ATTRNORETURN I_Error(const char *error, ...)
+ 
+ 	W_Shutdown();
+ 
+-#if defined (PARANOIA) || defined (DEVELOP)
+-	*(volatile INT32 *)0 = 4; //Alam: Debug!
++#if (defined (PARANOIA) || defined (DEVELOP)) && defined (_WIN32)
++	// Dev builds: stop at the error site when a debugger is watching. A
++	// naked run exits cleanly instead - manufacturing an access violation
++	// here buries the real error message under a crash-handler dialog.
++	if (IsDebuggerPresent())
++		DebugBreak();
+ #endif
+ 
+ 	exit(-1);

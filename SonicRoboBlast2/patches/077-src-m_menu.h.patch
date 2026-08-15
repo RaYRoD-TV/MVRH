@@ -1,0 +1,26 @@
+diff --git a/src/m_menu.h b/src/m_menu.h
+index dc8bef8b1..03ac5a9b6 100644
+--- a/src/m_menu.h
++++ b/src/m_menu.h
+@@ -110,6 +110,8 @@ typedef enum
+ 	MN_OP_SCREENSHOTS,
+ 	MN_OP_ERASEDATA,
+ 
++	MN_OP_VR,
++
+ 	// Extras
+ 	MN_SR_MAIN,
+ 	MN_SR_PANDORA,
+@@ -207,6 +209,12 @@ void M_InitCharacterTables(INT32 num);
+ // does nothing if menu is already up.
+ void M_StartControlPanel(void);
+ 
++// VR controller hooks (called from the OpenXR input bridge):
++// right trigger in the pause menu jumps to VR Options; grips page sections.
++void M_VROptionsShortcut(void);
++void M_MenuSectionJump(INT32 dir);
++boolean M_SaveSelectActive(void); // save-slot screen showing (B = delete save there)
++
+ // Called upon end of a mode attack run
+ void M_EndModeAttackRun(void);
+ 

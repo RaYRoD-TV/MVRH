@@ -1,0 +1,22 @@
+diff --git a/src/r_picformats.c b/src/r_picformats.c
+index a45c143b0..a0e7274fc 100644
+--- a/src/r_picformats.c
++++ b/src/r_picformats.c
+@@ -911,17 +911,6 @@ boolean Picture_IsLumpPNG(const UINT8 *d, size_t s)
+ 
+ #ifndef NO_PNG_LUMPS
+ #ifdef HAVE_PNG
+-
+-/*#if PNG_LIBPNG_VER_DLLNUM < 14
+-typedef PNG_CONST png_byte *png_const_bytep;
+-#endif*/
+-typedef struct
+-{
+-	const UINT8 *buffer;
+-	UINT32 size;
+-	UINT32 position;
+-} png_io_t;
+-
+ static void PNG_IOReader(png_structp png_ptr, png_bytep data, png_size_t length)
+ {
+ 	png_io_t *f = png_get_io_ptr(png_ptr);

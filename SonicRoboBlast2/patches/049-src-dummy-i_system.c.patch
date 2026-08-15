@@ -1,0 +1,83 @@
+diff --git a/src/dummy/i_system.c b/src/dummy/i_system.c
+index 99bfa9f36..f93af2d85 100644
+--- a/src/dummy/i_system.c
++++ b/src/dummy/i_system.c
+@@ -80,6 +80,14 @@ void I_InitJoystick(void){}
+ 
+ void I_InitJoystick2(void){}
+ 
++void I_ChangeJoystick(void){}
++
++void I_ChangeJoystick2(void){}
++
++#ifdef TOUCHINPUTS
++void I_InitTouchScreen(void) {}
++#endif
++
+ INT32 I_NumJoys(void)
+ {
+ 	return 0;
+@@ -159,6 +167,36 @@ const char *I_LocateWad(void)
+ 	return NULL;
+ }
+ 
++const char *I_InitialLocateWad(void)
++{
++	return NULL;
++}
++
++const char *I_AppStorageLocation(void)
++{
++	return NULL;
++}
++
++const char *I_SharedStorageLocation(void)
++{
++	return NULL;
++}
++
++const char *I_RemovableStorageLocation(void)
++{
++	return NULL;
++}
++
++INT32 I_StoragePermission(void)
++{
++	return 1;
++}
++
++INT32 I_SystemStoragePermission(void)
++{
++	return 1;
++}
++
+ void I_GetJoystickEvents(void){}
+ 
+ void I_GetJoystick2Events(void){}
+@@ -191,6 +229,26 @@ const char *I_ClipboardPaste(void)
+ 	return NULL;
+ }
+ 
++INT32 I_OnTabletDevice(void)
++{
++	return 0;
++}
++
++INT32 I_OnTVDevice(void)
++{
++	return 0;
++}
++
++INT32 I_OnAndroidTV(void)
++{
++	return 0;
++}
++
++INT32 I_OnAppleTV(void)
++{
++	return 0;
++}
++
+ size_t I_GetRandomBytes(char *destination, size_t amount)
+ {
+ 	(void)destination;

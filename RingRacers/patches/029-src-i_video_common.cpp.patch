@@ -1,0 +1,270 @@
+diff --git a/src/i_video_common.cpp b/src/i_video_common.cpp
+index 045a551d2..ae9bbb4e5 100644
+--- a/src/i_video_common.cpp
++++ b/src/i_video_common.cpp
+@@ -25,7 +25,9 @@
+ #include "hwr2/hardware_state.hpp"
+ #include "hwr2/patch_atlas.hpp"
+ #include "hwr2/twodee.hpp"
++#include "rhi/gl2/gl2_rhi.hpp"
+ #include "v_video.h"
++#include "vr/vr.h"
+ 
+ // KILL THIS WHEN WE KILL OLD OGL SUPPORT PLEASE
+ #include "d_netcmd.h" // kill
+@@ -49,6 +51,9 @@
+ #include "v_video.h"
+ 
+ extern "C" consvar_t cv_scr_scale, cv_scr_x, cv_scr_y;
++#ifdef ENABLE_VR
++extern "C" consvar_t cv_vr_mirror;
++#endif
+ 
+ using namespace srb2;
+ using namespace srb2::hwr2;
+@@ -85,9 +90,12 @@ static void reset_hardware_state(Rhi* rhi)
+ 	g_hw_state.sharp_bilinear_blit_rect = std::make_unique<BlitRectPass>(BlitRectPass::BlitMode::kSharpBilinear);
+ 	g_hw_state.crt_blit_rect = std::make_unique<BlitRectPass>(BlitRectPass::BlitMode::kCrt);
+ 	g_hw_state.crtsharp_blit_rect = std::make_unique<BlitRectPass>(BlitRectPass::BlitMode::kCrtSharp);
++	g_hw_state.soft_blit_rect = std::make_unique<BlitRectPass>(BlitRectPass::BlitMode::kSoft);
+ 	g_hw_state.screen_capture = std::make_unique<ScreenshotPass>();
+ 	g_hw_state.backbuffer = std::make_unique<UpscaleBackbuffer>();
+ 	g_hw_state.legacygl_backbuffer = std::make_unique<UpscaleBackbuffer>();
++	g_hw_state.vr_panel_backbuffer = std::make_unique<UpscaleBackbuffer>();
++	g_hw_state.vr_hud_backbuffer = std::make_unique<UpscaleBackbuffer>();
+ 	g_hw_state.imgui_renderer = std::make_unique<ImguiRenderer>();
+ 	g_hw_state.wipe_frames = {};
+ 
+@@ -97,6 +105,63 @@ static void reset_hardware_state(Rhi* rhi)
+ static void new_twodee_frame();
+ static void new_imgui_frame();
+ 
++#ifdef ENABLE_VR
++// Run the chosen Screen Effect over the finished frame into an offscreen
++// copy at the game resolution, and hand back whatever the compositor should
++// sample - the untouched backbuffer when the effect is Nearest.
++//
++// Both VR surfaces are flat screens the player looks AT: the theater panel
++// and the HUD/menu quad. That is exactly what these filters are for, and
++// because the quad is anchored in the room the pattern rides the surface
++// instead of the eyes. The stereo world itself deliberately never comes
++// through here - a scanline mask locked to the eye would crawl over the
++// geometry with every head movement.
++//
++// keep_alpha carries the 2D pass's coverage through, which the HUD quad
++// composites from; the theater panel is a solid frame and drops it.
++static rhi::Handle<rhi::Texture> vr_screen_effect_copy(rhi::Rhi& rhi, bool keep_alpha)
++{
++	BlitRectPass* fx = nullptr;
++	switch (cv_scr_effect.value)
++	{
++	case 1: fx = g_hw_state.sharp_bilinear_blit_rect.get(); break;
++	case 2: fx = g_hw_state.crt_blit_rect.get(); break;
++	case 3: fx = g_hw_state.crtsharp_blit_rect.get(); break;
++	case 4: fx = g_hw_state.soft_blit_rect.get(); break;
++	default: break;
++	}
++
++	if (fx == nullptr)
++		return g_hw_state.backbuffer->color();
++
++	UpscaleBackbuffer* target =
++		(keep_alpha ? g_hw_state.vr_hud_backbuffer : g_hw_state.vr_panel_backbuffer).get();
++
++	target->begin_pass(rhi, keep_alpha);
++	rhi.update_texture_settings(
++		g_hw_state.backbuffer->color(),
++		TextureWrapMode::kClamp,
++		TextureWrapMode::kClamp,
++		TextureFilterMode::kLinear,
++		TextureFilterMode::kLinear
++	);
++	fx->set_blend(false);
++	// flip=true: the pass's projection flips Y for the window; the texcoord
++	// flip cancels it so the copy keeps the source orientation and the
++	// compositor samples it like the raw backbuffer.
++	fx->set_output(0, 0, vid.width, vid.height, false, true);
++	fx->set_texture(
++		g_hw_state.backbuffer->color(),
++		static_cast<uint32_t>(vid.width),
++		static_cast<uint32_t>(vid.height)
++	);
++	fx->draw(rhi);
++	rhi.pop_render_pass();
++
++	return target->color();
++}
++#endif
++
+ static void preframe_update(Rhi& rhi)
+ {
+ 	g_hw_state.palette_manager->update(rhi);
+@@ -232,7 +297,27 @@ void I_StartDisplayUpdate(void)
+ 
+ 	HardwareState* hw_state = &g_hw_state;
+ 
+-	hw_state->backbuffer->begin_pass(*rhi);
++	// The eye pass runs the Screen Effect itself - the stereo world never
++	// reaches the RHI's blit - so hand it this frame's setting before
++	// D_Display starts rendering eyes. Once a session is live the presets a
++	// headset can't afford leave the list entirely (once; the call is cheap
++	// but this is every frame).
++	if (vr_is_active())
++	{
++		static boolean vr_effects_filtered = false;
++		if (!vr_effects_filtered)
++		{
++			SCR_HideVRUnfitScreenEffects();
++			vr_effects_filtered = true;
++		}
++	}
++	vr_set_screen_effect(cv_scr_effect.value);
++
++	// VR: the HUD overlay quad composites this buffer by its alpha, so it
++	// must be RGBA and start each frame at transparent black (the 2D pass
++	// leaves real coverage; whatever it didn't touch stays see-through).
++	// The flat game keeps the stock persistent RGB target.
++	hw_state->backbuffer->begin_pass(*rhi, vr_is_active());
+ 
+ 	preframe_update(*rhi);
+ }
+@@ -257,12 +342,54 @@ void I_FinishUpdate(void)
+ 		return;
+ 	}
+ 
++	// VR frame start. First call lazy-boots OpenXR, which binds the session to
++	// the WGL context current on this thread; from then on xrWaitFrame paces
++	// the loop at the headset refresh. Stereo frames begin earlier, in
++	// D_Display ahead of the eye loop (this call is then a no-op); this one
++	// covers the panel path and the wipe loops that present without running
++	// D_Display. Boot is gated on the OpenGL renderer: the session is bound
++	// to the GL context, and only the GL renderer leaves a frame worth
++	// presenting.
++	if (vr_is_requested() && rendermode == render_opengl)
++		vr_begin_frame();
++
+ 	// better hope the drawing code left the context in a render pass, I guess
+ 	g_hw_state.twodee_renderer->flush(*rhi, g_2d);
+ 	rhi->pop_render_pass();
+ 
++	// Desktop mirror throttle (stereo frames only): the monitor window is a
++	// spectator while the headset plays, and its eye blit + swap cost real
++	// frame time at high eye resolutions. Half Rate redraws it every other
++	// frame, Off freezes it on the last frame drawn. The headset submit
++	// below runs either way, and imgui recovers by itself - the next
++	// new_imgui_frame ends the frame nobody rendered.
++	bool mirrorframe = true;
++#ifdef ENABLE_VR
++	if (vr_frame_has_eyes() && cv_vr_mirror.value != 2)
++	{
++		static bool mirrorodd = false;
++		mirrorodd = !mirrorodd;
++		mirrorframe = (cv_vr_mirror.value == 1) && mirrorodd;
++	}
++#endif
++
++	if (mirrorframe)
++	{
++
+ 	rhi->push_default_render_pass(true);
+ 
++	// VR stereo frames leave the backbuffer holding only the 2D pass on
++	// transparent black - presenting that alone blacks out the monitor. Lay
++	// the last rendered eye under it (center-cropped to the window) and have
++	// the backbuffer blit below alpha-blend the HUD on top, so the desktop
++	// mirrors what the headset shows.
++	const bool vr_mirrored = vr_frame_has_eyes() && vr_blit_mirror(vid.realwidth, vid.realheight);
++	g_hw_state.blit_rect->set_blend(vr_mirrored);
++	g_hw_state.sharp_bilinear_blit_rect->set_blend(vr_mirrored);
++	g_hw_state.crt_blit_rect->set_blend(vr_mirrored);
++	g_hw_state.crtsharp_blit_rect->set_blend(vr_mirrored);
++	g_hw_state.soft_blit_rect->set_blend(vr_mirrored);
++
+ 	// Upscale draw the backbuffer (with postprocessing maybe?)
+ 	if (cv_scr_scale.value != FRACUNIT)
+ 	{
+@@ -276,6 +403,7 @@ void I_FinishUpdate(void)
+ 		g_hw_state.sharp_bilinear_blit_rect->set_output(x, y, w, h, true, true);
+ 		g_hw_state.crt_blit_rect->set_output(x, y, w, h, true, true);
+ 		g_hw_state.crtsharp_blit_rect->set_output(x, y, w, h, true, true);
++		g_hw_state.soft_blit_rect->set_output(x, y, w, h, true, true);
+ 	}
+ 	else
+ 	{
+@@ -283,11 +411,13 @@ void I_FinishUpdate(void)
+ 		g_hw_state.sharp_bilinear_blit_rect->set_output(0, 0, vid.realwidth, vid.realheight, true, true);
+ 		g_hw_state.crt_blit_rect->set_output(0, 0, vid.realwidth, vid.realheight, true, true);
+ 		g_hw_state.crtsharp_blit_rect->set_output(0, 0, vid.realwidth, vid.realheight, true, true);
++		g_hw_state.soft_blit_rect->set_output(0, 0, vid.realwidth, vid.realheight, true, true);
+ 	}
+ 	g_hw_state.blit_rect->set_texture(g_hw_state.backbuffer->color(), static_cast<uint32_t>(vid.width), static_cast<uint32_t>(vid.height));
+ 	g_hw_state.sharp_bilinear_blit_rect->set_texture(g_hw_state.backbuffer->color(), static_cast<uint32_t>(vid.width), static_cast<uint32_t>(vid.height));
+ 	g_hw_state.crt_blit_rect->set_texture(g_hw_state.backbuffer->color(), static_cast<uint32_t>(vid.width), static_cast<uint32_t>(vid.height));
+ 	g_hw_state.crtsharp_blit_rect->set_texture(g_hw_state.backbuffer->color(), static_cast<uint32_t>(vid.width), static_cast<uint32_t>(vid.height));
++	g_hw_state.soft_blit_rect->set_texture(g_hw_state.backbuffer->color(), static_cast<uint32_t>(vid.width), static_cast<uint32_t>(vid.height));
+ 
+ 	switch (cv_scr_effect.value)
+ 	{
+@@ -303,6 +433,13 @@ void I_FinishUpdate(void)
+ 		rhi->update_texture_settings(g_hw_state.backbuffer->color(), TextureWrapMode::kClamp, TextureWrapMode::kClamp, TextureFilterMode::kLinear, TextureFilterMode::kLinear);
+ 		g_hw_state.crtsharp_blit_rect->draw(*rhi);
+ 		break;
++	case 4:
++		// Bilinear = the SOFT mode: a small tent filter sized in output pixels,
++		// so it visibly smooths even on a 1:1 native-res blit (where plain
++		// hardware linear would be an identity and feel like Nearest).
++		rhi->update_texture_settings(g_hw_state.backbuffer->color(), TextureWrapMode::kClamp, TextureWrapMode::kClamp, TextureFilterMode::kLinear, TextureFilterMode::kLinear);
++		g_hw_state.soft_blit_rect->draw(*rhi);
++		break;
+ 	default:
+ 		rhi->update_texture_settings(g_hw_state.backbuffer->color(), TextureWrapMode::kClamp, TextureWrapMode::kClamp, TextureFilterMode::kNearest, TextureFilterMode::kNearest);
+ 		g_hw_state.blit_rect->draw(*rhi);
+@@ -313,9 +450,47 @@ void I_FinishUpdate(void)
+ 
+ 	rhi->pop_render_pass();
+ 
++	} // if (mirrorframe)
++
+ 	postframe_update(*rhi);
+ 
+-	rhi->present();
++#ifdef ENABLE_VR
++	// VR output for this frame, then end the XR frame. Stereo frames: the
++	// eyes went up from D_Display's eye loop and the backbuffer holds only
++	// the 2D pass (HUD/menus on transparent black), which overlays the world
++	// as an alpha-blended head-locked quad. Otherwise the finished flat frame
++	// goes onto the theater panel. Both use the backbuffer color texture
++	// (pre-upscale, at the game resolution). The GL2 downcast is safe: VR
++	// only ever activates after vr_boot bound the session to the WGL context
++	// that the SDL GL2 backend owns, so no other RHI can be live here.
++	if (vr_is_active())
++	{
++		rhi::Gl2Rhi* gl2 = static_cast<rhi::Gl2Rhi*>(rhi);
++		if (vr_frame_has_eyes())
++		{
++			// Menus are full-screen layouts: while one is up the HUD quad
++			// grows so the pause menu and options read at a real size. The
++			// Screen Effect runs on the quad's own image, so what the player
++			// set in Video options is what the HUD and menus look like in
++			// the headset - with the coverage kept so the world still shows
++			// through everywhere the 2D pass drew nothing.
++			uint32_t frame_tex = gl2->gl_texture_name(vr_screen_effect_copy(*rhi, true));
++			vr_set_hud_menu(menuactive);
++			vr_submit_hud_texture(frame_tex, static_cast<int>(vid.width), static_cast<int>(vid.height));
++		}
++		else
++		{
++			// Theater panel: the flat frame on the big screen gets the same
++			// Screen Effect as the desktop. Nearest submits it untouched.
++			uint32_t frame_tex = gl2->gl_texture_name(vr_screen_effect_copy(*rhi, false));
++			vr_submit_panel_texture(frame_tex, static_cast<int>(vid.width), static_cast<int>(vid.height));
++		}
++		vr_submit();
++	}
++#endif
++
++	if (mirrorframe)
++		rhi->present();
+ 	rhi->finish();
+ 
+ 	FrameMark;

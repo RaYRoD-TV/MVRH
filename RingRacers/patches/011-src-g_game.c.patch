@@ -1,0 +1,45 @@
+diff --git a/src/g_game.c b/src/g_game.c
+index 61130268d..609c16ef8 100644
+--- a/src/g_game.c
++++ b/src/g_game.c
+@@ -53,6 +53,7 @@
+ 
+ // SRB2kart
+ #include "k_kart.h"
++#include "k_hazard.h"
+ #include "k_battle.h"
+ #include "k_pwrlv.h"
+ #include "k_color.h"
+@@ -1422,7 +1423,20 @@ boolean G_Responder(event_t *ev)
+ 	{
+ 		if (AM_Responder(ev))
+ 			return true; // automap ate it
+-		// map the event (key/mouse/joy) to a gamecontrol
++
++		// D-pad up cycles the view mode (third person / first person /
++		// diorama - the same rotation the headset's stick click walks).
++		// Only from the first player's own pad, never while a menu is up,
++		// and never while a trick is armed: up is also the trick
++		// direction, and the trick wins.
++		if (ev->type == ev_keydown && ev->data1 == KEY_HAT1+0
++			&& ev->device > 0 && ev->device == G_GetDeviceForPlayer(0)
++			&& !menuactive && !paused
++			&& players[consoleplayer].trickpanel != TRICKSTATE_READY)
++		{
++			P_CycleFlatViewMode();
++			return true;
++		}
+ 	}
+ 	// Intro
+ 	else if (gamestate == GS_INTRO)
+@@ -3370,6 +3384,10 @@ void G_FinishExitLevel(void)
+ {
+ 	G_ResetAllDeviceRumbles();
+ 
++	// Burning stops when the race does - otherwise finishing on lava carries
++	// the heat over into the next level's first moments.
++	K_ResetHazardFeedback();
++
+ 	if (gamestate == GS_LEVEL)
+ 	{
+ 		const boolean worknetgame = (demo.playback ? demo.netgame : netgame);

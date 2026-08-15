@@ -1,0 +1,19 @@
+diff --git a/src/rhi/shader_load_context.hpp b/src/rhi/shader_load_context.hpp
+index 1bc458ea8..6aa2940d3 100644
+--- a/src/rhi/shader_load_context.hpp
++++ b/src/rhi/shader_load_context.hpp
+@@ -37,6 +37,14 @@ public:
+ 	srb2::Vector<const char*> get_sources_array();
+ };
+ 
++// Read a glsllist lump (a plain list of glsl lump names, '#' comments and
++// blank lines skipped) and return the source of every lump it names, in
++// order. Throws std::runtime_error if the list or any source is missing.
++//
++// The GL2 backend loads its programs this way; the VR module borrows the
++// same lists so the headset runs the exact shaders the monitor does.
++srb2::Vector<srb2::String> read_glsllist_sources(const char* lumpname);
++
+ }; // namespace srb2::rhi
+ 
+ #endif // __SRB2_RHI_SHADER_LOAD_CONTEXT_HPP__

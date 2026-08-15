@@ -1,0 +1,12 @@
+diff --git a/src/hardware/hw_main.h b/src/hardware/hw_main.h
+index 652b40947..559234165 100644
+--- a/src/hardware/hw_main.h
++++ b/src/hardware/hw_main.h
+@@ -114,6 +114,7 @@ extern consvar_t cv_glmodellighting;
+ 
+ extern consvar_t cv_glfiltermode;
+ extern consvar_t cv_glanisotropicmode;
++extern consvar_t cv_glsupersample;
+ extern consvar_t cv_fovchange;
+ extern consvar_t cv_glsolvetjoin;
+ extern consvar_t cv_glshearing;

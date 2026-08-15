@@ -1,0 +1,49 @@
+diff --git a/src/hwr2/upscale_backbuffer.cpp b/src/hwr2/upscale_backbuffer.cpp
+index b4d5b0a67..178b219ca 100644
+--- a/src/hwr2/upscale_backbuffer.cpp
++++ b/src/hwr2/upscale_backbuffer.cpp
+@@ -27,13 +27,13 @@ static bool size_equal(Rhi& rhi, Handle<Texture> tex, uint32_t width, uint32_t h
+ 	return deets.width == width && deets.height == height;
+ }
+ 
+-void UpscaleBackbuffer::begin_pass(Rhi& rhi)
++void UpscaleBackbuffer::begin_pass(Rhi& rhi, bool transparent)
+ {
+ 	uint32_t vid_width = static_cast<uint32_t>(vid.width);
+ 	uint32_t vid_height = static_cast<uint32_t>(vid.height);
+ 
+ 	bool remake = false;
+-	if (!color_ || !size_equal(rhi, color_, vid_width, vid_height))
++	if (!color_ || !size_equal(rhi, color_, vid_width, vid_height) || transparent != transparent_)
+ 	{
+ 		remake = true;
+ 	}
+@@ -47,7 +47,7 @@ void UpscaleBackbuffer::begin_pass(Rhi& rhi)
+ 		}
+ 
+ 		TextureDesc color_tex {};
+-		color_tex.format = TextureFormat::kRGB;
++		color_tex.format = transparent ? TextureFormat::kRGBA : TextureFormat::kRGB;
+ 		color_tex.width = vid_width;
+ 		color_tex.height = vid_height;
+ 		color_tex.u_wrap = TextureWrapMode::kClamp;
+@@ -64,13 +64,17 @@ void UpscaleBackbuffer::begin_pass(Rhi& rhi)
+ 		rb_desc.width = vid_width;
+ 		rb_desc.height = vid_height;
+ 		depth_ = rhi.create_renderbuffer(rb_desc);
++
++		transparent_ = transparent;
+ 	}
+ 
++	// Transparent mode starts every frame from alpha-0 black; the stock mode
++	// keeps whatever the last frame left (2D code historically relies on it).
+ 	RenderPassBeginInfo begin_info {};
+-	begin_info.clear_color = {0, 0, 0, 1};
++	begin_info.clear_color = {0, 0, 0, transparent ? 0.f : 1.f};
+ 	begin_info.color_attachment = color_;
+ 	begin_info.depth_stencil_attachment = depth_;
+-	begin_info.color_load_op = rhi::AttachmentLoadOp::kLoad;
++	begin_info.color_load_op = transparent ? rhi::AttachmentLoadOp::kClear : rhi::AttachmentLoadOp::kLoad;
+ 	begin_info.color_store_op = rhi::AttachmentStoreOp::kStore;
+ 	begin_info.depth_load_op = rhi::AttachmentLoadOp::kLoad;
+ 	begin_info.depth_store_op = rhi::AttachmentStoreOp::kStore;

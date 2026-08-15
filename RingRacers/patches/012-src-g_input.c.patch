@@ -1,0 +1,16 @@
+diff --git a/src/g_input.c b/src/g_input.c
+index 3aa69c5ce..92e6e188b 100644
+--- a/src/g_input.c
++++ b/src/g_input.c
+@@ -1107,6 +1107,11 @@ void G_DefineDefaultControls(void)
+ 	gamecontroldefault[gc_r    ][1] = KEY_AXIS1+9; // RT
+ 	gamecontroldefault[gc_start][1] = KEY_JOY1+6; // Start
+ 
++	// Look behind on the right bumper as well as B. Two buttons reaching the
++	// same control is deliberate: glancing back is something you want without
++	// moving your thumb off the face buttons.
++	gamecontroldefault[gc_lookback][2] = KEY_JOY1+10; // RB
++
+ 	gamecontroldefault[gc_up   ][2] = KEY_AXIS1+2; // Axis Y-
+ 	gamecontroldefault[gc_down ][2] = KEY_AXIS1+3; // Axis Y+
+ 	gamecontroldefault[gc_left ][2] = KEY_AXIS1+0; // Axis X-

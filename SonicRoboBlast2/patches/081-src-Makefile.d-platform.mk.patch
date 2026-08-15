@@ -1,0 +1,56 @@
+diff --git a/src/Makefile.d/platform.mk b/src/Makefile.d/platform.mk
+index d5423a397..dfd1915d6 100644
+--- a/src/Makefile.d/platform.mk
++++ b/src/Makefile.d/platform.mk
+@@ -14,6 +14,14 @@ mkdir=mkdir -p
+ cat=cat
+ endif
+ 
++ifndef MAKE_DIR
++MAKE_DIR:=Makefile.d
++endif
++
++ifdef ANDROID
++LINUX64=1
++endif
++
+ ifdef LINUX64
+ LINUX=1
+ endif
+@@ -38,7 +46,7 @@ platform=freebsd
+ else ifdef HAIKU
+ # Give Haiku its own configuration, since it
+ # isn't actually UNIX.
+-include Makefile.d/haiku.mk
++include $(MAKE_DIR)/haiku.mk
+ else ifdef SOLARIS # FIXME: UNTESTED
+ UNIX=1
+ platform=solaris
+@@ -56,7 +64,7 @@ platform=mingw/64
+ else
+ platform=mingw
+ endif
+-include Makefile.d/win32.mk
++include $(MAKE_DIR)/win32.mk
+ endif
+ 
+ ifdef platform
+@@ -64,13 +72,13 @@ makedir:=$(makedir)/$(platform)
+ endif
+ 
+ ifdef UNIX
+-include Makefile.d/nix.mk
++include $(MAKE_DIR)/nix.mk
+ endif
+ 
+ ifeq ($(SDL), 1)
+-include Makefile.d/sdl.mk
++include $(MAKE_DIR)/sdl.mk
+ else ifeq ($(DEDICATED), 1)
+-include Makefile.d/dedicated.mk
+-else
+-include Makefile.d/dummy.mk
++include $(MAKE_DIR)/dedicated.mk
++else ifndef ANDROID
++include $(MAKE_DIR)/dummy.mk
+ endif

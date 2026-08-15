@@ -1,0 +1,35 @@
+diff --git a/src/screen.h b/src/screen.h
+index cb4137fb0..54a73d45a 100644
+--- a/src/screen.h
++++ b/src/screen.h
+@@ -44,8 +44,8 @@ extern "C" {
+ // we try to re-allocate a minimum of buffers for stability of the memory,
+ // so all the small-enough tables based on screen size, are allocated once
+ // and for all at the maximum size.
+-#define MAXVIDWIDTH 1920 // don't set this too high because actually
+-#define MAXVIDHEIGHT 1200 // lots of tables are allocated with the MAX size.
++#define MAXVIDWIDTH 3840 // don't set this too high because actually
++#define MAXVIDHEIGHT 2160 // lots of tables are allocated with the MAX size.
+ #define BASEVIDWIDTH 320 // NEVER CHANGE THIS! This is the original
+ #define BASEVIDHEIGHT 200 // resolution of the graphics.
+ 
+@@ -131,12 +131,19 @@ extern double averageFPS;
+ void SCR_ChangeRenderer(void);
+ 
+ extern CV_PossibleValue_t cv_renderer_t[];
++extern CV_PossibleValue_t scr_effect_cons_t[];
++
++// Drop the presets a headset can't afford from cv_scr_effect's value list, so
++// they can't be reached from any menu or the console while a session runs.
++// Idempotent; called once VR is live.
++void SCR_HideVRUnfitScreenEffects(void);
+ 
+ extern INT32 scr_bpp;
+ extern UINT8 *scr_borderpatch; // patch used to fill the view borders
+ 
+ extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_renderer, cv_renderhitbox, cv_fullscreen;
+ extern consvar_t cv_scr_effect;
++extern consvar_t cv_scr_effectstrength;
+ extern consvar_t cv_parallelsoftware;
+ extern consvar_t cv_display;
+ 

@@ -1,0 +1,25 @@
+diff --git a/src/hu_stuff.c b/src/hu_stuff.c
+index 7f2560bcc..c4c9f57eb 100644
+--- a/src/hu_stuff.c
++++ b/src/hu_stuff.c
+@@ -51,6 +51,8 @@
+ 
+ #include "lua_hud.h"
+ #include "lua_hudlib_drawlist.h"
++
++#include "vr/i_openxr.h" // VR_IsActive + vr_crosshair (crosshair defaults off in VR)
+ #include "lua_hook.h"
+ 
+ // coords are scaled
+@@ -1801,8 +1803,9 @@ void HU_Drawer(void)
+ 	if (gamestate != GS_LEVEL)
+ 		return;
+ 
+-	// draw the crosshair
+-	if (LUA_HudEnabled(hud_crosshair))
++	// draw the crosshair (in VR it would pin to the middle of the floating
++	// screen, not to where shots go, so it's off unless vr_crosshair says on)
++	if (LUA_HudEnabled(hud_crosshair) && (!VR_IsActive() || cv_vrcrosshair.value))
+ 		HU_DrawCrosshairs();
+ 
+ 	// draw desynch text

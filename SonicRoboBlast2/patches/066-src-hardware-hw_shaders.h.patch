@@ -1,0 +1,562 @@
+diff --git a/src/hardware/hw_shaders.h b/src/hardware/hw_shaders.h
+index 38a2d9911..f45cb6e18 100644
+--- a/src/hardware/hw_shaders.h
++++ b/src/hardware/hw_shaders.h
+@@ -31,10 +31,44 @@
+ 		"gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n" \
+ 	"}\0"
+ 
++//
++// World vertex shader: the generic one plus the VR underwater sway. Geometry
++// drifts on slow waves keyed to WORLD position, so the scene undulates
++// coherently and both eyes see the same displaced world with true parallax --
++// the stereo-correct stand-in for the flat screen's warp. Two incommensurate
++// wavelengths and periods so the motion never reads as a loop. vr_sway is the
++// amplitude in world units; at the default 0 the path is the identity.
++// Used by the world-geometry programs only (floor/wall/sprite/water/fog) --
++// the sky dome and UI never sway.
++//
++
++#define GLSL_WORLD_VERTEX_SHADER \
++	"uniform float vr_sway;\n" \
++	"uniform float leveltime;\n" \
++	"varying vec3 world_pos;\n" \
++	"void main()\n" \
++	"{\n" \
++		"vec4 v = gl_Vertex;\n" \
++		"if (vr_sway > 0.0)\n" \
++		"{\n" \
++			"float ph  = (v.x + v.z) * 0.028 + leveltime * 1.3;\n" \
++			"float ph2 = (v.x - v.z) * 0.017 - leveltime * 0.9;\n" \
++			"v.x += (sin(ph) + 0.6 * sin(ph2)) * vr_sway;\n" \
++			"v.z += (cos(ph2) + 0.5 * cos(ph * 0.7)) * vr_sway * 0.8;\n" \
++			"v.y += (sin(ph * 0.6 + 1.7) + 0.5 * sin(ph2 * 1.4)) * vr_sway * 0.45;\n" \
++		"}\n" \
++		"world_pos = v.xyz;\n" \
++		"gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * v;\n" \
++		"gl_FrontColor = gl_Color;\n" \
++		"gl_TexCoord[0].xy = gl_MultiTexCoord0.xy;\n" \
++		"gl_ClipVertex = gl_ModelViewMatrix * v;\n" \
++	"}\0"
++
+ // replicates the way fixed function lighting is used by the model lighting option,
+ // stores the lighting result to gl_Color
+ // (ambient lighting of 0.75 and diffuse lighting from above)
+ #define GLSL_MODEL_VERTEX_SHADER \
++	"varying vec3 world_pos;\n" \
+ 	"void main()\n" \
+ 	"{\n" \
+ 		"#ifdef SRB2_MODEL_LIGHTING\n" \
+@@ -44,6 +78,7 @@
+ 		"#else\n" \
+ 		"gl_FrontColor = gl_Color;\n" \
+ 		"#endif\n" \
++		"world_pos = gl_Vertex.xyz;\n" \
+ 		"gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;\n" \
+ 		"gl_TexCoord[0].xy = gl_MultiTexCoord0.xy;\n" \
+ 		"gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n" \
+@@ -53,6 +88,40 @@
+ //  Fragment shaders
+ // ==================
+ 
++// Shader-based supersampling of the texture fetch: a 2x2 rotated grid
++// ("4 rooks") spread across the pixel's own footprint in texture space,
++// averaged. The level's textures are small pixel art carried at a single mip
++// level, so a minified texel grid aliases and crawls badly - four taps inside
++// the footprint average that away for a small fraction of what rendering the
++// whole frame at a higher resolution would cost, which matters a great deal
++// with two eye buffers to fill.
++//
++// It is self-limiting: under magnification the entire footprint sits inside
++// one texel, all four taps land on the same texel, and the art stays as crisp
++// as it was. The negative mip bias only bites when a mipmapped filter mode is
++// on, where it buys back the sharpness mipmapping gives away.
++//
++// The derivatives are taken before the branch on purpose - they are only
++// defined in uniform control flow, and this keeps them out of it entirely.
++//
++// 2D and postprocess passes deliberately do not use this: they draw at 1:1,
++// where it would cost four fetches to return the same pixel.
++#define GLSL_SUPERSAMPLE_FUNCTION \
++	"uniform float supersample;\n" \
++	"vec4 SampleTexture(sampler2D s, vec2 uv)\n" \
++	"{\n" \
++		"vec2 dx = dFdx(uv);\n" \
++		"vec2 dy = dFdy(uv);\n" \
++		"if (supersample < 0.5)\n" \
++			"return texture2D(s, uv);\n" \
++		"vec2 o = vec2(0.125, 0.375);\n" \
++		"vec4 acc = texture2D(s, uv + o.x * dx + o.y * dy, -1.0);\n" \
++		"acc += texture2D(s, uv - o.x * dx - o.y * dy, -1.0);\n" \
++		"acc += texture2D(s, uv + o.y * dx - o.x * dy, -1.0);\n" \
++		"acc += texture2D(s, uv - o.y * dx + o.x * dy, -1.0);\n" \
++		"return acc * 0.25;\n" \
++	"}\n"
++
+ //
+ // Generic fragment shader
+ //
+@@ -60,8 +129,9 @@
+ #define GLSL_DEFAULT_FRAGMENT_SHADER \
+ 	"uniform sampler2D tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * poly_color;\n" \
++		"gl_FragColor = SampleTexture(tex, gl_TexCoord[0].st) * poly_color;\n" \
+ 	"}\0"
+ 
+ //
+@@ -110,6 +180,9 @@
+ 	"}\n" \
+ 	"final_color = mix(final_color, fade_color, darkness);\n"
+ 
++// Note: does NOT write gl_FragColor -- each user appends its own output so
++// the VR underwater layers can apply after the light-table fetch (the retro
++// quantized base stays; the water light composes on top of it).
+ #define GLSL_PALETTE_RENDERING \
+ 	"float tex_pal_idx = texture3D(palette_lookup_tex, vec3((texel * 63.0 + 0.5) / 64.0))[0] * 255.0;\n" \
+ 	"float z = gl_FragCoord.z / gl_FragCoord.w;\n" \
+@@ -117,7 +190,159 @@
+ 	"vec2 lighttable_coord = vec2((tex_pal_idx + 0.5) / 256.0, (light_y + 0.5) / 32.0);\n" \
+ 	"vec4 final_color = texture2D(lighttable_tex, lighttable_coord);\n" \
+ 	"final_color.a = texel.a * poly_color.a;\n" \
+-	"gl_FragColor = final_color;\n" \
++
++// VR underwater. Three world-space layers, all keyed off the eye being
++// submerged (vr_uwfog > 0; flat play and dry eyes compile the blocks away):
++//
++// 1. CAUSTICS -- two interfering wave sets sharpened into bright filaments,
++//    anchored to world position so they dance across floors and walls,
++//    strongest near the surface and dying with depth below it.
++// 2. HEIGHT-GRADED WATER COLUMN -- the Beer-Lambert ambient glows near the
++//    surface (sunlight in the water) and falls toward the abyss below it, so
++//    the fog itself carries the up-bright / down-dark truth of open water.
++// 3. ABSORPTION -- per-channel exponential falloff toward that ambient: red
++//    dies within meters, green holds longer, blue longest.
++//
++// Two water judges, deliberately split: vr_uwsurf is the surface of the water
++// the EYE is inside (the medium -- absorption fog, god rays, Snell's window),
++// while vr_uwlocal is the water top of the DRAWN SURFACE's own sector, fed
++// per-draw through FSurfaceInfo. The seen-through-the-surface layers
++// (caustics, shore depth-blueing) key off vr_uwlocal, so they follow each
++// water body exactly: no pop-in when the viewer changes sector, no dapple
++// bleeding onto dry rooms that merely sit below some other lake's waterline.
++// vr_eyepos is the rendering eye; all heights/positions in world units
++// (shader axes: x = map x, y = height, z = map y).
++// Per-layer strengths (all 0 = everything compiles away, flat play included):
++// vr_uwfog = absorption density (nonzero only while the EYE is submerged),
++// vr_uwcaustic = caustic brightness (on whenever the atmosphere option is --
++// vr_uwlocal gates where it lands), vr_uwray = god rays (submerged eye only).
++#define GLSL_VR_UNDERWATER_UNIFORMS \
++	"uniform float vr_uwfog;\n" \
++	"uniform vec3 vr_uwcolor;\n" \
++	"uniform float vr_uwsurf;\n" \
++	"uniform float vr_uwlocal;\n" \
++	"uniform vec3 vr_eyepos;\n" \
++	"uniform float vr_uwcaustic;\n" \
++	"uniform float vr_uwcaustictime;\n" \
++	"uniform float vr_uwray;\n" \
++	"varying vec3 world_pos;\n"
++
++#define GLSL_VR_UNDERWATER_FOG \
++	"if (vr_uwcaustic > 0.0 && vr_uwlocal != 0.0 && world_pos.y < vr_uwlocal + 48.0) {\n" \
++		"float subs = clamp((vr_uwlocal - world_pos.y) * 0.0035, 0.0, 1.0);\n" \
++		/* No hard stop at the waterline: the dapple runs a short band above  */ \
++		/* the surface and fades out, the way light plays on a pool's walls.  */ \
++		"float cband = smoothstep(0.0, 1.0, clamp((vr_uwlocal + 48.0 - world_pos.y) / 48.0, 0.0, 1.0));\n" \
++		/* One sunlight budget for every lit-water layer: nearness to the  */ \
++		/* surface, times how bright the map itself lit this spot -- so    */ \
++		/* authored dark caves stay dark and sunny shallows sparkle, and   */ \
++		/* caustics and rays rise and fall together instead of competing.  */ \
++		/* smoothstep saturates at 55% light: animated and strobing sector  */ \
++		/* lights swing the lighting uniform every frame, and multiplying   */ \
++		/* the caustics by it made whole sectors - props included - pulse   */ \
++		/* in time. Above the cap the caustic strength is constant, so      */ \
++		/* light animation cannot reach it; dark areas still fade out.      */ \
++		"float uwsun = (1.0 - 0.75 * subs) * (0.30 + 0.70 * smoothstep(0.0, 0.55, clamp(lighting / 255.0, 0.0, 1.0)));\n" \
++		/* BOTH wave domains key to world position and nothing else. The     */ \
++		/* texcoord domain that lived here slid every frame on scrolling     */ \
++		/* surfaces (waterfalls, flowing water flats) - and those sit        */ \
++		/* exactly where this layer is live. Flat, the animated clock hides  */ \
++		/* that slide; in VR the clock is frozen, so the slide was the only  */ \
++		/* motion left and the dapple crawled and shimmered. World position  */ \
++		/* is static for level geometry, so the pattern now is too. Two      */ \
++		/* scales with a skewed axis keep the interference varied enough     */ \
++		/* that no plane starves into a flat field.                          */ \
++		"vec2 cpA = vec2(world_pos.x * 0.043 + world_pos.z * 0.029, world_pos.z * 0.047 - world_pos.x * 0.031);\n" \
++		"vec2 cpB = world_pos.xz * 0.05;\n" \
++		/* Smooth interference field with NO clamp: the old form saturated   */ \
++		/* into flat plateaus of pure 0/1, and on coarse surfaces a whole    */ \
++		/* plane sat inside one plateau and blinked as the waves drifted     */ \
++		/* through the clamp edge - the whole-surface flash. cos() of a      */ \
++		/* smooth sum is bounded and never flat, so it can only dapple.      */ \
++		"float cwa = sin(cpA.x + vr_uwcaustictime * 1.1519173) + sin(cpA.y * 0.87 - vr_uwcaustictime * 0.9424778);\n" \
++		"float cwb = sin((cpB.x + cpB.y) * 0.73 - vr_uwcaustictime * 0.8377580) + sin((cpB.x - cpB.y) * 1.19 + vr_uwcaustictime * 0.6283185);\n" \
++		"float caustic = pow(0.5 + 0.5 * cos((cwa + cwb) * 1.5707963), 4.0);\n" \
++		/* Soft knee: the gain eases toward a ceiling instead of climbing  */ \
++		/* linearly. vr_uwcaustic is ~0.8 at a full slider (the uniform is */ \
++		/* decoded /1000), so cgain peaks well inside the knee's graded    */ \
++		/* range -- this was never a binary strobe. The slight cool cast   */ \
++		/* reads as sun through water.                                     */ \
++		"float cgain = caustic * vr_uwcaustic * uwsun * cband;\n" \
++		"cgain = cgain / (1.0 + 0.8 * cgain);\n" \
++		"final_color.rgb *= vec3(1.0) + cgain * vec3(0.92, 1.0, 1.05);\n" \
++		"if (vr_uwfog <= 0.0) {\n" \
++			/* Eye above water: blue the depths seen through the surface -- */ \
++			/* the submerged world falls toward the water color with its    */ \
++			/* own depth, so a lake reads as a volume from the shore.       */ \
++			/* Depth tint removed: its per-surface inputs flip frame to frame  */ \
++			/* on walls near water, snapping whole surfaces between tinted   */ \
++			/* and clean - the colour-shift flashing. The caustic dapple     */ \
++			/* above is healthy and stays. Restore only with a stable,       */ \
++			/* verified per-sector water feed.                               */ \
++		"}\n" \
++	"}\n" \
++	"if (vr_uwfog > 0.0) {\n" \
++		"float fsub = clamp((vr_uwsurf - world_pos.y) * 0.0035, 0.0, 1.0);\n" \
++		"float uwd = gl_FragCoord.z / gl_FragCoord.w;\n" \
++		/* Submerged eye = ONE uniform medium: the fog depends on distance    */ \
++		/* alone, so it is continuous across every surface and sector by     */ \
++		/* construction. Two attempts at per-ray air handling (integrating   */ \
++		/* only the submerged span of rays that cross the surface) both      */ \
++		/* painted seams -- the air judgment lives per SURFACE, and adjacent */ \
++		/* sectors with different water tops met at a visible line no        */ \
++		/* gradient could hide. The world above a real surface reads a       */ \
++		/* touch hazier than physics says; nothing anywhere reads as an      */ \
++		/* edge. That trade is the right one.                                */ \
++		"vec3 uwatt = exp(-uwd * vr_uwfog * vec3(0.0072, 0.0028, 0.0018));\n" \
++		"vec3 uwamb = vr_uwcolor * mix(1.65, 0.4, fsub);\n" \
++		"final_color.rgb = mix(uwamb, final_color.rgb, uwatt);\n" \
++		/* God rays: march the eye->fragment ray through a world-anchored   */ \
++		/* shaft field -- the volume-side sibling of the caustics. Analytic */ \
++		/* (nothing boils) and world-space (both eyes agree, true parallax).*/ \
++		"if (vr_uwray > 0.0) {\n" \
++			"vec3 uwrd = world_pos - vr_eyepos;\n" \
++			"float shaft = 0.0;\n" \
++			/* Eight samples, not five: the sharpened field marched too       */ \
++			/* coarsely lets samples hop whole light columns as the view     */ \
++			/* drifts, and at full slider strength that reads as the water   */ \
++			/* flashing. Denser sampling crosses columns smoothly; the 0.625 */ \
++			/* renormalizes so the strength sliders keep their meaning.      */ \
++			"for (int uwi = 1; uwi <= 8; ++uwi) {\n" \
++				"vec3 sp = vr_eyepos + uwrd * (float(uwi) * 0.1111);\n" \
++				"float sd = clamp((vr_uwsurf - sp.y) * 0.0035, 0.0, 1.0);\n" \
++				"vec2 gp = sp.xz * 0.011;\n" \
++				"float g = sin(gp.x + leveltime * 0.55) * sin(gp.y * 0.83 - leveltime * 0.47);\n" \
++				"g = pow(clamp(0.5 + 0.7 * g, 0.0, 1.0), 4.0);\n" \
++				"shaft += g * (1.0 - sd) * step(0.0, vr_uwsurf - sp.y);\n" \
++			"}\n" \
++			"shaft *= 0.625;\n" \
++			/* Soft-saturate the shaft into a graded glow (vr_uwray is ~0.26  */ \
++			/* at a full slider -- the uniform is decoded /1000; K brings the */ \
++			/* march into the knee's responsive range). A smooth knee, not a  */ \
++			/* hard clamp, so the rays stay a gradient rather than an on/off  */ \
++			/* mask. Screen blend composes them over the caustics below.      */ \
++			"float rsun = 0.30 + 0.70 * clamp(lighting / 255.0, 0.0, 1.0);\n" \
++			"float rstr = shaft * vr_uwray * rsun * 5.0;\n" \
++			"rstr = rstr / (1.0 + rstr);\n" \
++			"vec3 uwray = vr_uwcolor * (rstr * 0.85);\n" \
++			"final_color.rgb = 1.0 - (1.0 - final_color.rgb) * (1.0 - uwray);\n" \
++		"}\n" \
++	"}\n"
++
++// Snell's window (water-surface shader only): from underwater, the surface
++// transmits the bright world above inside a ~49-degree cone overhead and
++// mirrors the deep beyond it -- THE looking-up-from-underwater image. The
++// window brightens and breathes; the rim darkens toward internal reflection.
++#define GLSL_VR_SNELL_WINDOW \
++	"if (vr_uwfog > 0.0) {\n" \
++		"vec3 uvd = normalize(world_pos - vr_eyepos);\n" \
++		"if (uvd.y > 0.0) {\n" \
++			"float win = smoothstep(0.52, 0.76, uvd.y);\n" \
++			"float rimdk = 1.0 - 0.45 * (1.0 - win) * smoothstep(0.0, 0.35, uvd.y);\n" \
++			"float glow = win * (0.25 + 0.08 * sin(leveltime * 0.9 + (world_pos.x + world_pos.z) * 0.006));\n" \
++			"final_color.rgb = final_color.rgb * rimdk * (1.0 + 1.05 * win) + vec3(0.30, 0.62, 0.70) * glow;\n" \
++		"}\n" \
++	"}\n"
+ 
+ #define GLSL_SOFTWARE_FRAGMENT_SHADER \
+ 	"#ifdef SRB2_PALETTE_RENDERING\n" \
+@@ -126,10 +351,15 @@
+ 	"uniform sampler2D lighttable_tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
+ 	"uniform float lighting;\n" \
++	"uniform float leveltime;\n" \
++	GLSL_VR_UNDERWATER_UNIFORMS \
+ 	GLSL_DOOM_COLORMAP \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"vec4 texel = texture2D(tex, gl_TexCoord[0].st);\n" \
++		"vec4 texel = SampleTexture(tex, gl_TexCoord[0].st);\n" \
+ 		GLSL_PALETTE_RENDERING \
++		GLSL_VR_UNDERWATER_FOG \
++		"gl_FragColor = final_color;\n" \
+ 	"}\n" \
+ 	"#else\n" \
+ 	"uniform sampler2D tex;\n" \
+@@ -139,14 +369,18 @@
+ 	"uniform float lighting;\n" \
+ 	"uniform float fade_start;\n" \
+ 	"uniform float fade_end;\n" \
++	"uniform float leveltime;\n" \
++	GLSL_VR_UNDERWATER_UNIFORMS \
+ 	GLSL_DOOM_COLORMAP \
+ 	GLSL_DOOM_LIGHT_EQUATION \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"vec4 texel = texture2D(tex, gl_TexCoord[0].st);\n" \
++		"vec4 texel = SampleTexture(tex, gl_TexCoord[0].st);\n" \
+ 		"vec4 base_color = texel * poly_color;\n" \
+ 		"vec4 final_color = base_color;\n" \
+ 		GLSL_SOFTWARE_TINT_EQUATION \
+ 		GLSL_SOFTWARE_FADE_EQUATION \
++		GLSL_VR_UNDERWATER_FOG \
+ 		"final_color.a = texel.a * poly_color.a;\n" \
+ 		"gl_FragColor = final_color;\n" \
+ 	"}\n" \
+@@ -179,13 +413,18 @@
+ 	"uniform sampler2D lighttable_tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
+ 	"uniform float lighting;\n" \
++	"uniform float leveltime;\n" \
++	GLSL_VR_UNDERWATER_UNIFORMS \
+ 	GLSL_DOOM_COLORMAP \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"vec4 texel = texture2D(tex, gl_TexCoord[0].st);\n" \
++		"vec4 texel = SampleTexture(tex, gl_TexCoord[0].st);\n" \
+ 		"#ifdef SRB2_MODEL_LIGHTING\n" \
+ 		"texel *= gl_Color;\n" \
+ 		"#endif\n" \
+ 		GLSL_PALETTE_RENDERING \
++		GLSL_VR_UNDERWATER_FOG \
++		"gl_FragColor = final_color;\n" \
+ 	"}\n" \
+ 	"#else\n" \
+ 	"uniform sampler2D tex;\n" \
+@@ -195,10 +434,13 @@
+ 	"uniform float lighting;\n" \
+ 	"uniform float fade_start;\n" \
+ 	"uniform float fade_end;\n" \
++	"uniform float leveltime;\n" \
++	GLSL_VR_UNDERWATER_UNIFORMS \
+ 	GLSL_DOOM_COLORMAP \
+ 	GLSL_DOOM_LIGHT_EQUATION \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"vec4 texel = texture2D(tex, gl_TexCoord[0].st);\n" \
++		"vec4 texel = SampleTexture(tex, gl_TexCoord[0].st);\n" \
+ 		"vec4 base_color = texel * poly_color;\n" \
+ 		"vec4 final_color = base_color;\n" \
+ 		GLSL_SOFTWARE_TINT_EQUATION \
+@@ -206,6 +448,7 @@
+ 		"#ifdef SRB2_MODEL_LIGHTING\n" \
+ 		"final_color *= gl_Color;\n" \
+ 		"#endif\n" \
++		GLSL_VR_UNDERWATER_FOG \
+ 		"final_color.a = texel.a * poly_color.a;\n" \
+ 		"gl_FragColor = final_color;\n" \
+ 	"}\n" \
+@@ -218,12 +461,37 @@
+ // Still needs to distort things underneath/around the water...
+ //
+ 
++// vr_ripple (0 = off, the flat default) livens the surface for VR: it deepens
++// the depth-wave and adds a second, incommensurate cross-wave over the texture
++// plane so the surface reads as chop instead of one marching sine. At 0 every
++// added term vanishes and the math is exactly the original.
++
++// World-anchored sparkle: sharp glint highlights drifting across the surface
++// (the Sonic water sparkle, in motion). Anchored to world position, so the
++// glints sit ON the water in stereo instead of swimming in texture space --
++// and they read from any distance, where a UV wobble alone disappears into
++// the tiling. Both water branches (truecolor + palette) draw them.
++#define GLSL_VR_WATER_GLINT \
++	"if (vr_ripple > 0.0) {\n" \
++		"float wg1 = sin(world_pos.x * 0.051 + leveltime * 2.1) * sin(world_pos.z * 0.043 - leveltime * 1.7);\n" \
++		"float wg2 = sin((world_pos.x + world_pos.z) * 0.037 - leveltime * 2.6);\n" \
++		/* pow-3, not pow-6: a razor-sharp world-anchored sparkle aliases in */ \
++		/* screen space as the head moves -- the sharper the power, the more */ \
++		/* it strobes (classic specular sparkle flashing). Broader, softer   */ \
++		/* highlights read as the same living surface without the flicker,   */ \
++		/* and the lower gain keeps them from blowing out.                   */ \
++		"float glint = pow(clamp(0.55 + 0.5 * wg1 * wg2, 0.0, 1.0), 3.0);\n" \
++		"final_color.rgb *= 1.0 + vr_ripple * (0.06 * sin(a + b) + 0.32 * glint);\n" \
++	"}\n"
++
+ #define GLSL_WATER_TEXEL \
+ 	"float water_z = (gl_FragCoord.z / gl_FragCoord.w) / 2.0;\n" \
+ 	"float a = -pi * (water_z * freq) + (leveltime * speed);\n" \
+-	"float sdistort = sin(a) * amp;\n" \
+-	"float cdistort = cos(a) * amp;\n" \
+-	"vec4 texel = texture2D(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n"
++	"float b = (gl_TexCoord[0].s + gl_TexCoord[0].t) * 12.6 + leveltime * 1.7;\n" \
++	"float wamp = amp * (1.0 + vr_ripple);\n" \
++	"float sdistort = sin(a) * wamp + sin(b) * amp * vr_ripple * 0.6;\n" \
++	"float cdistort = cos(a) * wamp + cos(b * 0.83) * amp * vr_ripple * 0.6;\n" \
++	"vec4 texel = SampleTexture(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n"
+ 
+ #define GLSL_WATER_FRAGMENT_SHADER \
+ 	GLSL_FLOOR_FUDGES \
+@@ -238,10 +506,17 @@
+ 	"uniform vec4 poly_color;\n" \
+ 	"uniform float lighting;\n" \
+ 	"uniform float leveltime;\n" \
++	"uniform float vr_ripple;\n" \
++	GLSL_VR_UNDERWATER_UNIFORMS \
+ 	GLSL_DOOM_COLORMAP \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+ 		GLSL_WATER_TEXEL \
+ 		GLSL_PALETTE_RENDERING \
++		GLSL_VR_UNDERWATER_FOG \
++		GLSL_VR_SNELL_WINDOW \
++		GLSL_VR_WATER_GLINT \
++		"gl_FragColor = final_color;\n" \
+ 	"}\n" \
+ 	"#else\n" \
+ 	"uniform sampler2D tex;\n" \
+@@ -252,14 +527,20 @@
+ 	"uniform float fade_start;\n" \
+ 	"uniform float fade_end;\n" \
+ 	"uniform float leveltime;\n" \
++	"uniform float vr_ripple;\n" \
++	GLSL_VR_UNDERWATER_UNIFORMS \
+ 	GLSL_DOOM_COLORMAP \
+ 	GLSL_DOOM_LIGHT_EQUATION \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+ 		GLSL_WATER_TEXEL \
+ 		"vec4 base_color = texel * poly_color;\n" \
+ 		"vec4 final_color = base_color;\n" \
+ 		GLSL_SOFTWARE_TINT_EQUATION \
+ 		GLSL_SOFTWARE_FADE_EQUATION \
++		GLSL_VR_UNDERWATER_FOG \
++		GLSL_VR_SNELL_WINDOW \
++		GLSL_VR_WATER_GLINT \
+ 		"final_color.a = texel.a * poly_color.a;\n" \
+ 		"gl_FragColor = final_color;\n" \
+ 	"}\n" \
+@@ -297,8 +578,9 @@
+ #define GLSL_SKY_FRAGMENT_SHADER \
+ 	"uniform sampler2D tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
++		"gl_FragColor = SampleTexture(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
+ 	"}\0"
+ 
+ // Shader for the palette rendering postprocess step
+@@ -417,8 +699,109 @@
+ #define GLSL_SKY_FRAGMENT_SHADER \
+ 	"uniform sampler2D tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
++		"gl_FragColor = SampleTexture(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
++	"}\0"
++
++//
++// SalCRT Sharp - a modern CRT for the final screen blit
++//
++// Ported from the Ring Racers VR build. Two differences, both because this
++// renderer has no way to hand a shader custom uniforms: the mask rides
++// gl_FragCoord, which IS screen pixels, so the pitch is exact at any window
++// size and no resolution uniform is needed; and the bloom's neighbour taps
++// step by dFdx/dFdy of the texture coordinate, which is the per-pixel UV step.
++//
++#define GLSL_CRTSHARP_FRAGMENT_SHADER \
++	"uniform sampler2D tex;\n" \
++	"uniform float crt_intensity;\n" \
++	"float crtLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }\n" \
++	"void main(void) {\n" \
++	"vec2 uv = gl_TexCoord[0].st;\n" \
++	"vec2 px = vec2(abs(dFdx(uv.x)), abs(dFdy(uv.y)));\n" \
++	"vec4 srcpx = texture2D(tex, uv);\n" \
++	"vec3 col = srcpx.rgb;\n" \
++	"vec3 nb = texture2D(tex, uv + vec2(px.x, 0.0)).rgb + texture2D(tex, uv - vec2(px.x, 0.0)).rgb + texture2D(tex, uv + vec2(0.0, px.y)).rgb + texture2D(tex, uv - vec2(0.0, px.y)).rgb;\n" \
++	"nb *= 0.25;\n" \
++	"vec3 bloom = max(nb - vec3(0.55), vec3(0.0)) * 0.50;\n" \
++	"float luma = crtLuma(col);\n" \
++	"col = mix(vec3(luma), col, 1.12);\n" \
++	"col = mix(col, col * col * (3.0 - 2.0 * col), 0.30);\n" \
++	"col += bloom;\n" \
++	"float s = 0.5 + 0.5 * sin(gl_FragCoord.y * 2.0943951);\n" \
++	"s = pow(s, 0.65);\n" \
++	"col *= mix(1.0, s, 0.38 * (1.0 - 0.5 * luma));\n" \
++	"float ph = fract(gl_FragCoord.x / 3.0) * 3.0;\n" \
++	"vec3 tri;\n" \
++	"float dr = abs(ph - 0.5);\n" \
++	"tri.r = 1.0 - smoothstep(0.5, 1.1, min(dr, 3.0 - dr));\n" \
++	"tri.g = 1.0 - smoothstep(0.5, 1.1, abs(ph - 1.5));\n" \
++	"tri.b = 1.0 - smoothstep(0.5, 1.1, abs(ph - 2.5));\n" \
++	"col *= mix(vec3(1.0), tri * 2.0, 0.22);\n" \
++	"vec2 vpos = uv - vec2(0.5);\n" \
++	"col *= 1.22 * (1.0 - 0.12 * dot(vpos, vpos) * 2.0);\n" \
++	"col = col - max(col - vec3(0.92), vec3(0.0)) * 0.6;\n" \
++	/* Whole-effect opacity: fade the finished CRT toward the clean frame. */ \
++	"col = mix(srcpx.rgb, col, crt_intensity);\n" \
++	"gl_FragColor = vec4(col, srcpx.a);\n" \
++	"}\0"
++
++// Megatron-style CRT: phosphor-mask simulation in the spirit of the Sony
++// Megatron Color Video Monitor shader family -- real mask geometry at
++// device-pixel scale, beam and mask math in LINEAR light -- rebuilt
++// single-pass for this GL2-era renderer rather than ported (the original is
++// a multi-pass HDR pipeline; a true mask eats up to two thirds of the light,
++// which HDR pays back with nits and SDR cannot, so the strength and
++// brightness sliders hand the player that trade instead). Mask type rides
++// gr_screeneffect: 1 = aperture grille (Trinitron vertical RGB stripes),
++// 2 = slot mask (stripes with staggered slots), 3 = shadow mask (diagonal
++// triads). Beam width follows brightness, the Megatron scanline model:
++// bright rows bloom fat, dark rows pinch thin. One texture fetch total, so
++// the per-eye cost in VR is negligible.
++#define GLSL_CRTMEGA_FRAGMENT_SHADER \
++	"uniform sampler2D tex;\n" \
++	"uniform float crt_mask;\n" \
++	"uniform float crt_strength;\n" \
++	"uniform float crt_boost;\n" \
++	"uniform float crt_intensity;\n" \
++	"void main(void) {\n" \
++	"vec4 src = texture2D(tex, gl_TexCoord[0].st);\n" \
++	"vec3 c = src.rgb * src.rgb;\n" \
++	"float luma = dot(c, vec3(0.299, 0.587, 0.114));\n" \
++	"float lribbon = min(luma * 1.5, 1.0);\n" \
++	"float d = fract(gl_FragCoord.y / 3.0) - 0.5;\n" \
++	"float w = mix(0.34, 0.62, lribbon);\n" \
++	"float scan = exp(-(d * d) / (w * w));\n" \
++	"float mx = mod(gl_FragCoord.x, 3.0);\n" \
++	"float band = floor(gl_FragCoord.y / 3.0);\n" \
++	"float k = mx;\n" \
++	"if (crt_mask > 2.5) { k = mod(mx + band, 3.0); }\n" \
++	"vec3 m = vec3(1.0 - step(1.0, k), step(1.0, k) - step(2.0, k), step(2.0, k));\n" \
++	"if (crt_mask > 1.5 && crt_mask < 2.5) {\n" \
++	"float stag = mod(floor(gl_FragCoord.x / 3.0), 2.0) * 3.0;\n" \
++	"float sph = fract((gl_FragCoord.y + stag) / 6.0);\n" \
++	"m *= mix(0.55, 1.0, smoothstep(0.0, 0.12, min(sph, 1.0 - sph)));\n" \
++	"}\n" \
++	/* Unit-energy phosphors: the lit phosphor carries its triad's three     */ \
++	/* pixels of light, so the mask RESTRUCTURES brightness instead of       */ \
++	/* taxing it -- the same trick the Ring Racers CRT's grille plays        */ \
++	/* (tri * 2.0 there), kept here in linear light. The image stays as     */ \
++	/* bright as the input at every strength; only highlights trade a       */ \
++	/* little headroom, and the soft knee below grades that instead of      */ \
++	/* clipping.                                                            */ \
++	"c *= mix(vec3(1.0), m * 3.0, crt_strength);\n" \
++	/* Brightness-adaptive scanline depth, as the Ring Racers CRT does it:  */ \
++	/* bright rows flatten, dark rows carve. The 1.12 pays back the         */ \
++	/* line-gap average so mid tones hold parity with the input.            */ \
++	"c *= mix(1.0, scan, 0.38 * (1.0 - 0.5 * lribbon));\n" \
++	"c *= 1.12 * crt_boost;\n" \
++	"c = clamp(c, 0.0, 1.0);\n" \
++	"vec3 g = sqrt(c);\n" \
++	"g = g - max(g - vec3(0.92), vec3(0.0)) * 0.5;\n" \
++	/* Whole-effect opacity: fade the finished CRT toward the clean frame. */ \
++	"g = mix(src.rgb, g, crt_intensity);\n" \
++	"gl_FragColor = vec4(g, src.a);\n" \
+ 	"}\0"
+ 
+ #endif

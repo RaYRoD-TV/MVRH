@@ -1,0 +1,43 @@
+diff --git a/src/k_terrain.c b/src/k_terrain.c
+index be8cce4f8..a291eb820 100644
+--- a/src/k_terrain.c
++++ b/src/k_terrain.c
+@@ -29,6 +29,7 @@
+ #include "z_zone.h"
+ 
+ #include "k_kart.h" // on the chopping block...
++#include "k_hazard.h" // K_HazardRulesActive / cv_hazardtumble
+ 
+ static t_splash_t *splashDefs = NULL;
+ static size_t numSplashDefs = 0;
+@@ -502,6 +503,30 @@ void K_ProcessTerrainEffect(mobj_t *mo)
+ 	{
+ 		UINT8 dmg = (terrain->damageType & 0xFF);
+ 
++		// Hazardous surfaces. This is where the game's damaging ground
++		// actually lives - the floor's texture picks a terrain, and the
++		// terrain carries the damage type - so it is where "hurt me, and
++		// finish me when I'm out of rings" belongs.
++		//
++		// Only the surfaces that HURT are upgraded. Stumble is deliberately
++		// minor and drains nothing, and death pit / instakill are already as
++		// final as it gets; touching either would just be noise.
++		if (K_HazardRulesActive()
++			&& dmg != DMG_STUMBLE
++			&& dmg != DMG_DEATHPIT
++			&& dmg != DMG_INSTAKILL)
++		{
++			if (RINGTOTAL(player) <= 0)
++			{
++				// Nothing left to lose - the surface takes you off the track.
++				dmg = DMG_DEATHPIT;
++			}
++			else if (cv_hazardtumble.value)
++			{
++				dmg = DMG_TUMBLE;
++			}
++		}
++
+ 		if ((dmg == DMG_STUMBLE) && !G_CompatLevel(0x0010))
+ 		{
+ 			if (player->mo->hitlag == 0 &&

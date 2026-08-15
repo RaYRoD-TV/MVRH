@@ -1,0 +1,68 @@
+diff --git a/src/p_user.c b/src/p_user.c
+index 7cc9c02ae..cb6361579 100644
+--- a/src/p_user.c
++++ b/src/p_user.c
+@@ -47,6 +47,8 @@
+ #include "m_cheat.h"
+ // Thok camera snap (ctrl-f "chalupa")
+ #include "g_input.h"
++// VR ambient bubbles (cv_vrbubbles, VR_IsActive)
++#include "vr/i_openxr.h"
+ 
+ #ifdef HW3SOUND
+ #include "hardware/hw3sound.h"
+@@ -3167,6 +3169,41 @@ static void P_DoBubbleBreath(player_t *player)
+ 	fixed_t z = player->mo->z;
+ 	mobj_t *bubble = NULL;
+ 
++	// Ambience: sparse bubbles rising around the view itself, so the water
++	// reads as a volume you are inside instead of a tint on the walls. Local
++	// view only, and single-player only -- bubbles are real synced objects,
++	// so netgames and demos must never see spawns keyed to one machine's
++	// view. VR and flatscreen alike.
++	if (cv_vrbubbles.value
++		&& !netgame && !demoplayback && !demorecording && !metalrecording
++		&& player == &players[displayplayer] && !player->spectator
++		&& (player->mo->eflags & MFE_UNDERWATER)
++		&& P_RandomChance(FRACUNIT/6))
++	{
++		mobj_t *amb;
++		fixed_t bx, by, bz;
++		if (camera.chase)
++		{
++			bx = camera.x; by = camera.y; bz = camera.z + camera.height/2;
++		}
++		else
++		{
++			bx = x; by = y; bz = z + player->viewheight;
++		}
++		bx += P_RandomRange(128, -128)<<FRACBITS;
++		by += P_RandomRange(128, -128)<<FRACBITS;
++		bz += P_RandomRange(48, -80)<<FRACBITS;
++		// Mostly small fry, the odd fat one for variety (mediums split as
++		// they rise, so they read as a little life of their own).
++		amb = P_SpawnMobj(bx, by, bz,
++			P_RandomChance(FRACUNIT/8) ? MT_MEDIUMBUBBLE : MT_SMALLBUBBLE);
++		if (!P_MobjWasRemoved(amb))
++		{
++			amb->threshold = 42;
++			P_SetScale(amb, player->mo->scale, true);
++		}
++	}
++
+ 	if (!(player->mo->eflags & MFE_UNDERWATER) || ((player->powers[pw_shield] & SH_PROTECTWATER) && !(player->powers[pw_carry] == CR_NIGHTSMODE)) || player->spectator)
+ 		return;
+ 
+@@ -9833,10 +9870,10 @@ static CV_PossibleValue_t campos_cons_t[] = { {INT32_MIN, "MIN"}, {INT32_MAX, "M
+ consvar_t cv_cam_dist = CVAR_INIT ("cam_curdist", "160", CV_FLOAT|CV_ALLOWLUA, campos_cons_t, NULL);
+ consvar_t cv_cam_height = CVAR_INIT ("cam_curheight", "25", CV_FLOAT|CV_ALLOWLUA, campos_cons_t, NULL);
+ consvar_t cv_cam_still = CVAR_INIT ("cam_still", "Off", CV_ALLOWLUA, CV_OnOff, NULL);
+-consvar_t cv_cam_speed = CVAR_INIT ("cam_speed", "0.3", CV_FLOAT|CV_SAVE|CV_ALLOWLUA, CV_CamSpeed, NULL);
++consvar_t cv_cam_speed = CVAR_INIT ("cam_speed", "0.3", CV_FLOAT|CV_SAVE|CV_SLIDER_SAFE|CV_ALLOWLUA, CV_CamSpeed, NULL);
+ consvar_t cv_cam_rotate = CVAR_INIT ("cam_rotate", "0", CV_CALL|CV_NOINIT|CV_ALLOWLUA, CV_CamRotate, CV_CamRotate_OnChange);
+ consvar_t cv_cam_rotspeed = CVAR_INIT ("cam_rotspeed", "10", CV_SAVE|CV_ALLOWLUA, rotation_cons_t, NULL);
+-consvar_t cv_cam_turnmultiplier = CVAR_INIT ("cam_turnmultiplier", "0.75", CV_FLOAT|CV_SAVE|CV_ALLOWLUA, multiplier_cons_t, NULL);
++consvar_t cv_cam_turnmultiplier = CVAR_INIT ("cam_turnmultiplier", "0.75", CV_FLOAT|CV_SAVE|CV_SLIDER_SAFE|CV_ALLOWLUA, multiplier_cons_t, NULL);
+ consvar_t cv_cam_orbit = CVAR_INIT ("cam_orbit", "Off", CV_SAVE|CV_ALLOWLUA, CV_OnOff, NULL);
+ consvar_t cv_cam_adjust = CVAR_INIT ("cam_adjust", "On", CV_SAVE|CV_ALLOWLUA, CV_OnOff, NULL);
+ consvar_t cv_cam2_dist = CVAR_INIT ("cam2_curdist", "160", CV_FLOAT|CV_ALLOWLUA, campos_cons_t, NULL);

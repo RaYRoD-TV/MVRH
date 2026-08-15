@@ -1,0 +1,27 @@
+diff --git a/src/r_things.h b/src/r_things.h
+index ccbefeb73..aa8d7bde3 100644
+--- a/src/r_things.h
++++ b/src/r_things.h
+@@ -38,6 +38,11 @@ boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef, UINT16
+ //     (only sprites from namelist are added or replaced)
+ void R_AddSpriteDefs(UINT16 wadnum);
+ 
++// One warning per sprite whose lumps the installed assets don't carry at
++// all (numframes 0, e.g. retail data older than the object set); the
++// projectors drop those mobjs instead of spamming every frame.
++void R_WarnMissingSprite(INT32 sprnum, const char *caller);
++
+ // ---------------------
+ // MASKED COLUMN DRAWING
+ // ---------------------
+@@ -65,6 +70,10 @@ extern INT16 negonearray[MAXVIDWIDTH];
+ extern INT16 screenheightarray[MAXVIDWIDTH];
+ 
+ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope);
++
++// While set, the shadow path samples at the tic position instead of between
++// tics - exactly what pausing does to it. See HWR_DrawDropShadow.
++extern boolean r_shadow_freeze_interp;
+ fixed_t R_GetSpriteDirectionalLighting(angle_t angle);
+ 
+ //SoM: 6/5/2000: Light sprites correctly!

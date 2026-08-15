@@ -1,0 +1,22 @@
+diff --git a/src/console.c b/src/console.c
+index 363989503..6c6ea5c56 100644
+--- a/src/console.c
++++ b/src/console.c
+@@ -35,6 +35,7 @@
+ #include "k_menu.h"
+ #include "filesrch.h"
+ #include "m_misc.h"
++#include "vr/vr.h"
+ 
+ #ifdef HWRENDER
+ #include "hardware/hw_main.h"
+@@ -1906,7 +1907,8 @@ void CON_Drawer(void)
+ 
+ 	if (con_curlines > 0)
+ 		CON_DrawConsole();
+-	else if (CON_GamestateDrawHudLines() == true)
++	else if (CON_GamestateDrawHudLines() == true
++		&& !vr_is_active()) // passive log lines sit face-level on the VR panel; the log file keeps them
+ 		CON_DrawHudlines();
+ 
+ 	Unlock_state();

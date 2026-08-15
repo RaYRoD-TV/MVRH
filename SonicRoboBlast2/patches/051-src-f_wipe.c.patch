@@ -1,0 +1,47 @@
+diff --git a/src/f_wipe.c b/src/f_wipe.c
+index 1ea32d0eb..73c9855bc 100644
+--- a/src/f_wipe.c
++++ b/src/f_wipe.c
+@@ -196,7 +196,8 @@ void F_WipeStageTitle(void)
+ 	&& G_IsTitleCardAvailable())
+ 	{
+ 		ST_runTitleCard();
+-		ST_drawWipeTitleCard();
++		if (!I_AppOnBackground())
++			ST_drawWipeTitleCard();
+ 	}
+ }
+ 
+@@ -562,6 +563,13 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
+ 		}
+ 		lastwipetic = nowtime;
+ 
++		if (I_AppOnBackground())
++		{
++			if (wipestyle == WIPESTYLE_COLORMAP)
++				F_WipeStageTitle();
++			goto skipframe;
++		}
++
+ 		// Wipe styles
+ 		if (wipestyle == WIPESTYLE_COLORMAP)
+ 		{
+@@ -597,9 +605,8 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
+ 		}
+ 
+ 		I_OsPolling();
+-		I_UpdateNoBlit();
+ 
+-		if (drawMenu)
++		if (drawMenu && !I_AppOnBackground())
+ 		{
+ #ifdef HAVE_THREADS
+ 			I_lock_mutex(&m_menu_mutex);
+@@ -612,6 +619,7 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
+ 
+ 		I_FinishUpdate(); // page flip or blit buffer
+ 
++skipframe:
+ 		if (moviemode)
+ 			M_SaveFrame();
+ 

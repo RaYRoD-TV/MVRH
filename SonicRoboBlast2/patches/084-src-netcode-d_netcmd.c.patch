@@ -1,0 +1,48 @@
+diff --git a/src/netcode/d_netcmd.c b/src/netcode/d_netcmd.c
+index 94170fa0d..8f90e5e34 100644
+--- a/src/netcode/d_netcmd.c
++++ b/src/netcode/d_netcmd.c
+@@ -34,6 +34,7 @@
+ #include "d_netfil.h"
+ #include "../p_spec.h"
+ #include "../m_cheat.h"
++#include "../vr/i_openxr.h"
+ #include "d_clisrv.h"
+ #include "server_connection.h"
+ #include "net_command.h"
+@@ -538,6 +539,9 @@ void D_RegisterServerCommands(void)
+ 	// for master server connection
+ 	AddMServCommands();
+ 
++	// VR (OpenXR)
++	VR_RegisterCvars();
++
+ 	CV_RegisterVar(&cv_glallowshaders);
+ 
+ 	// p_mobj.c
+@@ -678,6 +682,7 @@ void D_RegisterClientCommands(void)
+ 	CV_RegisterVar(&cv_flipcam);
+ 	CV_RegisterVar(&cv_flipcam2);
+ 	CV_RegisterVar(&cv_movebob);
++	CV_RegisterVar(&cv_thinkless);
+ 
+ 	if (dedicated)
+ 		return;
+@@ -3454,7 +3459,7 @@ static void Command_Addfile(void)
+ 				return;
+ 			}
+ 
+-		musiconly = W_VerifyNMUSlumps(fn, false);
++		musiconly = W_VerifyNMUSlumps(fn, FILEHANDLE_STANDARD, false);
+ 
+ 		if (musiconly == -1)
+ 		{
+@@ -3506,7 +3511,7 @@ static void Command_Addfile(void)
+ #else
+ 			FILE *fhandle;
+ 
+-			if ((fhandle = W_OpenWadFile(&fn, true)) != NULL)
++			if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, true)) != NULL)
+ 			{
+ 				tic_t t = I_GetTime();
+ 				CONS_Debug(DBG_SETUP, "Making MD5 for %s\n",fn);

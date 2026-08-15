@@ -1,0 +1,16 @@
+diff --git a/src/rhi/gl2/gl2_rhi.hpp b/src/rhi/gl2/gl2_rhi.hpp
+index f8b62987b..306afeb1f 100644
+--- a/src/rhi/gl2/gl2_rhi.hpp
++++ b/src/rhi/gl2/gl2_rhi.hpp
+@@ -163,6 +163,11 @@ public:
+ 	virtual Rect get_renderbuffer_size(Handle<Renderbuffer> renderbuffer) override;
+ 	virtual uint32_t get_buffer_size(Handle<Buffer> buffer) override;
+ 
++	/// @brief The raw GL texture name backing a texture handle. GL2-specific
++	/// (deliberately not on the abstract Rhi): the VR layer uses it to blit the
++	/// finished frame into an OpenXR swapchain with plain GL calls.
++	uint32_t gl_texture_name(Handle<Texture> texture);
++
+ 	virtual void update_buffer(
+ 		Handle<Buffer> buffer,
+ 		uint32_t offset,

@@ -1,0 +1,102 @@
+diff --git a/src/menus/transient/pause-game.c b/src/menus/transient/pause-game.c
+index 8ccd26b95..4d38bb521 100644
+--- a/src/menus/transient/pause-game.c
++++ b/src/menus/transient/pause-game.c
+@@ -20,6 +20,7 @@
+ #include "../../m_cond.h"
+ #include "../../s_sound.h"
+ #include "../../k_zvote.h"
++#include "../../vr/vr.h"
+ 
+ #ifdef HAVE_DISCORDRPC
+ #include "../../discord.h"
+@@ -75,6 +76,9 @@ menuitem_t PAUSE_Main[] =
+ 	{IT_STRING | IT_SUBMENU, "CHEATS", "M_ICOCHT",
+ 		NULL, {.submenu = &PAUSE_CheatsDef}, 0, 0},
+ 
++	{IT_STRING | IT_CALL, "VR OPTIONS", "M_ICOOPT",
++		NULL, {.routine = M_VROptions}, 0, 0},
++
+ 	{IT_STRING | IT_CALL, "OPTIONS", "M_ICOOPT",
+ 		NULL, {.routine = M_InitOptions}, 0, 0},
+ 
+@@ -126,6 +130,12 @@ void M_OpenPauseMenu(void)
+ 	pausemenu.openoffset.dist = 0;
+ 	pausemenu.closing = false;
+ 
++	// Arm the trigger shortcuts only for presses made after this point: a
++	// trigger still held from driving (drift lives on the right one) must
++	// be released once before it can warp the menu.
++	pausemenu.ltriggerheld = true;
++	pausemenu.rtriggerheld = true;
++
+ 	// Fix specific input error regarding closing netgame chat with escape while a controller is connected (only on Windows?)
+ 	chat_keydown = false;
+ 
+@@ -152,6 +162,11 @@ void M_OpenPauseMenu(void)
+ 	PAUSE_Main[mpause_psetup].status = IT_DISABLED;
+ 	PAUSE_Main[mpause_cheats].status = IT_DISABLED;
+ 
++	// VR settings shortcut, only while a headset session is live.
++	PAUSE_Main[mpause_vroptions].status = vr_is_active()
++		? (IT_STRING | IT_CALL)
++		: IT_DISABLED;
++
+ 	Dummymenuplayer_OnChange();	// Make sure the consvar is within bounds of the amount of splitscreen players we have.
+ 
+ 	if (M_SecretUnlocked(SECRET_SOUNDTEST, true))
+@@ -296,6 +311,54 @@ boolean M_PauseInputs(INT32 ch)
+ 	if (pausemenu.closing)
+ 		return true;	// Don't allow inputs.
+ 
++	// Trigger shortcuts: the right trigger jumps straight into the VR
++	// options page, the left one into gameplay options. Each reads both
++	// the menu trigger buttons (a pad's analog triggers land there through
++	// gc_l/gc_r) and the VR layer's own trigger latches, so they work from
++	// a gamepad and from the headset controllers alike. The held flags are
++	// primed on open so pausing mid-drift can't warp the menu; a fresh
++	// press after that fires exactly once.
++	{
++		const boolean heldR = M_MenuButtonHeld(pid, MBT_R)
++			|| (vr_controller_buttons() & VR_BTN_RTRIGGER) != 0;
++		const boolean heldL = M_MenuButtonHeld(pid, MBT_L)
++			|| (vr_controller_buttons() & VR_BTN_LTRIGGER) != 0;
++		const boolean freshR = (heldR && !pausemenu.rtriggerheld);
++		const boolean freshL = (heldL && !pausemenu.ltriggerheld);
++
++		pausemenu.rtriggerheld = heldR;
++		pausemenu.ltriggerheld = heldL;
++
++		if (freshR && vr_is_active())
++		{
++			S_StartSound(NULL, sfx_s3k5b);
++			M_SetMenuDelay(pid);
++			M_VROptions(-1);
++			return true;
++		}
++
++		if (freshL)
++		{
++			// Local sessions always get the page - it is your own game, and
++			// its feel knobs (handling, hazards, assists) are the reason the
++			// shortcut exists. Online, the stock terms hold: the rules are
++			// server-side, and some modes lock them.
++			if (!netgame
++				|| ((server || IsPlayerAdmin(consoleplayer)) && K_CanChangeRules(false)))
++			{
++				S_StartSound(NULL, sfx_s3k5b);
++				M_SetMenuDelay(pid);
++				M_GameplayOptions(-1);
++			}
++			else
++			{
++				S_StartSound(NULL, sfx_s3k7b);
++				M_SetMenuDelay(pid);
++			}
++			return true;
++		}
++	}
++
+ 	if (menucmd[pid].dpad_ud < 0)
+ 	{
+ 		M_SetMenuDelay(pid);

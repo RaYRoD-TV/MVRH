@@ -1,0 +1,219 @@
+diff --git a/src/p_user.c b/src/p_user.c
+index 9bff6502d..71727aba2 100644
+--- a/src/p_user.c
++++ b/src/p_user.c
+@@ -66,6 +66,8 @@
+ #include "g_party.h"
+ #include "k_profiles.h"
+ #include "music.h"
++#include "command.h" // CV_SetValue (flat view-mode cycling)
++#include "vr/vr.h" // VR_VIEW_* / vr_is_active / vr_cycle_view_mode
+ #include "k_tally.h"
+ #include "k_objects.h"
+ #include "k_endcam.h"
+@@ -3254,6 +3256,57 @@ void P_ResetCamera(player_t *player, camera_t *thiscam)
+ 	while (!P_MoveChaseCamera(player,thiscam,true) && ++tries < 2*TICRATE);
+ }
+ 
++// The VR view-mode cvar, driven without a headset: FIRST_PERSON and DIORAMA
++// reshape the flat chase camera in P_MoveChaseCamera, THEATER means nothing
++// on a monitor and renders stock. While a headset session runs the VR module
++// composes the modes itself, so the flat camera stays stock third person.
++extern consvar_t cv_vr_viewmode, cv_vr_fp_eyeheight, cv_vr_fp_forward, cv_vr_tp_forward;
++
++INT32 P_FlatViewMode(void)
++{
++	if (vr_is_active())
++		return VR_VIEW_THIRD_PERSON;
++
++	switch (cv_vr_viewmode.value)
++	{
++		case VR_VIEW_FIRST_PERSON:
++		case VR_VIEW_DIORAMA:
++			return cv_vr_viewmode.value;
++		default:
++			return VR_VIEW_THIRD_PERSON;
++	}
++}
++
++// D-pad up walks third person -> first person -> diorama. Theater stays a
++// headset-only screen, and first person is skipped (not blocked) while the
++// pre-race countdown runs - the same manners as the VR stick-click cycle,
++// which takes over entirely once a session is live.
++void P_CycleFlatViewMode(void)
++{
++	INT32 next;
++
++	if (vr_is_active())
++	{
++		vr_cycle_view_mode();
++		return;
++	}
++
++	next = cv_vr_viewmode.value;
++	do
++	{
++		next = (next + 1) % (VR_VIEW_DIORAMA + 1);
++	} while (next == VR_VIEW_THEATER
++		|| (next == VR_VIEW_FIRST_PERSON
++			&& gamestate == GS_LEVEL && leveltime < starttime));
++
++	CV_SetValue(&cv_vr_viewmode, next);
++	R_ResetViewInterpolation(0); // hard cut, no swoosh between modes
++}
++
++// Set only for the duration of P_UpdateCamerasNow, so a view slider can drive
++// the camera while the game is paused underneath the menu.
++static boolean camerarunwhilepaused = false;
++
+ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcalled)
+ {
+ 	static boolean lookbackactive[MAXSPLITSCREENPLAYERS];
+@@ -3319,7 +3372,11 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
+ 		return true;
+ 	}
+ 
+-	if (paused || P_AutoPause())
++	// Pausing freezes the chase camera. That is right for gameplay and wrong
++	// for the view sliders, which are edited from the pause menu and would
++	// show nothing at all until you closed it - see P_UpdateCamerasNow, the
++	// one caller allowed past this guard.
++	if ((paused || P_AutoPause()) && !camerarunwhilepaused)
+ 		return true;
+ 
+ 	if (g_endcam.active)
+@@ -3358,6 +3415,39 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
+ 			return true;
+ 	}
+ 
++	// Flat first person: the camera IS the driver's head - no chasing, no
++	// camera collision (the kart's own collision keeps the head out of
++	// walls). Stock takes back over for the intro flyby, the time-over and
++	// finish cameras, and death, same as the VR module's own manners.
++	if (P_FlatViewMode() == VR_VIEW_FIRST_PERSON
++		&& timeover == 0 && !player->exiting
++		&& player->playerstate == PST_LIVE
++		&& leveltime >= introtime)
++	{
++		const fixed_t eye = cv_vr_fp_eyeheight.value * mo->scale;
++		// Seat slide along the kart's own heading (not the flipped look-back
++		// angle - the seat doesn't move when you glance behind).
++		const fixed_t seatfwd = cv_vr_fp_forward.value * mo->scale;
++		angle_t fpangle = mo->angle;
++
++		if (K_GetKartButtons(player) & BT_LOOKBACK)
++			fpangle += ANGLE_180;
++
++		thiscam->x = mo->x + FixedMul(FINECOSINE(mo->angle >> ANGLETOFINESHIFT), seatfwd);
++		thiscam->y = mo->y + FixedMul(FINESINE(mo->angle >> ANGLETOFINESHIFT), seatfwd);
++		if (mo->eflags & MFE_VERTICALFLIP)
++			thiscam->z = mo->z + mo->height - eye;
++		else
++			thiscam->z = mo->z + eye;
++		thiscam->angle = fpangle;
++		thiscam->aiming = 0; // level horizon, like VR's horizon lock
++		thiscam->pitch = 0;
++		thiscam->pan = 0;
++		thiscam->momx = thiscam->momy = thiscam->momz = 0;
++		thiscam->subsector = R_PointInSubsector(thiscam->x, thiscam->y);
++		return true;
++	}
++
+ 	if (!thiscam->chase && !resetcalled)
+ 	{
+ 		focusangle = localangle[num];
+@@ -3440,6 +3530,25 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
+ 		}
+ 	}
+ 
++	// Flat diorama: the tabletop look without a headset - the same chase
++	// logic, pulled way up and back so the track reads as a model. The
++	// camera keeps aiming at the kart, which pitches it down naturally.
++	if (P_FlatViewMode() == VR_VIEW_DIORAMA)
++	{
++		camdist = 3*camdist;
++		camheight = 6*camheight;
++	}
++
++	// Third person's Camera Forward knob pulls the chase camera in toward
++	// the kart - far enough and you ride inside it (the distance bottoms out
++	// at the kart itself). Negative backs the view out wider. The other
++	// modes place the eye themselves, so only true third person listens.
++	if (cv_vr_tp_forward.value != 0
++		&& (vr_is_active() ? vr_get_view_mode() : P_FlatViewMode()) == VR_VIEW_THIRD_PERSON)
++	{
++		camdist -= FixedMul(cv_vr_tp_forward.value * FRACUNIT, cameraScale);
++	}
++
+ 	thiscam->chaseheight = FixedDiv(camheight, cameraScale);
+ 	// CONS_Printf("thiscam camheight %d\n", thiscam->chaseheight/FRACUNIT);
+ 
+@@ -3828,6 +3937,44 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
+ 
+ }
+ 
++// Drive the chase camera to where the current settings say it belongs, right
++// now, without waiting for a tic that isn't coming. The view sliders live in
++// the pause menu, and the camera is frozen while that menu is up, so without
++// this a knob like Camera Forward reads as broken: you drag it, nothing moves,
++// and the change only appears once you close the menu and unpause.
++//
++// The camera eases toward its ideal spot one step per call, so this repeats
++// until the step lands on it - the same converge-by-repetition P_ResetCamera
++// uses, and cheap enough at a few dozen iterations for a one-off knob edit.
++// Purely local presentation: camera_t is never networked.
++void P_UpdateCamerasNow(void)
++{
++	UINT8 i;
++
++	if (gamestate != GS_LEVEL || camerarunwhilepaused)
++		return;
++
++	camerarunwhilepaused = true;
++
++	for (i = 0; i <= r_splitscreen; i++)
++	{
++		player_t *p = &players[displayplayers[i]];
++		camera_t *cam = &camera[i];
++		tic_t tries = 0;
++
++		// The same cameras P_ResetCamera refuses to touch: a free/spectator
++		// camera is flown by hand and the end-of-race camera is on rails, and
++		// running either from here would hand it a movement step built from
++		// whatever input was last held before the menu opened.
++		if (!cam->chase || !p->mo || cam->freecam || p->spectator || g_endcam.active)
++			continue;
++
++		while (!P_MoveChaseCamera(p, cam, false) && ++tries < 2*TICRATE);
++	}
++
++	camerarunwhilepaused = false;
++}
++
+ boolean P_SpectatorJoinGame(player_t *player)
+ {
+ 	const char *text = NULL;
+@@ -4665,7 +4812,22 @@ void P_PlayerThink(player_t *player)
+ 		player->mo->flags &= ~MF_NOCLIPTHING;
+ 	}
+ 
+-	boolean deathcontrolled = (player->respawn.state != RESPAWNST_NONE && player->respawn.truedeath == true)
++	// A wreck hides the kart for the WHOLE respawn. That is right while it
++	// is being carried back up the track - a kart sliding through walls has
++	// no business on screen - and wrong the moment it starts dropping in:
++	// you get handed back a kart you cannot see, and it reads as having
++	// lost it rather than as coming back. The drop is the "here you come"
++	// cue, so from there it is drawn exactly like any other respawn's,
++	// invulnerability blink and all. Online keeps the stock timing: a stock
++	// client must never disagree with us about what is on screen.
++	boolean stillcarried = (player->respawn.state != RESPAWNST_NONE);
++
++	if (netgame == false && player->respawn.state == RESPAWNST_DROP)
++	{
++		stillcarried = false;
++	}
++
++	boolean deathcontrolled = (stillcarried && player->respawn.truedeath == true)
+ 		|| (player->pflags & PF_NOCONTEST) || (player->karmadelay);
+ 	boolean powercontrolled = (player->hyudorotimer) || (player->growshrinktimer > 0);
+ 

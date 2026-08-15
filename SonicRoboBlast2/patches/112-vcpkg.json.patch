@@ -1,0 +1,12 @@
+diff --git a/vcpkg.json b/vcpkg.json
+index 07c4244ad..9ef26d56c 100644
+--- a/vcpkg.json
++++ b/vcpkg.json
+@@ -5,6 +5,7 @@
+   "builtin-baseline": "c823fd3e57035b10d970a96da2796a2db55e5df5",
+   "dependencies": [
+     "curl",
++    "openxr-loader",
+     {
+       "name": "libgme",
+       "platform": "!(windows & mingw) & !native"

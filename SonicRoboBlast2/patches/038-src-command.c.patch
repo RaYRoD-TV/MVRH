@@ -1,0 +1,127 @@
+diff --git a/src/command.c b/src/command.c
+index ab6cfc08a..b41e0e74a 100644
+--- a/src/command.c
++++ b/src/command.c
+@@ -2297,6 +2297,44 @@ void CV_AddValue(consvar_t *var, INT32 increment)
+ 	var->changed = 1; // user has changed it now
+ }
+ 
++// Returns the longest PossibleValue string for this CVar.
++// Returns NULL if the CVar has no PossibleValue.
++const char *CV_LongestPossibleValue(consvar_t *var)
++{
++	CV_PossibleValue_t *PossibleValue = var->PossibleValue;
++	INT32 i, num;
++	size_t last = 0;
++	const char *longest = NULL;
++
++	if (PossibleValue == NULL)
++		return NULL;
++
++	// Count how many PossibleValues there are.
++	for (num = 0; PossibleValue[num].strvalue; num++);
++
++	// It's a numeric range -- therefore, return the max value as a string.
++	if (num == 2 && !strcmp("MIN", PossibleValue[0].strvalue) && !strcmp("MAX", PossibleValue[1].strvalue))
++	{
++		static char dig[10]; // Amount of digits in the max value of CV_Unsigned/CV_Natural, plus one
++		M_snprintf(dig, sizeof dig, "%d", PossibleValue[1].value);
++		return dig;
++	}
++
++	// Otherwise, the PossibleValues are strings.
++	for (i = 0; i < num; i++)
++	{
++		const char *str = PossibleValue[i].strvalue;
++		size_t len = strlen(str);
++		if (len > last)
++		{
++			last = len;
++			longest = str;
++		}
++	}
++
++	return longest;
++}
++
+ void CV_InitFilterVar(void)
+ {
+ 	joyaxis_default = joyaxis2_default = true;
+@@ -2482,6 +2520,77 @@ static boolean CV_FilterVarByVersion(consvar_t *v, const char *valstr)
+ 		if (!CV_FilterJoyAxisVars(v, valstr))
+ 			return false;
+ 	}
++
++	// vr_culling's default flipped Off -> On when smart culling landed; a saved
++	// "Off" from before that is the old default speaking, not a player choice.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 1
++		&& !stricmp(v->name, "vr_culling")
++		&& !stricmp(valstr, "Off"))
++		return false;
++
++	// vr_culling was briefly shipped defaulting to Off. Off means no angle
++	// culling at all in VR -- the whole traversal draws, per eye -- which
++	// collapsed the framerate in a headset. The default is On again, and a
++	// saved "Off" written while that default stood is the old default
++	// speaking, not a considered choice. (Deliberately set Off still works;
++	// it just has to be set again, once.)
++	if (GETMINOREXECVERSION(cv_execversion.value) < 6
++		&& !stricmp(v->name, "vr_culling")
++		&& !stricmp(valstr, "Off"))
++		return false;
++
++	// The shipped screen effect became Megatron Shadow at intensity 1; a
++	// saved "SalCRT Sharp" or intensity "10" from before that is the old
++	// default speaking, not a considered pick.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 7
++		&& !stricmp(v->name, "gr_screeneffect")
++		&& !stricmp(valstr, "SalCRT Sharp"))
++		return false;
++	if (GETMINOREXECVERSION(cv_execversion.value) < 7
++		&& !stricmp(v->name, "gr_crtintensity")
++		&& !stricmp(valstr, "10"))
++		return false;
++
++	// vr_menudim's default rose 4 -> 8 when the dim moved off the screen pane
++	// and into the eye render (a pane smoke at 4 and a world wash at 8 read
++	// about the same); a saved "4" from before that is the old default.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 2
++		&& !stricmp(v->name, "vr_menudim")
++		&& !stricmp(valstr, "4"))
++		return false;
++
++	// Palette rendering flipped On -> Off as the fork's default; a saved "On"
++	// from before that is the old default, not a retro-look choice. Anyone
++	// who wants the palette look flips it once and it sticks.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 3
++		&& !stricmp(v->name, "gr_paletterendering")
++		&& !stricmp(valstr, "On"))
++		return false;
++
++	// The crosshair went Off by default (it never marks where shots land in a
++	// platformer); a saved "Cross" from before that is the old default.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 4
++		&& (!stricmp(v->name, "crosshair") || !stricmp(v->name, "crosshair2"))
++		&& !stricmp(valstr, "Cross"))
++		return false;
++
++	// Water defaults retuned in the field (fog 3->2, caustics 9->10,
++	// rays 9->10, sway 6->5); a saved old default is the shipped value
++	// speaking, not a slider the player set.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 4
++		&& ((!stricmp(v->name, "vr_waterfog") && !stricmp(valstr, "3"))
++		 || (!stricmp(v->name, "vr_caustics") && !stricmp(valstr, "9"))
++		 || (!stricmp(v->name, "vr_godrays") && !stricmp(valstr, "9"))
++		 || (!stricmp(v->name, "vr_watersway") && !stricmp(valstr, "6"))))
++		return false;
++
++	// The VR third-person camera default moved 100 -> 115; a saved "100"
++	// from the one build it shipped at is the old default, not a choice.
++	if (GETMINOREXECVERSION(cv_execversion.value) < 5
++		&& !stricmp(v->name, "vr_thirddist")
++		&& !stricmp(valstr, "100"))
++		return false;
++
+ 	return true;
+ }
+ 

@@ -1,0 +1,39 @@
+diff --git a/src/hardware/hw_main.h b/src/hardware/hw_main.h
+index 2277c32f3..3a59123fc 100644
+--- a/src/hardware/hw_main.h
++++ b/src/hardware/hw_main.h
+@@ -33,6 +33,7 @@ void HWR_DrawConsoleBack(UINT32 color, INT32 height);
+ void HWR_DrawTutorialBack(UINT32 color, INT32 boxheight);
+ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player);
+ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player);
++void HWR_RenderPlayerEye(void); // VR: render the local player's view into the currently-bound FBO
+ void HWR_ClearSkyDome(void);
+ void HWR_BuildSkyDome(void);
+ void HWR_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatlumpnum);
+@@ -59,10 +60,14 @@ void HWR_DrawIntermissionBG(void);
+ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum);
+ void HWR_MakeScreenFinalTexture(void);
+ void HWR_DrawScreenFinalTexture(int width, int height);
++void HWR_DrawScreenFinalTextureNoEffect(int width, int height);
++boolean HWR_VREyeEffectActive(void);
++void HWR_DrawVREyeEffect(UINT32 tex, int width, int height);
+ 
+ // This stuff is put here so models can use them
+ boolean HWR_UseShader(void);
+ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap);
++float HWR_SurfWaterTop(sector_t *sector); // FSurfaceInfo.VRWaterTop source (VR underwater layers)
+ UINT8 HWR_FogBlockAlpha(INT32 light, extracolormap_t *colormap); // Let's see if this can work
+ 
+ UINT8 HWR_GetTranstableAlpha(INT32 transtablenum);
+@@ -82,6 +87,11 @@ extern consvar_t cv_glcoronasize;
+ #endif
+ 
+ extern consvar_t cv_glshaders, cv_glallowshaders;
++extern consvar_t cv_glsupersample;
++extern consvar_t cv_glscreeneffect;
++extern consvar_t cv_glcrtmaskstrength;
++extern consvar_t cv_glcrtbrightness;
++extern consvar_t cv_glcrtintensity;
+ extern consvar_t cv_glmodels;
+ extern consvar_t cv_glmodelinterpolation;
+ extern consvar_t cv_glmodellighting;

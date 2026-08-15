@@ -1,0 +1,142 @@
+diff --git a/src/g_game.c b/src/g_game.c
+index 1c186ae03..95c0ab2eb 100644
+--- a/src/g_game.c
++++ b/src/g_game.c
+@@ -49,6 +49,7 @@
+ #include "m_cond.h" // condition sets
+ #include "lua_script.h"
+ #include "r_fps.h" // frame interpolation/uncapped
++#include "vr/i_openxr.h" // VR_IsActive/VR_TheaterActive (view mode owns the chase cam)
+ 
+ #include "lua_hud.h"
+ #include "lua_libs.h"
+@@ -322,8 +323,10 @@ consvar_t cv_pauseifunfocused = CVAR_INIT ("pauseifunfocused", "Yes", CV_SAVE, C
+ 
+ consvar_t cv_instantretry = CVAR_INIT ("instantretry", "No", CV_SAVE, CV_YesNo, NULL);
+ 
+-consvar_t cv_crosshair = CVAR_INIT ("crosshair", "Cross", CV_SAVE, crosshair_cons_t, NULL);
+-consvar_t cv_crosshair2 = CVAR_INIT ("crosshair2", "Cross", CV_SAVE, crosshair_cons_t, NULL);
++// Off by default in this port: the crosshair says nothing about where shots
++// go in a platformer, and in VR it pins to the floating screen's center.
++consvar_t cv_crosshair = CVAR_INIT ("crosshair", "Off", CV_SAVE, crosshair_cons_t, NULL);
++consvar_t cv_crosshair2 = CVAR_INIT ("crosshair2", "Off", CV_SAVE, crosshair_cons_t, NULL);
+ consvar_t cv_invertmouse = CVAR_INIT ("invertmouse", "Off", CV_SAVE, CV_OnOff, NULL);
+ consvar_t cv_alwaysfreelook = CVAR_INIT ("alwaysmlook", "On", CV_SAVE, CV_OnOff, NULL);
+ consvar_t cv_invertmouse2 = CVAR_INIT ("invertmouse2", "Off", CV_SAVE, CV_OnOff, NULL);
+@@ -408,7 +411,9 @@ consvar_t cv_turnaxis = CVAR_INIT ("joyaxis_turn", "Z-Axis", CV_SAVE, joyaxis_co
+ consvar_t cv_jumpaxis = CVAR_INIT ("joyaxis_jump", "None", CV_SAVE, joyaxis_cons_t, NULL);
+ consvar_t cv_spinaxis = CVAR_INIT ("joyaxis_spin", "None", CV_SAVE, joyaxis_cons_t, NULL);
+ consvar_t cv_fireaxis = CVAR_INIT ("joyaxis_fire", "Z-Rudder", CV_SAVE, joyaxis_cons_t, NULL);
+-consvar_t cv_firenaxis = CVAR_INIT ("joyaxis_firenormal", "Z-Axis", CV_SAVE, joyaxis_cons_t, NULL);
++// Y-Rudder, not the stock Z-Axis: that shared the turn axis, so turning far
++// enough doubled as fire normal. Y-Rudder is the left trigger (VR and pads).
++consvar_t cv_firenaxis = CVAR_INIT ("joyaxis_firenormal", "Y-Rudder", CV_SAVE, joyaxis_cons_t, NULL);
+ consvar_t cv_deadzone = CVAR_INIT ("joy_deadzone", "0.125", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL);
+ consvar_t cv_digitaldeadzone = CVAR_INIT ("joy_digdeadzone", "0.25", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL);
+ 
+@@ -419,7 +424,7 @@ consvar_t cv_turnaxis2 = CVAR_INIT ("joyaxis2_turn", "Z-Axis", CV_SAVE, joyaxis_
+ consvar_t cv_jumpaxis2 = CVAR_INIT ("joyaxis2_jump", "None", CV_SAVE, joyaxis_cons_t, NULL);
+ consvar_t cv_spinaxis2 = CVAR_INIT ("joyaxis2_spin", "None", CV_SAVE, joyaxis_cons_t, NULL);
+ consvar_t cv_fireaxis2 = CVAR_INIT ("joyaxis2_fire", "Z-Rudder", CV_SAVE, joyaxis_cons_t, NULL);
+-consvar_t cv_firenaxis2 = CVAR_INIT ("joyaxis2_firenormal", "Z-Axis", CV_SAVE, joyaxis_cons_t, NULL);
++consvar_t cv_firenaxis2 = CVAR_INIT ("joyaxis2_firenormal", "Y-Rudder", CV_SAVE, joyaxis_cons_t, NULL);
+ consvar_t cv_deadzone2 = CVAR_INIT ("joy_deadzone2", "0.125", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL);
+ consvar_t cv_digitaldeadzone2 = CVAR_INIT ("joy_digdeadzone2", "0.25", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL);
+ 
+@@ -1080,6 +1085,29 @@ static void G_HandleAxisDeadZone(UINT8 splitnum, joystickvector2_t *joystickvect
+ 	}
+ }
+ 
++// VR "move where you look": rotate a stick's axis pair by the head yaw
++// (degrees, counter-clockwise-positive -- the same number the renderer adds to
++// the camera). The pair reads as side = +xaxis, forward = -yaxis, so rotating
++// (xaxis, yaxis) by that angle rotates the control DIRECTION by it. Zero
++// degrees leaves the pair untouched, which is the stock body-relative feel.
++static void G_VRHeadRelativeMove(joystickvector2_t *joystickvector, float headyaw)
++{
++	angle_t a;
++	fixed_t c, s;
++	INT32 x, y;
++
++	if (headyaw == 0.0f)
++		return;
++
++	a = FixedAngle(FLOAT_TO_FIXED(headyaw));
++	c = FINECOSINE(a >> ANGLETOFINESHIFT);
++	s = FINESINE(a >> ANGLETOFINESHIFT);
++	x = joystickvector->xaxis;
++	y = joystickvector->yaxis;
++	joystickvector->xaxis = FixedMul(x, c) + FixedMul(y, s);
++	joystickvector->yaxis = FixedMul(y, c) - FixedMul(x, s);
++}
++
+ //
+ // G_BuildTiccmd
+ // Builds a ticcmd from all of the available inputs
+@@ -1214,7 +1242,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
+ 	lookjoystickvector.yaxis = lookaxis;
+ 	G_HandleAxisDeadZone(forplayer, &lookjoystickvector);
+ 
+-	if (gamepadjoystickmove && lookjoystickvector.xaxis != 0)
++	if (gamepadjoystickmove && lookjoystickvector.xaxis != 0 && !VR_SnapTurnActive())
+ 	{
+ 		turnright = turnright || (lookjoystickvector.xaxis > 0);
+ 		turnleft = turnleft || (lookjoystickvector.xaxis < 0);
+@@ -1278,7 +1306,14 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
+ 		else if (turnleft)
+ 			cmd->angleturn = (INT16)(cmd->angleturn + ((angleturn[tspeed] * turnmultiplier)>>FRACBITS));
+ 
+-		if (analogjoystickmove && lookjoystickvector.xaxis != 0)
++		// VR snap turning owns the look stick's yaw while it is on: the axis
++		// becomes one discrete step per flick instead of a sweep, so the smooth
++		// analog turn below stands down entirely. Off, this is the stock path.
++		if (ssplayer == 1 && VR_SnapTurnActive())
++		{
++			cmd->angleturn = (INT16)(cmd->angleturn + VR_SnapTurnStep(lookjoystickvector.xaxis));
++		}
++		else if (analogjoystickmove && lookjoystickvector.xaxis != 0)
+ 		{
+ 			// JOYAXISRANGE should be 1023 (divide by 1024)
+ 			cmd->angleturn = (INT16)(cmd->angleturn - ((((lookjoystickvector.xaxis * angleturn[1]) >> 10) * turnmultiplier)>>FRACBITS)); // ANALOG!
+@@ -1294,6 +1329,17 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
+ 	movejoystickvector.yaxis = moveaxis;
+ 	G_HandleAxisDeadZone(forplayer, &movejoystickvector);
+ 
++	// VR "move where you look": rotate the stick out of body space by the head
++	// yaw here, and the untouched code below turns it into forward/side that
++	// P_3dMovement thrusts along the body angle -- the two rotations compose
++	// onto the heading the player is actually looking down. Skipped wherever
++	// forward/side are read as literal axes rather than as a direction: 2D,
++	// NiGHTS and sliding (already folded into the force* flags above), climbing
++	// (forwardmove is up/down ON the wall) and the minecart.
++	if (ssplayer == 1 && !forcefullinput && !forcestrafe && !player->climbing
++		&& player->powers[pw_carry] != CR_MINECART)
++		G_VRHeadRelativeMove(&movejoystickvector, VR_MoveYaw());
++
+ 	if (gamepadjoystickmove && movejoystickvector.xaxis != 0)
+ 	{
+ 		if (movejoystickvector.xaxis > 0)
+@@ -2215,7 +2261,11 @@ boolean G_Responder(event_t *ev)
+ 			if (ev->key == gamecontrol[GC_CAMTOGGLE][0]
+ 				|| ev->key == gamecontrol[GC_CAMTOGGLE][1])
+ 			{
+-				if (!camtoggledelay)
++				// In VR the view mode owns the chase cam (VR_EnforceViewCamera
++				// folds stray flips straight back), so a toggle here only pops
++				// the camera for a beat -- it reads as the view changing by
++				// itself. Theater watches the flat frame and keeps the toggle.
++				if (!camtoggledelay && !(VR_IsActive() && !VR_TheaterActive()))
+ 				{
+ 					camtoggledelay = NEWTICRATE / 7;
+ 					CV_SetValue(&cv_chasecam, cv_chasecam.value ? 0 : 1);
+@@ -4639,7 +4689,9 @@ void G_SaveGameData(gamedata_t *data)
+ 	}
+ 	savebuffer.pos = 0;
+ 
+-	if (usedCheats)
++	// M_UnlockAllApplied: the in-memory arrays hold vr_unlockall's forced
++	// unlocks, not earned progress -- they must never reach the real file.
++	if (usedCheats || M_UnlockAllApplied())
+ 	{
+ 		free(savebuffer.buf);
+ 		return;

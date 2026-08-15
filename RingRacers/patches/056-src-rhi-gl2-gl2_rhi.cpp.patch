@@ -1,0 +1,28 @@
+diff --git a/src/rhi/gl2/gl2_rhi.cpp b/src/rhi/gl2/gl2_rhi.cpp
+index 18d303905..a1f44c93e 100644
+--- a/src/rhi/gl2/gl2_rhi.cpp
++++ b/src/rhi/gl2/gl2_rhi.cpp
+@@ -1081,7 +1081,9 @@ void Gl2Rhi::push_default_render_pass(bool clear)
+ void Gl2Rhi::push_render_pass(const RenderPassBeginInfo& info)
+ {
+ 	render_pass_stack_.push_back(info);
+-	apply_framebuffer(info, false);
++	// Honor the load ops when the pass begins; restoring a previous pass
++	// after a nested one pops (below) must never re-clear it.
++	apply_framebuffer(info, true);
+ }
+ 
+ void Gl2Rhi::pop_render_pass()
+@@ -1590,6 +1592,12 @@ void Gl2Rhi::set_stencil_write_mask(CullMode face, uint8_t write_mask)
+ 	}
+ }
+ 
++uint32_t Gl2Rhi::gl_texture_name(Handle<Texture> texture)
++{
++	SRB2_ASSERT(texture_slab_.is_valid(texture));
++	return texture_slab_[texture].texture;
++}
++
+ TextureDetails Gl2Rhi::get_texture_details(Handle<Texture> texture)
+ {
+ 	SRB2_ASSERT(texture_slab_.is_valid(texture));

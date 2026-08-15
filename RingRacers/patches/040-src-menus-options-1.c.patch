@@ -1,0 +1,41 @@
+diff --git a/src/menus/options-1.c b/src/menus/options-1.c
+index 41bc817aa..d22f2a554 100644
+--- a/src/menus/options-1.c
++++ b/src/menus/options-1.c
+@@ -120,6 +120,9 @@ void M_InitOptions(INT32 choice)
+ 		? (IT_STRING | IT_SUBMENU)
+ 		: (IT_TRANSTEXT2 | IT_SPACE));
+ 
++	// VR Options only shows while a headset session is live.
++	M_RefreshVideoVROptions();
++
+ 	M_ResetOptions();
+ 
+ 	// So that pause doesn't go to the main menu...
+@@ -220,10 +223,6 @@ void M_OptionsTick(void)
+ 
+ 		M_GonerCheckLooking();
+ 	}
+-
+-	// And one last giggle...
+-	if (shitsfree)
+-		shitsfree--;
+ }
+ static void M_OptionsMenuGoto(menu_t *assignment)
+ {
+@@ -244,6 +243,15 @@ void M_VideoOptions(INT32 choice)
+ 	M_GonerResetLooking(GDGONER_VIDEO);
+ }
+ 
++void M_VROptions(INT32 choice)
++{
++	(void)choice;
++	// Lands straight on the VR page: the pause menu's shortcut while a
++	// headset session runs, and the Video menu's own entry. The goto sets
++	// prevMenu, so backing out returns wherever the player came from.
++	M_OptionsMenuGoto(&OPTIONS_VideoVRDef);
++}
++
+ void M_SoundOptions(INT32 choice)
+ {
+ 	(void)choice;

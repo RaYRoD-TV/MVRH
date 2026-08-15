@@ -1,0 +1,19 @@
+diff --git a/android/src/org/srb2/nativecode/Main.java b/android/src/org/srb2/nativecode/Main.java
+deleted file mode 100644
+index 1a2dc200a..000000000
+--- a/android/src/org/srb2/nativecode/Main.java
++++ /dev/null
+@@ -1,13 +0,0 @@
+-package org.srb2.nativecode;
+-
+-import java.nio.ByteBuffer;
+-
+-public class Main {
+-	private SRB2 srb2;
+-
+-	public Main(SRB2 srb2) {
+-		this.srb2 = srb2;
+-	}
+-
+-	public native int main(Video v);
+-}

@@ -1,0 +1,146 @@
+diff --git a/src/m_misc.c b/src/m_misc.c
+index 24616e9db..e8777ae00 100644
+--- a/src/m_misc.c
++++ b/src/m_misc.c
+@@ -55,7 +55,7 @@
+ 
+ #ifdef HAVE_SDL
+ #include "sdl/hwsym_sdl.h"
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+ #ifndef _LARGEFILE64_SOURCE
+ typedef off_t off64_t;
+ #endif
+@@ -441,6 +441,52 @@ boolean FIL_CheckExtension(const char *in)
+ 	return false;
+ }
+ 
++// Searches for a file in:
++//   filename
++//   srb2home/filename
++//   srb2path/filename
++//  ./filename
++//   (possibly) Android assets
++char *M_FindFile(const char *filename)
++{
++	static char filenamebuf[4096];
++
++	strlcpy(filenamebuf, filename, sizeof filenamebuf);
++
++	// That was easy
++	if (FIL_FileExists(filenamebuf))
++		return filenamebuf;
++
++	// Look in these paths now
++	const char *paths[3] = {
++		srb2home,
++		srb2path,
++		"."
++	};
++
++	for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]); i++)
++	{
++		snprintf(filenamebuf, sizeof filenamebuf, "%s" PATHSEP "%s", paths[i], filename);
++		if (FIL_FileExists(filenamebuf))
++			return filenamebuf;
++	}
++
++#if defined(__ANDROID__)
++	// That didn't work. Let's just File_Open it directly and check if there's a handle
++	strlcpy(filenamebuf, filename, sizeof filenamebuf);
++
++	filehandle_t *handle = File_Open(filenamebuf, "rb", FILEHANDLE_SDL);
++	if (handle)
++	{
++		File_Close(handle);
++		return filenamebuf;
++	}
++#endif
++
++	// Couldn't find anything
++	return NULL;
++}
++
+ // ==========================================================================
+ //                        CONFIGURATION FILE
+ // ==========================================================================
+@@ -601,11 +647,11 @@ void M_SaveConfig(const char *filename)
+ 		}
+ 
+ 		// append srb2home to beginning of filename
+-		// but check if srb2home isn't already there, first
+-		if (!strstr(filename, srb2home))
+-			filepath = va(pandf,srb2home, filename);
+-		else
++		// but check if srb2home or srb2path aren't already there, first
++		if (strstr(filename, srb2home) || strstr(filename, srb2path))
+ 			filepath = Z_StrDup(filename);
++		else
++			filepath = va(pandf, srb2home, filename);
+ 
+ 		f = fopen(filepath, "w");
+ 		// change it only if valid
+@@ -777,7 +823,12 @@ static void M_PNGhdr(png_structp png_ptr, png_infop png_info_ptr, PNG_CONST png_
+ 	}
+ 	else
+ 	{
+-		png_set_IHDR(png_ptr, png_info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB,
++		png_set_IHDR(png_ptr, png_info_ptr, width, height, 8,
++#ifdef SCREENSHOT_USE_RGBA
++		PNG_COLOR_TYPE_RGBA,
++#else
++		PNG_COLOR_TYPE_RGB,
++#endif
+ 		 png_interlace, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+ 		png_write_info_before_PLTE(png_ptr, png_info_ptr);
+ 		png_set_compression_strategy(png_ptr, Z_FILTERED);
+@@ -1098,7 +1149,7 @@ static boolean M_SetupaPNG(png_const_charp filename, png_bytep pal)
+ 	png_init_io(apng_ptr, apng_FILE);
+ 
+ #ifdef PNG_SET_USER_LIMITS_SUPPORTED
+-	png_set_user_limits(apng_ptr, MAXVIDWIDTH, MAXVIDHEIGHT);
++	png_set_user_limits(apng_ptr, 8192, 8192); // see M_SavePNG: GL runs desktop-size frames now
+ #endif
+ 
+ 	//png_set_filter(apng_ptr, 0, PNG_ALL_FILTERS);
+@@ -1418,7 +1469,10 @@ boolean M_SavePNG(const char *filename, void *data, int width, int height, const
+ 	png_init_io(png_ptr, png_FILE);
+ 
+ #ifdef PNG_SET_USER_LIMITS_SUPPORTED
+-	png_set_user_limits(png_ptr, MAXVIDWIDTH, MAXVIDHEIGHT);
++	// Not MAXVIDWIDTH/HEIGHT: those are the software renderer's table sizes,
++	// and OpenGL runs the desktop's own resolution now -- a 4K screenshot
++	// must not die on a limit meant for asset loading.
++	png_set_user_limits(png_ptr, 8192, 8192);
+ #endif
+ 
+ 	//png_set_filter(png_ptr, 0, PNG_ALL_FILTERS);
+@@ -1642,10 +1696,17 @@ boolean M_ScreenshotResponder(event_t *ev)
+ 	if (ch >= KEY_MOUSE1 && menuactive) // If it's not a keyboard key, then don't allow it in the menus!
+ 		return false;
+ 
+-	if (ch == KEY_F8 || ch == gamecontrol[GC_SCREENSHOT][0] || ch == gamecontrol[GC_SCREENSHOT][1]) // remappable F8
++	// ch must not match an UNBOUND (0) control: SDL focus handling posts key-0
++	// events, and matching those fired phantom screenshots into a broken-headless
++	// write path - the intermittent level-load fast-fail.
++	if (ch == KEY_F8 || (ch != 0 && (ch == gamecontrol[GC_SCREENSHOT][0] || ch == gamecontrol[GC_SCREENSHOT][1]))) // remappable F8
+ 		M_ScreenShot();
+-	else if (ch == KEY_F9 || ch == gamecontrol[GC_RECORDGIF][0] || ch == gamecontrol[GC_RECORDGIF][1]) // remappable F9
++	else if (ch == KEY_F9 || (ch != 0 && (ch == gamecontrol[GC_RECORDGIF][0] || ch == gamecontrol[GC_RECORDGIF][1]))) // remappable F9
+ 		((moviemode) ? M_StopMovie : M_StartMovie)();
++	else if (ch == KEY_F11) // force fullscreen
++		// Same cvar the video menu drives, so window handling, the saved
++		// config and the menu all stay in agreement.
++		CV_SetValue(&cv_fullscreen, cv_fullscreen.value ? 0 : 1);
+ 	else
+ 		return false;
+ 	return true;
+@@ -1720,7 +1781,7 @@ char *va(const char *format, ...)
+ 	static char string[1024];
+ 
+ 	va_start(argptr, format);
+-	vsprintf(string, format, argptr);
++	M_vsnprintf(string, 1024, format, argptr);
+ 	va_end(argptr);
+ 
+ 	return string;

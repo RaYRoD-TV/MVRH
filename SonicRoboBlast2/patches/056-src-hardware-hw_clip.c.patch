@@ -1,0 +1,54 @@
+diff --git a/src/hardware/hw_clip.c b/src/hardware/hw_clip.c
+index 74268423f..1a57b6e6e 100644
+--- a/src/hardware/hw_clip.c
++++ b/src/hardware/hw_clip.c
+@@ -77,6 +77,17 @@
+ #include "../tables.h"
+ #include "r_opengl/r_opengl.h"
+ 
++// The clipper runs UNCONDITIONALLY now; only the frustum WEDGE is optional.
++// The wedge (seeded by hw_main from the head's yaw + the eye's real FOV) is
++// the piece that can pop geometry at the view's edges, so vr_culling Off
++// simply never seeds it. The solid-wall occlusion ranges that segs insert
++// during the walk stay active in every mode: a wall genuinely hides what is
++// behind it, so occlusion culling is exact and can never cause pop-in --
++// and it is what keeps "culling off" from paying for every hidden room in
++// the map, which the old draw-everything bypass did (per eye, at headset
++// resolution). A steeply pitched gaze works the same way: no wedge fits,
++// so none is added, and wall occlusion carries the render alone.
++
+ #ifdef HAVE_SPHEREFRUSTRUM
+ static GLdouble viewMatrix[16];
+ static GLdouble projMatrix[16];
+@@ -348,6 +359,31 @@ angle_t gld_FrustumAngle(float render_fov, angle_t tiltangle)
+ 	return a1;
+ }
+ 
++// VR smart culling: the accept wedge for the eye's real (asymmetric) FOV,
++// centered on the head's heading by the caller. Conservative on purpose --
++// returns 0xffffffff ("everything visible") when the head is pitched far
++// enough that a horizontal wedge stops meaning anything, and pads the result
++// so head motion between the pose sample and the draw can't clip geometry
++// mid-turn. vrfov is radians: left, right, up, down.
++angle_t gld_FrustumAngleVR(const float *vrfov, float pitchdeg)
++{
++	const float DEG = (float)(M_PIl / 180.0);
++	const float h = max(fabsf(vrfov[0]), fabsf(vrfov[1]));
++	const float v = max(fabsf(vrfov[2]), fabsf(vrfov[3]));
++	const float tiltedge = fabsf(pitchdeg) * DEG + v;
++	float half;
++
++	if (tiltedge >= 85.0f * DEG)
++		return 0xffffffff; // looking near straight up/down
++
++	// Pitching widens the frustum's horizontal footprint on the view circle.
++	half = (float)atan(tan(h) / cos(tiltedge)) + 5.0f * DEG;
++	if (half >= 89.0f * DEG)
++		return 0xffffffff;
++
++	return FixedAngle(FLOAT_TO_FIXED(half / DEG));
++}
++
+ // SRB2CB I don't think used any of this stuff, let's disable for now since SRB2 probably doesn't want it either
+ // compiler complains about (p)glGetFloatv anyway, in case anyone wants this
+ // only r_opengl.c can use the base gl funcs as it turns out, that's a problem for whoever wants sphere frustum checks

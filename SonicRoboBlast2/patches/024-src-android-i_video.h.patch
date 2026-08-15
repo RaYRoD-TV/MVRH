@@ -1,0 +1,18 @@
+diff --git a/src/android/i_video.h b/src/android/i_video.h
+deleted file mode 100644
+index 62fec6654..000000000
+--- a/src/android/i_video.h
++++ /dev/null
+@@ -1,12 +0,0 @@
+-#ifndef _SRB2_ANDROID_VIDEO_
+-#define _SRB2_ANDROID_VIDEO_
+-
+-#include <jni.h>
+-
+-UINT8 *android_surface;
+-
+-JNIEnv* jni_env;
+-jobject androidVideo;
+-jmethodID videoFrameCB;
+-
+-#endif

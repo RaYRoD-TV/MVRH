@@ -1,0 +1,420 @@
+diff --git a/src/hardware/r_opengl/r_opengl.c b/src/hardware/r_opengl/r_opengl.c
+index 02a32957a..15aa442cd 100644
+--- a/src/hardware/r_opengl/r_opengl.c
++++ b/src/hardware/r_opengl/r_opengl.c
+@@ -307,6 +307,8 @@ typedef void (APIENTRY * PFNglAlphaFunc) (GLenum func, GLclampf ref);
+ static PFNglAlphaFunc pglAlphaFunc;
+ typedef void (APIENTRY * PFNglBlendFunc) (GLenum sfactor, GLenum dfactor);
+ static PFNglBlendFunc pglBlendFunc;
++typedef void (APIENTRY * PFNglBlendFuncSeparate) (GLenum sfactor, GLenum dfactor, GLenum sfactorA, GLenum dfactorA);
++static PFNglBlendFuncSeparate pglBlendFuncSeparate;
+ typedef void (APIENTRY * PFNglCullFace) (GLenum mode);
+ static PFNglCullFace pglCullFace;
+ typedef void (APIENTRY * PFNglPolygonOffset) (GLfloat factor, GLfloat units);
+@@ -495,6 +497,7 @@ boolean SetupGLfunc(void)
+ 	GETOPENGLFUNC(pglColorMask, glColorMask)
+ 	GETOPENGLFUNC(pglAlphaFunc, glAlphaFunc)
+ 	GETOPENGLFUNC(pglBlendFunc, glBlendFunc)
++	pglBlendFuncSeparate = GetGLFunc("glBlendFuncSeparate"); // GL 1.4+; optional, no warning
+ 	GETOPENGLFUNC(pglCullFace, glCullFace)
+ 	GETOPENGLFUNC(pglPolygonOffset, glPolygonOffset)
+ 	GETOPENGLFUNC(pglScissor, glScissor)
+@@ -626,6 +629,25 @@ typedef enum
+ 
+ 	// misc.
+ 	gluniform_leveltime,
++	gluniform_vr_sway, // underwater world sway amplitude, world units (0 = off)
++	gluniform_vr_ripple, // water-surface ripple boost (0 = off)
++	gluniform_vr_uwfog, // underwater absorption density (0 = off)
++	gluniform_vr_uwcolor, // underwater ambient color (vec3)
++	gluniform_vr_uwsurf, // water surface height of the eye's medium (world units)
++	gluniform_vr_uwlocal, // drawn surface's own sector water top (0 = dry sector)
++	gluniform_vr_eyepos, // rendering eye position (vec3, world units, shader axes)
++	gluniform_vr_uwcaustic, // caustic brightness (0 = off)
++	gluniform_vr_uwcaustictime, // caustic animation time (0 = frozen)
++	gluniform_vr_uwray, // god-ray strength (0 = off)
++
++	// texture sampling
++	gluniform_supersample, // extra texture taps per pixel (0 = off)
++
++	// final-blit CRT
++	gluniform_crt_mask, // 1 aperture grille, 2 slot mask, 3 shadow mask
++	gluniform_crt_strength, // phosphor mask depth, 0-1
++	gluniform_crt_boost, // brightness compensation multiplier
++	gluniform_crt_intensity, // whole-effect opacity, 0-1 (every preset)
+ 
+ 	gluniform_max,
+ } gluniform_t;
+@@ -636,6 +658,10 @@ typedef struct gl_shader_s
+ 	char *fragment_shader;
+ 	GLuint program;
+ 	GLint uniforms[gluniform_max+1];
++	// The VR uniforms change once per render, not per polygon -- cache what
++	// each program last received and skip the thousands of redundant uploads
++	// a frame's draws would otherwise pay in driver overhead.
++	GLfloat vr_cache[14]; // sway, ripple, uwfog, uwcolor rgb, uwsurf, eyepos xyz, caustic, ray, uwlocal, caustic time
+ } gl_shader_t;
+ 
+ static gl_shader_t gl_shaders[HWR_MAXSHADERS];
+@@ -654,6 +680,21 @@ static gl_shaderstate_t gl_shaderstate;
+ 
+ // Shader info
+ static float shader_leveltime = 0;
++static float shader_supersample = 0.0f; // extra texture taps per pixel (0 = off)
++static INT32 screen_effect = 0; // final-blit filter (0 = off, 1 = SalCRT Sharp)
++static float shader_vrsway = 0.0f; // VR underwater sway amplitude (world units)
++static float shader_vrripple = 0.0f; // VR water-surface ripple boost
++static float shader_vruwfog = 0.0f; // VR underwater absorption density
++static GLfloat shader_vruwcolor[3] = {0.0f, 0.0f, 0.0f}; // VR underwater ambient color
++static float shader_vruwsurf = 0.0f; // VR water surface height (world units)
++static GLfloat shader_vreyepos[3] = {0.0f, 0.0f, 0.0f}; // VR eye position (world units)
++static float shader_vruwcaustic = 0.0f; // VR caustic brightness
++static float shader_vruwcaustictime = 0.0f; // VR caustic animation time (0 = frozen)
++static float shader_vruwray = 0.0f; // VR god-ray strength
++static float shader_crtmask = 0.0f; // Megatron mask: 1 grille, 2 slot, 3 shadow
++static float shader_crtstrength = 0.7f; // Megatron mask depth, 0-1
++static float shader_crtboost = 1.0f; // Megatron brightness, 0.5-1.5 (1 = parity)
++static float shader_crtintensity = 1.0f; // whole-effect opacity (1 = full)
+ 
+ // Lactozilla: Shader functions
+ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i);
+@@ -794,6 +835,66 @@ EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value)
+ 		case HWD_SHADERINFO_LEVELTIME:
+ 			shader_leveltime = (((float)(value-1)) + FIXED_TO_FLOAT(rendertimefrac)) / TICRATE;
+ 			break;
++		case HWD_SHADERINFO_VRSWAY:
++			shader_vrsway = (float)value / 1000.0f;
++			break;
++		case HWD_SHADERINFO_VRRIPPLE:
++			shader_vrripple = (float)value / 1000.0f;
++			break;
++		case HWD_SHADERINFO_VRUWFOG:
++			shader_vruwfog = (float)value / 1000.0f;
++			break;
++		case HWD_SHADERINFO_VRUWCOLOR:
++			shader_vruwcolor[0] = (float)((value >> 16) & 0xff) / 255.0f;
++			shader_vruwcolor[1] = (float)((value >> 8) & 0xff) / 255.0f;
++			shader_vruwcolor[2] = (float)(value & 0xff) / 255.0f;
++			break;
++		case HWD_SHADERINFO_VRUWCAUSTIC:
++			shader_vruwcaustic = (float)value / 1000.0f;
++			break;
++		case HWD_SHADERINFO_VRUWCAUSTICTIME:
++			// Wrapped to a fixed loop. Left unbounded this reaches the hundreds
++			// a few minutes into a level, and the sin() arguments in the shader
++			// lose the precision that holds the pattern together - it breaks up
++			// and reads as flashing. The time frequencies there are exact
++			// multiples of this loop's base, so the wrap is seamless.
++			shader_vruwcaustictime = value < 0 ? 0.0f
++				: (((float)((value - 1) % (TICRATE * 60))) + FIXED_TO_FLOAT(rendertimefrac)) / TICRATE;
++			break;
++		case HWD_SHADERINFO_VRUWRAY:
++			shader_vruwray = (float)value / 1000.0f;
++			break;
++		case HWD_SHADERINFO_VRUWSURF:
++			shader_vruwsurf = (float)value / 16.0f;
++			break;
++		case HWD_SHADERINFO_VREYEX:
++			shader_vreyepos[0] = (float)value / 16.0f;
++			break;
++		case HWD_SHADERINFO_VREYEY:
++			shader_vreyepos[1] = (float)value / 16.0f;
++			break;
++		case HWD_SHADERINFO_VREYEZ:
++			shader_vreyepos[2] = (float)value / 16.0f;
++			break;
++		case HWD_SHADERINFO_SUPERSAMPLE:
++			shader_supersample = (float)value;
++			break;
++		case HWD_SHADERINFO_SCREENEFFECT:
++			screen_effect = value;
++			// Values 2-4 are the Megatron masks; the shader's mask id is 1-3.
++			shader_crtmask = (float)(value >= 2 ? value - 1 : 0);
++			break;
++		case HWD_SHADERINFO_CRTMASKSTRENGTH:
++			shader_crtstrength = (float)value / 10.0f;
++			break;
++		case HWD_SHADERINFO_CRTBOOST:
++			// The mask is energy-conserving, so 5 = x1.0 = parity with the
++			// input; the slider is taste, x0.5 dimmer to x1.5 brighter.
++			shader_crtboost = 0.5f + 0.1f * (float)value;
++			break;
++		case HWD_SHADERINFO_CRTINTENSITY:
++			shader_crtintensity = (float)value / 10.0f;
++			break;
+ 		default:
+ 			break;
+ 	}
+@@ -969,6 +1070,15 @@ void SetModelView(GLint w, GLint h)
+ 	pglGetFloatv(GL_PROJECTION_MATRIX, projMatrix);
+ }
+ 
++// Lightweight render-dimension set for VR eye rendering: updates the values GClipRect's
++// y-flip relies on, without flushing screen textures (SetModelView flushes -- too costly per eye).
++void SetVRViewport(GLint w, GLint h)
++{
++	screen_width = w;
++	screen_height = h;
++	pglViewport(0, 0, w, h);
++}
++
+ 
+ // -----------------+
+ // SetStates        : Set permanent states
+@@ -1299,38 +1409,50 @@ static void SetBlendEquation(GLenum mode)
+ 		pglBlendEquation(mode);
+ }
+ 
++// Blend RGB as requested, but always accumulate the alpha channel as coverage
++// (ONE, ONE_MINUS_SRC_ALPHA). The window's alpha is never displayed, and the VR UI
++// overlay renders into a transparent FBO whose alpha must stay meaningful -- otherwise
++// fades/translucency write garbage alpha and the overlay blacks out the world behind it.
++static void GL_BlendFuncRGB(GLenum sfactor, GLenum dfactor)
++{
++	if (pglBlendFuncSeparate)
++		pglBlendFuncSeparate(sfactor, dfactor, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
++	else
++		pglBlendFunc(sfactor, dfactor);
++}
++
+ static void SetBlendMode(FBITFIELD flags)
+ {
+ 	// Set blending function
+ 	switch (flags)
+ 	{
+ 		case PF_Translucent & PF_Blending:
+-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
++			GL_BlendFuncRGB(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
+ 			break;
+ 		case PF_Masked & PF_Blending:
+ 			// Hurdler: does that mean lighting is only made by alpha src?
+ 			// it sounds ok, but not for polygonsmooth
+-			pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
++			GL_BlendFuncRGB(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
+ 			break;
+ 		case PF_Additive & PF_Blending:
+ 		case PF_Subtractive & PF_Blending:
+ 		case PF_ReverseSubtract & PF_Blending:
+-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
++			GL_BlendFuncRGB(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
+ 			break;
+ 		case PF_Environment & PF_Blending:
+-			pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
++			GL_BlendFuncRGB(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+ 			break;
+ 		case PF_Multiplicative & PF_Blending:
+-			pglBlendFunc(GL_DST_COLOR, GL_ZERO);
++			GL_BlendFuncRGB(GL_DST_COLOR, GL_ZERO);
+ 			break;
+ 		case PF_Fog & PF_Fog:
+ 			// Sryder: Fog
+ 			// multiplies input colour by input alpha, and destination colour by input colour, then adds them
+-			pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
++			GL_BlendFuncRGB(GL_SRC_ALPHA, GL_SRC_COLOR);
+ 			break;
+ 		default: // must be 0, otherwise it's an error
+ 			// No blending
+-			pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
++			GL_BlendFuncRGB(GL_ONE, GL_ZERO);   // the same as no blending
+ 			break;
+ 	}
+ 
+@@ -1782,10 +1904,83 @@ static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAF
+ 			UNIFORM_1(shader->uniforms[gluniform_lighting], (GLfloat)Surface->LightInfo.light_level, pglUniform1f);
+ 			UNIFORM_1(shader->uniforms[gluniform_fade_start], (GLfloat)Surface->LightInfo.fade_start, pglUniform1f);
+ 			UNIFORM_1(shader->uniforms[gluniform_fade_end], (GLfloat)Surface->LightInfo.fade_end, pglUniform1f);
++			// Per-surface water judge for the underwater layers (see hw_defs.h).
++			// Value-cached like the frame-constant VR uniforms: within a
++			// sector's batch it repeats for every draw.
++			if (shader->uniforms[gluniform_vr_uwlocal] != -1
++				&& shader->vr_cache[12] != (GLfloat)Surface->VRWaterTop)
++			{
++				pglUniform1f(shader->uniforms[gluniform_vr_uwlocal], (GLfloat)Surface->VRWaterTop);
++				shader->vr_cache[12] = (GLfloat)Surface->VRWaterTop;
++			}
+ 		}
+ 
+ 		UNIFORM_1(shader->uniforms[gluniform_leveltime], shader_leveltime, pglUniform1f);
+ 
++		UNIFORM_1(shader->uniforms[gluniform_supersample], shader_supersample, pglUniform1f);
++
++		UNIFORM_1(shader->uniforms[gluniform_crt_mask], shader_crtmask, pglUniform1f);
++		UNIFORM_1(shader->uniforms[gluniform_crt_strength], shader_crtstrength, pglUniform1f);
++		UNIFORM_1(shader->uniforms[gluniform_crt_boost], shader_crtboost, pglUniform1f);
++		UNIFORM_1(shader->uniforms[gluniform_crt_intensity], shader_crtintensity, pglUniform1f);
++		// Frame-constant VR uniforms: upload only when the value actually
++		// changed for this program (they hold per-program GL state).
++		if (shader->vr_cache[0] != shader_vrsway)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_sway], shader_vrsway, pglUniform1f);
++			shader->vr_cache[0] = shader_vrsway;
++		}
++		if (shader->vr_cache[1] != shader_vrripple)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_ripple], shader_vrripple, pglUniform1f);
++			shader->vr_cache[1] = shader_vrripple;
++		}
++		if (shader->vr_cache[2] != shader_vruwfog)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_uwfog], shader_vruwfog, pglUniform1f);
++			shader->vr_cache[2] = shader_vruwfog;
++		}
++		if (shader->uniforms[gluniform_vr_uwcolor] != -1
++			&& (shader->vr_cache[3] != shader_vruwcolor[0]
++			 || shader->vr_cache[4] != shader_vruwcolor[1]
++			 || shader->vr_cache[5] != shader_vruwcolor[2]))
++		{
++			pglUniform3fv(shader->uniforms[gluniform_vr_uwcolor], 1, shader_vruwcolor);
++			shader->vr_cache[3] = shader_vruwcolor[0];
++			shader->vr_cache[4] = shader_vruwcolor[1];
++			shader->vr_cache[5] = shader_vruwcolor[2];
++		}
++		if (shader->vr_cache[6] != shader_vruwsurf)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_uwsurf], shader_vruwsurf, pglUniform1f);
++			shader->vr_cache[6] = shader_vruwsurf;
++		}
++		if (shader->vr_cache[10] != shader_vruwcaustic)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_uwcaustic], shader_vruwcaustic, pglUniform1f);
++			shader->vr_cache[10] = shader_vruwcaustic;
++		}
++		if (shader->vr_cache[13] != shader_vruwcaustictime)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_uwcaustictime], shader_vruwcaustictime, pglUniform1f);
++			shader->vr_cache[13] = shader_vruwcaustictime;
++		}
++		if (shader->vr_cache[11] != shader_vruwray)
++		{
++			UNIFORM_1(shader->uniforms[gluniform_vr_uwray], shader_vruwray, pglUniform1f);
++			shader->vr_cache[11] = shader_vruwray;
++		}
++		if (shader->uniforms[gluniform_vr_eyepos] != -1
++			&& (shader->vr_cache[7] != shader_vreyepos[0]
++			 || shader->vr_cache[8] != shader_vreyepos[1]
++			 || shader->vr_cache[9] != shader_vreyepos[2]))
++		{
++			pglUniform3fv(shader->uniforms[gluniform_vr_eyepos], 1, shader_vreyepos);
++			shader->vr_cache[7] = shader_vreyepos[0];
++			shader->vr_cache[8] = shader_vreyepos[1];
++			shader->vr_cache[9] = shader_vreyepos[2];
++		}
++
+ 		#undef UNIFORM_1
+ 		#undef UNIFORM_2
+ 		#undef UNIFORM_3
+@@ -1911,6 +2106,25 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
+ 
+ 	// misc.
+ 	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
++
++	// texture sampling
++	shader->uniforms[gluniform_supersample] = GETUNI("supersample");
++	shader->uniforms[gluniform_crt_mask] = GETUNI("crt_mask");
++	shader->uniforms[gluniform_crt_strength] = GETUNI("crt_strength");
++	shader->uniforms[gluniform_crt_boost] = GETUNI("crt_boost");
++	shader->uniforms[gluniform_crt_intensity] = GETUNI("crt_intensity");
++	shader->uniforms[gluniform_vr_sway] = GETUNI("vr_sway");
++	shader->uniforms[gluniform_vr_ripple] = GETUNI("vr_ripple");
++	shader->uniforms[gluniform_vr_uwfog] = GETUNI("vr_uwfog");
++	shader->uniforms[gluniform_vr_uwcolor] = GETUNI("vr_uwcolor");
++	shader->uniforms[gluniform_vr_uwsurf] = GETUNI("vr_uwsurf");
++	shader->uniforms[gluniform_vr_uwlocal] = GETUNI("vr_uwlocal");
++	shader->uniforms[gluniform_vr_eyepos] = GETUNI("vr_eyepos");
++	shader->uniforms[gluniform_vr_uwcaustic] = GETUNI("vr_uwcaustic");
++	shader->uniforms[gluniform_vr_uwcaustictime] = GETUNI("vr_uwcaustictime");
++	shader->uniforms[gluniform_vr_uwray] = GETUNI("vr_uwray");
++	// A fresh link zeroes every uniform; the skip-cache must agree.
++	memset(shader->vr_cache, 0, sizeof(shader->vr_cache));
+ #undef GETUNI
+ 
+ 	// set permanent uniform values
+@@ -2810,7 +3024,19 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
+ 		pglTranslatef(0.0f, -fdy/BASEVIDHEIGHT, 0.0f);
+ 	}
+ 
+-	if (special_splitscreen)
++	if (stransform && stransform->vr)
++	{
++		// VR: asymmetric per-eye frustum from the headset FOV (radians: left,right,up,down).
++		const GLfloat tl = tanf(stransform->vrfov[0]), tr = tanf(stransform->vrfov[1]);
++		const GLfloat tu = tanf(stransform->vrfov[2]), td = tanf(stransform->vrfov[3]);
++		const GLfloat tw = tr - tl, th = tu - td;
++		const GLfloat zn = NEAR_CLIPPING_PLANE, zf = FAR_CLIPPING_PLANE;
++		GLfloat m[16] = {0};
++		m[0]=2.0f/tw; m[5]=2.0f/th; m[8]=(tr+tl)/tw; m[9]=(tu+td)/th;
++		m[10]=-(zf+zn)/(zf-zn); m[11]=-1.0f; m[14]=-(2.0f*zf*zn)/(zf-zn);
++		pglMultMatrixf(m);
++	}
++	else if (special_splitscreen)
+ 	{
+ 		used_fov = (float)(atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI);
+ 		GLPerspective(used_fov, 2*ASPECT_RATIO);
+@@ -3197,13 +3423,67 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int tex, int width, int height)
+ 
+ 	pglColor4ubv(white);
+ 
++	// The whole finished frame is on screen as one quad here, which makes
++	// this the only place a screen filter can live in this renderer.
++	// 1 = SalCRT Sharp; 2-4 = the Megatron phosphor masks (one shader, the
++	// mask type is a uniform).
++	if (screen_effect != 0)
++	{
++		SetShader(screen_effect >= 2 ? SHADER_CRTMEGA : SHADER_CRTSHARP);
++		Shader_SetUniforms(NULL, NULL, NULL, NULL);
++	}
++
+ 	pglTexCoordPointer(2, GL_FLOAT, 0, fix);
+ 	pglVertexPointer(3, GL_FLOAT, 0, off);
+ 
+ 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
++
++	if (screen_effect != 0)
++	{
++		UnSetShader();
++	}
++
+ 	tex_downloaded = screenTextures[tex];
+ }
+ 
++// VR eye-pass screen effect: draw a finished eye render (already a texture)
++// into the currently bound swapchain framebuffer through the final-blit CRT
++// shader. The plain eye path is a glBlitFramebuffer, which can run no
++// shader; this is the same quad DrawScreenFinalTexture draws, minus the
++// power-of-two screen-texture copy that path would force at headset
++// resolution (a 4096x4096 CopyTexSubImage per eye per frame).
++EXPORT void HWRAPI(DrawVREyeEffect) (UINT32 tex, int width, int height)
++{
++	float off[12];
++	float fix[8];
++
++	// Fullscreen NDC quad; the source texture is its own exact size, so the
++	// texcoords span the full 0-1 with no power-of-two correction.
++	off[0] = -1.0f; off[1]  = -1.0f; off[2]  = 1.0f;
++	off[3] =  1.0f; off[4]  = -1.0f; off[5]  = 1.0f;
++	off[6] =  1.0f; off[7]  =  1.0f; off[8]  = 1.0f;
++	off[9] = -1.0f; off[10] =  1.0f; off[11] = 1.0f;
++	fix[0] = 0.0f; fix[1] = 0.0f;
++	fix[2] = 1.0f; fix[3] = 0.0f;
++	fix[4] = 1.0f; fix[5] = 1.0f;
++	fix[6] = 0.0f; fix[7] = 1.0f;
++
++	pglViewport(0, 0, width, height);
++	SetBlend(PF_NoDepthTest);
++	pglBindTexture(GL_TEXTURE_2D, tex);
++	pglColor4ubv(white);
++
++	SetShader(screen_effect >= 2 ? SHADER_CRTMEGA : SHADER_CRTSHARP);
++	Shader_SetUniforms(NULL, NULL, NULL, NULL);
++
++	pglTexCoordPointer(2, GL_FLOAT, 0, fix);
++	pglVertexPointer(3, GL_FLOAT, 0, off);
++	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
++
++	UnSetShader();
++	tex_downloaded = tex;
++}
++
+ EXPORT void HWRAPI(SetPaletteLookup)(UINT8 *lut)
+ {
+ 	GLenum internalFormat;

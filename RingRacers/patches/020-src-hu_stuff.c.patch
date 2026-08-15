@@ -1,0 +1,19 @@
+diff --git a/src/hu_stuff.c b/src/hu_stuff.c
+index 06dbd150a..aee9c5a1d 100644
+--- a/src/hu_stuff.c
++++ b/src/hu_stuff.c
+@@ -242,7 +242,13 @@ void HU_Init(void)
+ 	// only allocate if not present, to save us a lot of headache
+ 	if (missingpat == NULL)
+ 	{
+-		lumpnum_t missingnum = W_GetNumForName("MISSING");
++		// The stock MISSING lump is a photo gag; running newer code against
++		// an older data set splats it across the HUD and item overlays
++		// wherever a graphic is absent. Use the transparent null patch so a
++		// missing graphic simply draws nothing.
++		lumpnum_t missingnum = W_CheckNumForName("K_TRNULL");
++		if (missingnum == LUMPERROR)
++			missingnum = W_CheckNumForName("MISSING");
+ 		if (missingnum == LUMPERROR)
+ 			I_Error("HU_LoadGraphics: \"MISSING\" patch not present in resource files.");
+ 

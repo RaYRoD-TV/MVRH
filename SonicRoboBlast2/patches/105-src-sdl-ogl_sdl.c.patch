@@ -1,0 +1,34 @@
+diff --git a/src/sdl/ogl_sdl.c b/src/sdl/ogl_sdl.c
+index c78b43ec4..938a2aaab 100644
+--- a/src/sdl/ogl_sdl.c
++++ b/src/sdl/ogl_sdl.c
+@@ -34,6 +34,7 @@
+ #endif
+ 
+ #include "../doomdef.h"
++#include "../vr/i_openxr.h"
+ 
+ #ifdef HWRENDER
+ #include "../hardware/r_opengl/r_opengl.h"
+@@ -176,6 +177,12 @@ void OglSdlFinishUpdate(boolean waitvbl)
+ {
+ 	static boolean oldwaitvbl = false;
+ 	int sdlw, sdlh;
++	// In VR the headset paces the loop (xrWaitFrame). Waiting on the desktop
++	// monitor's vsync here throttles the whole pipeline to the monitor's rate,
++	// so every headset frame arrives late and reprojection makes world-locked
++	// content (the floating screen) wobble with head motion.
++	if (VR_IsActive())
++		waitvbl = false;
+ 	if (oldwaitvbl != waitvbl)
+ 	{
+ 		SDL_GL_SetSwapInterval(waitvbl ? 1 : 0);
+@@ -187,6 +194,8 @@ void OglSdlFinishUpdate(boolean waitvbl)
+ 
+ 	HWR_MakeScreenFinalTexture();
+ 	HWR_DrawScreenFinalTexture(sdlw, sdlh);
++	VR_CaptureUIFrame(); // feed this frame's UI to the headset's floating screen
++	VR_DrawDesktopMirror(); // in-level VR: the window follows the headset (for recording)
+ 	SDL_GL_SwapWindow(window);
+ 
+ 	GClipRect(0, 0, realwidth, realheight, NZCLIP_PLANE);

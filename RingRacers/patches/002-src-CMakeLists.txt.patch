@@ -1,0 +1,99 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index bd9d56a80..73d112a54 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -1,6 +1,13 @@
+ include(CheckCXXCompilerFlag)
+ 
+-add_executable(SRB2SDL2 MACOSX_BUNDLE WIN32
++# Android builds ship as a shared library that SDLActivity loads; everywhere
++# else this is the game executable.
++if(ANDROID)
++	add_library(SRB2SDL2 SHARED)
++else()
++	add_executable(SRB2SDL2 MACOSX_BUNDLE WIN32)
++endif()
++target_sources(SRB2SDL2 PRIVATE
+ 	comptime.c
+ 	cxxutil.hpp
+ 	md5.c
+@@ -151,6 +158,8 @@ add_executable(SRB2SDL2 MACOSX_BUNDLE WIN32
+ 	k_hud_track.cpp
+ 	k_menufunc.c
+ 	k_menudraw.c
++	k_hazard.c
++	k_hazard.h
+ 	k_terrain.c
+ 	k_brightmap.c
+ 	k_terrain.c
+@@ -319,6 +328,25 @@ if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
+ 	endif()
+ endif()
+ 
++if(ANDROID)
++	target_link_libraries(SRB2SDL2 PRIVATE log android GLESv3 EGL)
++	# Bionic defines __linux__ but has no POSIX shared memory, so the Mumble
++	# link (shm_open) can never build here.
++	target_compile_definitions(SRB2SDL2 PRIVATE -DNOMUMBLE)
++	# gl4es hands the fixed-function renderer and the GL2 RHI a desktop GL 2.1
++	# surface on top of the real GLES2 context. Point this at a checkout with
++	# lib/libGL.a built for the same ABI.
++	set(SRB2_ANDROID_GL4ES_ROOT "" CACHE PATH "Path to a gl4es checkout with lib/libGL.a built")
++	if(NOT SRB2_ANDROID_GL4ES_ROOT)
++		message(FATAL_ERROR "Android builds need SRB2_ANDROID_GL4ES_ROOT (a gl4es checkout with lib/libGL.a built)")
++	endif()
++	target_include_directories(SRB2SDL2 PRIVATE "${SRB2_ANDROID_GL4ES_ROOT}/include")
++	# The bundle is libGL.a partial-linked into one object with everything but
++	# the init API localized (build_native.ps1 makes it); linking the raw
++	# archive collides with game globals (gl_init lives in both).
++	target_link_libraries(SRB2SDL2 PRIVATE "${SRB2_ANDROID_GL4ES_ROOT}/lib/gl4es_bundled.o")
++endif()
++
+ if("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
+ 	target_compile_definitions(SRB2SDL2 PRIVATE -DNOEXECINFO)
+ 	target_link_libraries(SRB2SDL2 PRIVATE network)
+@@ -457,6 +485,36 @@ if("${SRB2_CONFIG_HWRENDER}")
+ 	endif()
+ endif()
+ 
++# The vr/ sources always build; they compile to no-ops unless ENABLE_VR is
++# defined here. Two platforms wire it up, each with its own graphics binding:
++# Windows through WGL, Android through EGL.
++if(SRB2_CONFIG_VR AND WIN32)
++	find_package(OpenXR CONFIG REQUIRED)
++	target_compile_definitions(SRB2SDL2 PRIVATE -DENABLE_VR)
++	# opengl32 for wglGetCurrentDC/wglGetCurrentContext: the OpenXR session is
++	# bound to the game's live WGL context.
++	target_link_libraries(SRB2SDL2 PRIVATE OpenXR::openxr_loader opengl32)
++elseif(SRB2_CONFIG_VR AND ANDROID)
++	# THE LOADER IS A PREBUILT .so, NOT A vcpkg PACKAGE. Meta ships the runtime
++	# inside the system, and the app carries only the loader that finds it; there
++	# is no Android OpenXR port in vcpkg to find_package. It lives beside the
++	# gradle project because that is also what has to end up in the APK.
++	set(SRB2_ANDROID_OPENXR_ROOT "" CACHE PATH "Path to the Android OpenXR loader (include/ + android/<abi>/libopenxr_loader.so)")
++	if(NOT SRB2_ANDROID_OPENXR_ROOT)
++		message(FATAL_ERROR "Android VR builds need SRB2_ANDROID_OPENXR_ROOT")
++	endif()
++	set(SRB2_ANDROID_OPENXR_LIB "${SRB2_ANDROID_OPENXR_ROOT}/android/${ANDROID_ABI}/libopenxr_loader.so")
++	if(NOT EXISTS "${SRB2_ANDROID_OPENXR_LIB}")
++		message(FATAL_ERROR "No OpenXR loader at ${SRB2_ANDROID_OPENXR_LIB}")
++	endif()
++	target_compile_definitions(SRB2SDL2 PRIVATE -DENABLE_VR)
++	target_include_directories(SRB2SDL2 PRIVATE "${SRB2_ANDROID_OPENXR_ROOT}/include")
++	# GLESv3 and EGL are already linked for the renderer further up; the VR file
++	# calls both directly rather than through the gl4es translation layer, so it
++	# needs no additional GL library of its own.
++	target_link_libraries(SRB2SDL2 PRIVATE "${SRB2_ANDROID_OPENXR_LIB}")
++endif()
++
+ if(${SRB2_CONFIG_USEASM})
+ 	#SRB2_ASM_FLAGS can be used to pass flags to either nasm or yasm.
+ 	if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
+@@ -744,6 +802,7 @@ if(SRB2_CONFIG_ENABLE_WEBM_MOVIES)
+ endif()
+ add_subdirectory(hud)
+ add_subdirectory(modp_b64)
++add_subdirectory(vr)
+ 
+ # strip debug symbols into separate file when using gcc or clang.
+ # to be consistent with Makefile, don't generate for OS X.

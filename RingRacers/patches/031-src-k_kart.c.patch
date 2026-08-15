@@ -1,0 +1,351 @@
+diff --git a/src/k_kart.c b/src/k_kart.c
+index a5799231d..40206bf47 100644
+--- a/src/k_kart.c
++++ b/src/k_kart.c
+@@ -59,6 +59,7 @@
+ #include "k_roulette.h"
+ #include "k_podium.h"
+ #include "k_powerup.h"
++#include "k_hazard.h" // cv_handling / K_LandingDashActive
+ #include "k_hitlag.h"
+ #include "k_tally.h"
+ #include "music.h"
+@@ -9948,6 +9949,99 @@ boolean K_PressingEBrake(const player_t *player)
+ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
+ {
+ 	const boolean onground = P_IsObjectOnGround(player->mo);
++
++	// Landing Dash. A respawn touchdown opens the window in k_respawn.c; any
++	// real jump or drop lands it here the moment the wheels bite. Gas held
++	// through the landing pays ON THE SPOT - that is the input nearly
++	// everyone actually makes - while gas off opens the tap window for the
++	// timing players. The flight length is consumed so one landing pays
++	// exactly once; road bumps stay under the airtime bar, trick landings
++	// have their own reward, and a hit landing pays nothing.
++	if (K_LandingDashActive()
++		&& onground == true && player->airtime == 0
++		&& player->lastairtime >= 5
++		&& player->landdash == 0
++		&& player->trickpanel == TRICKSTATE_NONE
++		&& player->respawn.state == RESPAWNST_NONE
++		&& player->spinouttimer == 0 && player->tumbleBounces == 0
++		&& !P_PlayerInPain(player))
++	{
++		// Five tics of air is any real hop (ground-to-ground collision
++		// noise is one tic), so nearly every jump qualifies. A landing
++		// re-ups a boost already running rather than being swallowed by
++		// it - chained crests keep paying.
++		player->lastairtime = 0;
++
++		if (cmd->buttons & BT_ACCELERATE)
++		{
++			S_StartSound(player->mo, sfx_s23c);
++			player->dropdashboost = max(player->dropdashboost, LANDDASHBOOST);
++			K_SpawnDashDustRelease(player);
++		}
++		else
++		{
++			player->landdash = LANDDASHWINDOW;
++		}
++	}
++
++	// Air tricks anywhere. Real air plus the drift button arms the trick
++	// machinery exactly as a trick panel would; the input assist then walks
++	// the arming dance and fires it straight forward. Local rules only,
++	// like every assist - it changes the simulation. Springs and panels
++	// arm themselves and are left alone.
++	// No trick live means no grant to remember. Clearing here, before the
++	// grant below can set it, is what keeps a panel's or a spring's trick
++	// unmarked - they arm elsewhere and never come through this door.
++	if (player->trickpanel == TRICKSTATE_NONE)
++	{
++		K_SetAirGrantedTrick(player, false);
++	}
++
++	if (K_TrickAssistActive()
++		&& onground == false
++		&& player->airtime >= TICRATE/4
++		&& player->trickpanel == TRICKSTATE_NONE
++		&& !(player->pflags & PF_TRICKDELAY)
++		&& player->respawn.state == RESPAWNST_NONE
++		&& player->spinouttimer == 0 && player->tumbleBounces == 0
++		&& !P_PlayerInPain(player)
++		&& (cmd->buttons & BT_DRIFT))
++	{
++		// No arming ceremony: the panels' delay exists to catch accidental
++		// inputs, and this trick IS the input - the press asked for it, so
++		// it arms already past the delay bar and fires on the spot instead
++		// of flashing the get-ready state first.
++		player->trickpanel = TRICKSTATE_READY;
++		player->tricktime = TRICKDELAY;
++		K_SetAirGrantedTrick(player, true);
++		// Same payout seed as a panel: only speed past your cap charges it.
++		player->trickboostpower = max(FixedDiv(player->speed, K_GetKartSpeed(player, false, false)) - FRACUNIT, 0)*125/100;
++		player->trickboostpower = FixedDiv(player->trickboostpower, K_GrowShrinkSpeedMul(player));
++		player->fastfall = 0;
++	}
++
++	// A FRESH accelerate press inside the window pays out. Holding gas
++	// through the landing earns nothing here on purpose - that input is the
++	// Drop Dash's, and paying both for it would make the timing meaningless.
++	if (player->landdash > 0)
++	{
++		// Any accelerate counts. The window only opens with the gas OFF, so
++		// there is no held button to mistake for a press - and no dependence
++		// on when oldcmd is refreshed relative to this function, which is
++		// what stopped the first version from ever firing. Grounded only:
++		// the window must not pay out in the air off a bounce.
++		if ((cmd->buttons & BT_ACCELERATE) && onground == true)
++		{
++			S_StartSound(player->mo, sfx_s23c);
++			player->dropdashboost = LANDDASHBOOST;
++			K_SpawnDashDustRelease(player);
++			player->landdash = 0;
++		}
++		else
++		{
++			player->landdash--;
++		}
++	}
+ 	const fixed_t scamming = K_PlayerScamPercentage(player, FRACUNIT);
+ 
+ 	/* reset sprite offsets :) */
+@@ -14746,6 +14840,38 @@ fixed_t K_PlayerBaseFriction(const player_t *player, fixed_t original)
+ 		}
+ 	}
+ 
++	// "Handling": how tightly the kart holds its line versus how much it
++	// slides. Friction here is a momentum multiplier, so a LOWER value bites
++	// harder into a slide and a higher one lets the back end wander - the very
++	// same lever the bot code above uses to help them corner without drifting.
++	//
++	// Bots keep their own tuning, and like the hazard rules this stands down
++	// online and in replays: it changes the simulation, so a stock client
++	// would desync rather than disagree politely.
++	if (cv_handling.value != 50
++		&& netgame == false && demo.playback == false
++		&& K_PlayerUsesBotMovement(player) == false)
++	{
++		// Either end is worth about a thirty-second of friction, matching the
++		// size of the game's own handling nudges.
++		frict -= ((cv_handling.value - 50) * (FRACUNIT >> 5)) / 50;
++	}
++
++	// Drift grip, on top of the above and only while actually drifting. A
++	// drift is where the back end is meant to come loose, so it gets its own
++	// knob rather than riding the general one - you can want a loose car that
++	// still plants itself through a drift, or the reverse. Worth DOUBLE the
++	// general lever at full: the drift is exactly where the control was
++	// missing, and the bots' own corrective grip reaches an eighth, so a
++	// sixteenth for a deliberate player setting is still conservative.
++	if (cv_drifthandling.value != 50
++		&& player->drift != 0
++		&& netgame == false && demo.playback == false
++		&& K_PlayerUsesBotMovement(player) == false)
++	{
++		frict -= ((cv_drifthandling.value - 50) * (FRACUNIT >> 4)) / 50;
++	}
++
+ 	if (frict > FRACUNIT) { frict = FRACUNIT; }
+ 	if (frict < 0) { frict = 0; }
+ 
+@@ -14772,6 +14898,40 @@ void K_AdjustPlayerFriction(player_t *player)
+ 		player->mo->friction += ((FRACUNIT - prevfriction) / greasetics) * player->tiregrease;
+ 	}
+ 
++	// The real drift-control lever: swing the momentum itself toward the
++	// nose, a little every tic, while drifting. Friction only bleeds speed
++	// off the slide; this converts the slide into tracking at FULL speed -
++	// which is why plain driving holds a cliff edge and a drift used to sail
++	// off it. Above-neutral Drift Grip buys up to three degrees a tic; at or
++	// below neutral it stands down entirely. Local rules only, and loop
++	// setpieces keep their own momentum handling.
++	if (cv_drifthandling.value > 50
++		&& player->drift != 0
++		&& player->loop.radius == 0
++		&& netgame == false && demo.playback == false
++		&& K_PlayerUsesBotMovement(player) == false)
++	{
++		const fixed_t dspeed = FixedHypot(player->mo->momx, player->mo->momy);
++
++		if (dspeed > 0)
++		{
++			const angle_t momdir = R_PointToAngle2(0, 0, player->mo->momx, player->mo->momy);
++			const INT32 delta = AngleDeltaSigned(player->mo->angle, momdir);
++			const INT32 step = ((ANG1*3) / 50) * (cv_drifthandling.value - 50);
++			angle_t newdir;
++
++			if (delta > step)
++				newdir = momdir + step;
++			else if (delta < -step)
++				newdir = momdir - step;
++			else
++				newdir = player->mo->angle;
++
++			player->mo->momx = FixedMul(dspeed, FINECOSINE(newdir >> ANGLETOFINESHIFT));
++			player->mo->momy = FixedMul(dspeed, FINESINE(newdir >> ANGLETOFINESHIFT));
++		}
++	}
++
+ 	// Less friction on Top unless grinding
+ 	if (player->curshield == KSHIELD_TOP &&
+ 			K_GetForwardMove(player) > 0 &&
+@@ -16406,18 +16566,32 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 			//CONS_Printf("%d\n", player->mo->momz / mapobjectscale);
+ 			if (momz * P_MobjFlip(player->mo) < -10*FRACUNIT)	// :youfuckedup:
+ 			{
+-				// tumble if you let your chance pass!!
+-				player->tumbleBounces = 1;
+-				player->pflags &= ~PF_TUMBLESOUND;
+-				player->tumbleHeight = 30;	// Base tumble bounce height
+-				player->trickpanel = TRICKSTATE_NONE;
+-				P_SetPlayerMobjState(player->mo, S_KART_SPINOUT);
+-				if (gametype != GT_TUTORIAL)
+-					K_AddMessageForPlayer(player, "Press <dpad> + <a> to trick!", true, false);
+-				if (player->itemflags & (IF_ITEMOUT|IF_EGGMANOUT))
++				if (K_TrickAssistActive() && !K_PlayerUsesBotMovement(player))
+ 				{
+-					//K_PopPlayerShield(player); // shield is just being yeeted, don't pop
+-					K_DropHnextList(player);
++					// Letting the window pass costs the reward and nothing
++					// else. Stock answers it with a tumble - a wreck you
++					// never crashed into, off a trick you only thought
++					// about - and that is the risk the assist takes off the
++					// table. Closing here rather than riding it to the
++					// ground keeps the stock timing, so air steering comes
++					// back out of half-turn exactly when it always did.
++					player->trickpanel = TRICKSTATE_NONE;
++				}
++				else
++				{
++					// tumble if you let your chance pass!!
++					player->tumbleBounces = 1;
++					player->pflags &= ~PF_TUMBLESOUND;
++					player->tumbleHeight = 30;	// Base tumble bounce height
++					player->trickpanel = TRICKSTATE_NONE;
++					P_SetPlayerMobjState(player->mo, S_KART_SPINOUT);
++					if (gametype != GT_TUTORIAL)
++						K_AddMessageForPlayer(player, "Press <dpad> + <a> to trick!", true, false);
++					if (player->itemflags & (IF_ITEMOUT|IF_EGGMANOUT))
++					{
++						//K_PopPlayerShield(player); // shield is just being yeeted, don't pop
++						K_DropHnextList(player);
++					}
+ 				}
+ 			}
+ 
+@@ -16435,6 +16609,19 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 				UINT16 buttons = player->cmd.buttons;
+ 				INT16 TRICKTHRESHOLD = 2*KART_FULLTURN/3;
+ 
++				// A stock trick is a shove: it slams your momentum onto a
++				// new heading at up to triple speed, or trades it for
++				// height. That shove is the whole point of a trick PANEL -
++				// the track put it there to send you somewhere - so panels
++				// and springs keep every bit of it. The trick the assist
++				// conjures out of plain air is the one that must not move
++				// you: you asked for a trick, not for a new heading. Bots
++				// and staff ghosts keep the shove either way; the assist is
++				// about how the game feels in your hands.
++				const boolean tricksteers = (K_AirGrantedTrick(player) == false)
++					|| (K_TrickAssistActive() == false)
++					|| K_PlayerUsesBotMovement(player);
++
+ 				{
+ 					TRICKTHRESHOLD = KART_FULLTURN/2;
+ 					INT16 aimingcompare = abs(cmd->throwdir) - abs(cmd->turning);
+@@ -16469,7 +16656,8 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 
+ 					if (cmd->turning > 0)
+ 					{
+-						P_InstaThrust(player->mo, player->mo->angle + lr, max(basespeed, speed*5/2));
++						if (tricksteers)
++							P_InstaThrust(player->mo, player->mo->angle + lr, max(basespeed, speed*5/2));
+ 						player->trickpanel = TRICKSTATE_RIGHT;
+ 
+ 						if (P_MobjWasRemoved(player->trickIndicator) == false)
+@@ -16482,7 +16670,8 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 					}
+ 					else
+ 					{
+-						P_InstaThrust(player->mo, player->mo->angle - lr, max(basespeed, speed*5/2));
++						if (tricksteers)
++							P_InstaThrust(player->mo, player->mo->angle - lr, max(basespeed, speed*5/2));
+ 						player->trickpanel = TRICKSTATE_LEFT;
+ 
+ 						if (P_MobjWasRemoved(player->trickIndicator) == false)
+@@ -16508,13 +16697,16 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 
+ 					if (cmd->throwdir > 0) // forward trick
+ 					{
+-
+-						if (player->mo->momz * P_MobjFlip(player->mo) > 0)
++						if (tricksteers)
+ 						{
+-							player->mo->momz = 0;
++							if (player->mo->momz * P_MobjFlip(player->mo) > 0)
++							{
++								player->mo->momz = 0;
++							}
++
++							P_InstaThrust(player->mo, player->mo->angle, max(basespeed, speed*3));
+ 						}
+ 
+-						P_InstaThrust(player->mo, player->mo->angle, max(basespeed, speed*3));
+ 						player->trickpanel = TRICKSTATE_FORWARD;
+ 
+ 						if (P_MobjWasRemoved(player->trickIndicator) == false)
+@@ -16526,15 +16718,19 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 					}
+ 					else if (cmd->throwdir < 0) // back trick
+ 					{
+-						player->mo->momx /= 3;
+-						player->mo->momy /= 3;
+-
+-						if (player->mo->momz * P_MobjFlip(player->mo) <= 0)
++						if (tricksteers)
+ 						{
+-							player->mo->momz = 0; // relative = false;
++							player->mo->momx /= 3;
++							player->mo->momy /= 3;
++
++							if (player->mo->momz * P_MobjFlip(player->mo) <= 0)
++							{
++								player->mo->momz = 0; // relative = false;
++							}
++
++							player->mo->momz += P_MobjFlip(player->mo)*48*mapobjectscale;
+ 						}
+ 
+-						player->mo->momz += P_MobjFlip(player->mo)*48*mapobjectscale;
+ 						player->trickpanel = TRICKSTATE_BACK;
+ 
+ 						if (P_MobjWasRemoved(player->trickIndicator) == false)
+@@ -16637,7 +16833,16 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 				}
+ 			}
+ 
+-			K_trickPanelTimingVisual(player, momz);
++			// The anywhere-trick gets no get-ready ring. That prompt is a
++			// trick PANEL's - it counts you into the window the track laid
++			// out - and drawing it for a window the assist conjured out of
++			// plain air is the game announcing something it never offered.
++			// The flourish on the tic the trick actually fires still plays;
++			// by then trickpanel has moved off READY.
++			if (player->trickpanel != TRICKSTATE_READY || !K_AirGrantedTrick(player))
++			{
++				K_trickPanelTimingVisual(player, momz);
++			}
+ 		}
+ 		else if ((player->trickpanel != TRICKSTATE_NONE) && P_IsObjectOnGround(player->mo))	// Landed from trick
+ 		{
+@@ -16682,6 +16887,9 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
+ 
+ 			player->trickpanel = TRICKSTATE_NONE;
+ 			player->trickboostdecay = 0;
++			// The trick consumed this flight - the landing dash must not
++			// ALSO pay for it a tic later off the leftover flight length.
++			player->lastairtime = 0;
+ 		}
+ 
+ 		// 2.2 - Lenient trickpanels

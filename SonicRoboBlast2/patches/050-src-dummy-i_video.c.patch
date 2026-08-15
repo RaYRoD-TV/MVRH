@@ -1,0 +1,62 @@
+diff --git a/src/dummy/i_video.c b/src/dummy/i_video.c
+index 2c998117a..09ff6d28f 100644
+--- a/src/dummy/i_video.c
++++ b/src/dummy/i_video.c
+@@ -31,6 +31,20 @@ INT32 VID_GetModeForSize(INT32 w, INT32 h)
+ 	return 0;
+ }
+ 
++boolean VID_GetNativeSize(INT32 *w, INT32 *h)
++{
++	(void)w;
++	(void)h;
++	return false;
++}
++
++boolean VID_GetWindowedDefault(INT32 *w, INT32 *h)
++{
++	(void)w;
++	(void)h;
++	return false;
++}
++
+ void VID_PrepareModeList(void){}
+ 
+ INT32 VID_SetMode(INT32 modenum)
+@@ -39,11 +53,13 @@ INT32 VID_SetMode(INT32 modenum)
+ 	return 0;
+ }
+ 
+-boolean VID_CheckRenderer(void)
++INT32 VID_CheckRenderer(void)
+ {
+-	return false;
++	return 0;
+ }
+ 
++void VID_DisplayGLError(void) {}
++
+ void VID_CheckGLLoaded(rendermode_t oldrender)
+ {
+ 	(void)oldrender;
+@@ -63,6 +79,11 @@ void I_FinishUpdate(void){}
+ 
+ void I_UpdateNoVsync(void) {}
+ 
++INT32 I_AppOnBackground(void)
++{
++	return 0;
++}
++
+ void I_WaitVBL(INT32 count)
+ {
+ 	(void)count;
+@@ -77,3 +98,8 @@ void I_BeginRead(void){}
+ 
+ void I_EndRead(void){}
+ 
++void I_ReportProgress(int progress)
++{
++	(void)progress;
++}
++

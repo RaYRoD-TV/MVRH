@@ -1,0 +1,55 @@
+diff --git a/src/hardware/hw_batching.c b/src/hardware/hw_batching.c
+index 5d1af10e2..783314bd8 100644
+--- a/src/hardware/hw_batching.c
++++ b/src/hardware/hw_batching.c
+@@ -140,6 +140,21 @@ void HWR_ProcessPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPt
+ 				DIGEST(hash, pSurf->LightInfo.light_level);
+ 				DIGEST(hash, pSurf->LightInfo.fade_start);
+ 				DIGEST(hash, pSurf->LightInfo.fade_end);
++			{
++				// VRWaterTop steers the underwater layers per surface, and the
++				// batch-break comparison treats it as state -- but that check
++				// only runs when two hashes DIFFER. Left out of the hash, wet
++				// and dry polygons with the same texture and light merged into
++				// one batch drawn with whichever surf the (unstable) sort put
++				// first, and the tie order follows BSP traversal, i.e. the
++				// camera: whole surface runs snapped their water layers on and
++				// off with every head or view-bob movement -- the subtle
++				// caustic flashing, flat and VR alike. Hash the raw bits; the
++				// value is sector-exact, so same water means same bits.
++				INT32 wtbits;
++				memcpy(&wtbits, &pSurf->VRWaterTop, sizeof(wtbits));
++				DIGEST(hash, wtbits);
++			}
+ 			}
+ #undef DIGEST
+ 			// remove the sign bit to ensure that skybox and horizon line comes first.
+@@ -180,8 +195,8 @@ void HWR_RenderBatches(void)
+ 	GLMipmap_t *nextTexture = NULL;
+ 	FBITFIELD currentPolyFlags = 0;
+ 	FBITFIELD nextPolyFlags = 0;
+-	FSurfaceInfo currentSurfaceInfo;
+-	FSurfaceInfo nextSurfaceInfo;
++	FSurfaceInfo currentSurfaceInfo = {0};
++	FSurfaceInfo nextSurfaceInfo = {0};
+ 
+ 	int i;
+ 
+@@ -191,6 +206,7 @@ void HWR_RenderBatches(void)
+ 	nextSurfaceInfo.LightInfo.fade_end = 0;
+ 	nextSurfaceInfo.LightInfo.fade_start = 0;
+ 	nextSurfaceInfo.LightInfo.light_level = 0;
++	nextSurfaceInfo.VRWaterTop = 0.0f;
+ 
+ 	currently_batching = false;// no longer collecting batches
+ 	if (!polygonArraySize)
+@@ -339,7 +355,8 @@ void HWR_RenderBatches(void)
+ 						currentSurfaceInfo.FadeColor.rgba != nextSurfaceInfo.FadeColor.rgba ||
+ 						currentSurfaceInfo.LightInfo.light_level != nextSurfaceInfo.LightInfo.light_level ||
+ 						currentSurfaceInfo.LightInfo.fade_start != nextSurfaceInfo.LightInfo.fade_start ||
+-						currentSurfaceInfo.LightInfo.fade_end != nextSurfaceInfo.LightInfo.fade_end)
++						currentSurfaceInfo.LightInfo.fade_end != nextSurfaceInfo.LightInfo.fade_end ||
++						currentSurfaceInfo.VRWaterTop != nextSurfaceInfo.VRWaterTop)
+ 					{
+ 						changeState = true;
+ 						changeSurfaceInfo = true;

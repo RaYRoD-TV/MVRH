@@ -1,0 +1,36 @@
+diff --git a/vcpkg.json b/vcpkg.json
+index d4602e1c7..97fffc9b5 100644
+--- a/vcpkg.json
++++ b/vcpkg.json
+@@ -9,11 +9,27 @@
+       "platform": "windows & !mingw"
+     },
+     "curl",
+-    "libogg",
++    {
++      "name": "libogg",
++      "platform": "!android"
++    },
+     "libpng",
+-    "libvorbis",
+-    "libvpx",
+-    "libyuv",
++    {
++      "name": "libvorbis",
++      "platform": "!android"
++    },
++    {
++      "name": "libvpx",
++      "platform": "!android"
++    },
++    {
++      "name": "libyuv",
++      "platform": "!android"
++    },
++    {
++      "name": "openxr-loader",
++      "platform": "!android"
++    },
+     "opus",
+     {
+       "name": "sdl3",

@@ -1,0 +1,31 @@
+diff --git a/src/p_local.h b/src/p_local.h
+index 78e26b752..1fc0c7206 100644
+--- a/src/p_local.h
++++ b/src/p_local.h
+@@ -163,6 +163,18 @@ boolean P_TryCameraMove(fixed_t x, fixed_t y, camera_t *thiscam);
+ void P_SlideCameraMove(camera_t *thiscam);
+ void P_DemoCameraMovement(camera_t *cam, UINT8 num);
+ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcalled);
++// Re-place the chase camera immediately, pause or no pause. For the view
++// settings, which are edited from the pause menu and would otherwise show
++// nothing until the game resumed.
++void P_UpdateCamerasNow(void);
++
++// Flat-screen view modes: the VR view-mode cvar applied without a headset.
++// THIRD_PERSON = stock chase; FIRST_PERSON parks the camera at the kart
++// driver's head; DIORAMA pulls the chase high and far for a tabletop look.
++// Always THIRD_PERSON while a VR session runs (the module owns modes there).
++INT32 P_FlatViewMode(void);
++// D-pad up: advance to the next flat mode (or the VR cycle in a session).
++void P_CycleFlatViewMode(void);
+ void P_ToggleDemoCamera(UINT8 viewnum);
+ 
+ boolean P_PlayerInPain(const player_t *player);
+@@ -449,6 +461,7 @@ line_t *P_SweepTestLines(fixed_t ax, fixed_t ay, fixed_t bx, fixed_t by, fixed_t
+ boolean P_IsLineBlocking(const line_t *ld, const mobj_t *thing);
+ boolean P_IsLineTripWire(const line_t *ld);
+ boolean P_CheckCameraPosition(fixed_t x, fixed_t y, camera_t *thiscam);
++fixed_t P_TraceCameraClearance(fixed_t x1, fixed_t y1, fixed_t z1, fixed_t x2, fixed_t y2, fixed_t z2);
+ fixed_t P_BaseStepUp(void);
+ fixed_t P_GetThingStepUp(mobj_t *thing, fixed_t destX, fixed_t destY);
+ boolean P_Move(mobj_t *actor, fixed_t speed);

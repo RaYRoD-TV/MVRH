@@ -1,0 +1,12 @@
+diff --git a/src/sdl/hwsym_sdl.c b/src/sdl/hwsym_sdl.c
+index f56126601..ec8792fc8 100644
+--- a/src/sdl/hwsym_sdl.c
++++ b/src/sdl/hwsym_sdl.c
+@@ -101,6 +101,7 @@ void *hwSym(const char *funcName,void *handle)
+ 	GETFUNC(DrawScreenTexture);
+ 	GETFUNC(MakeScreenTexture);
+ 	GETFUNC(DrawScreenFinalTexture);
++	GETFUNC(DrawVREyeEffect);
+ 
+ 	GETFUNC(InitShaders);
+ 	GETFUNC(LoadShader);

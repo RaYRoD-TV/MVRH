@@ -1,0 +1,57 @@
+LOCAL_PATH := $(call my-dir)
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := main
+
+# Paths
+
+SRB2_PATH := ../../../..
+SRC_MAIN := $(SRB2_PATH)/src
+SRC_JNI := .
+
+ifeq ($(OS),Windows_NT)
+WINDOWSHELL=1
+endif
+
+MAKE_DIR := $(LOCAL_PATH)/$(SRC_MAIN)/Makefile.d
+
+ANDROID := 1
+
+include $(MAKE_DIR)/platform.mk
+include $(MAKE_DIR)/util.mk
+
+# Source files
+
+SRC_HWR := $(SRC_MAIN)/hardware/
+SRC_SDL := $(SRC_MAIN)/sdl/
+
+LOCAL_SRC_FILES := $(call List,$(LOCAL_PATH)/$(SRC_JNI)/Sourcefile)
+LOCAL_SRC_FILES += $(call List,$(LOCAL_PATH)/$(SRC_MAIN)/Sourcefile)
+LOCAL_SRC_FILES += $(call List,$(LOCAL_PATH)/$(SRC_MAIN)/blua/Sourcefile)
+LOCAL_SRC_FILES += $(call List,$(LOCAL_PATH)/$(SRC_MAIN)/netcode/Sourcefile)
+LOCAL_SRC_FILES += $(call List,$(LOCAL_PATH)/$(SRC_SDL)/Sourcefile)
+
+LOCAL_SRC_FILES += $(SRC_SDL)/SDL_main/SDL_android_main.c $(SRC_SDL)/mixer_sound.c $(SRC_SDL)/i_threads.c
+LOCAL_SRC_FILES += $(SRC_MAIN)/comptime.c $(SRC_MAIN)/md5.c
+LOCAL_SRC_FILES += $(SRC_MAIN)/vr/i_openxr.c
+
+# Compile flags
+# Software renderer only for the first bring-up: no HWRENDER, no GLES, no
+# touchscreen, no native-res scaling. Those return with the stereo rung.
+LOCAL_CFLAGS += -DUNIXCOMMON -DLINUX \
+				-DHAVE_SDL -DHAVE_MIXER -DHAVE_MIXERX -DHAVE_GME \
+				-DDIRECTFULLSCREEN \
+				-DHAVE_ZLIB -DHAVE_PNG -DHAVE_CURL \
+				-DHAVE_WHANDLE -DHAVE_THREADS -DLOGCAT -DCOMPVERSION \
+				-DNONX86 -DNOASM -DNOMUMBLE -DNOEXECINFO
+
+# Libraries
+LOCAL_SHARED_LIBRARIES := SDL2 \
+	SDL2_mixer libmpg123 \
+	libpng libgme
+
+LOCAL_STATIC_LIBRARIES := libcurl
+LOCAL_LDLIBS := -lGLESv2 -lEGL -llog -lz
+
+include $(BUILD_SHARED_LIBRARY)

@@ -1,0 +1,110 @@
+diff --git a/src/p_tick.c b/src/p_tick.c
+index 00821e450..daa4acd80 100644
+--- a/src/p_tick.c
++++ b/src/p_tick.c
+@@ -39,7 +39,9 @@
+ 
+ // SRB2Kart
+ #include "k_kart.h"
++#include "k_hazard.h"
+ #include "k_race.h"
++#include "vr/vr.h" // vr_is_active - the wreck bands below are a headset layer
+ #include "k_battle.h"
+ #include "k_boss.h"
+ #include "k_waypoint.h"
+@@ -592,6 +594,12 @@ static void P_RunThinkers(void)
+ 	ps_acs_time = I_GetPreciseTime() - ps_acs_time;
+ }
+ 
++// The VR immersion level (cvars.cpp). The wreck and trick bands below are part
++// of what first person FEELS like in a headset - the same states the eye is
++// being carried through - so they answer to the same knob the view does, and
++// to nothing at all without a session.
++extern consvar_t cv_vr_immersion;
++
+ static inline void P_DeviceRumbleTick(void)
+ {
+ 	UINT8 i;
+@@ -604,10 +612,71 @@ static inline void P_DeviceRumbleTick(void)
+ 
+ 		if (player->mo != NULL && !player->exiting)
+ 		{
++			const fixed_t burn = K_HazardExposure(i);
++
++			// One headset, one pair of hands: only the first local player's
++			// pad can be the synthetic VR one, and a flat pad must keep
++			// feeling exactly what it always did.
++			const boolean vrfeel = (i == 0) && vr_is_active()
++				&& (cv_vr_immersion.value != 0);
++
+ 			if ((player->mo->eflags & MFE_DAMAGEHITLAG) && player->mo->hitlag)
+ 			{
+ 				low = high = 65536 / 2;
+ 			}
++			// Burning sits above the engine rumbles and below being hit: it
++			// should be the loudest thing in your hands while it lasts, but
++			// never bury the hit that ends it. Strength tracks how long
++			// you've been in it, so a clipped corner is a nudge and sitting
++			// in lava is not.
++			else if (burn > 0)
++			{
++				low = high = (UINT16)(((65536 / 3) * burn) / FRACUNIT);
++			}
++			// Wrecks and tricks. These are the states the first-person eye is
++			// now being carried through, so the hands say the same thing at
++			// the same moment. They sit under being hit and under burning -
++			// both of those END a wreck and must not be buried by it - and
++			// over the engine rumbles, which a wreck should drown out.
++			else if (vrfeel && player->tumbleBounces > 0)
++			{
++				low = high = 49151; // 0.75, loudest sustained thing short of a hit
++			}
++			else if (vrfeel && (player->spinouttimer > 0 || player->icecube.frozen
++				|| player->carry == CR_SLIDING))
++			{
++				low = high = 36044; // 0.55
++			}
++			else if (vrfeel && (player->pflags & PF_FAULT))
++			{
++				low = high = 22937; // 0.35, a jolt rather than a wreck
++			}
++			else if (vrfeel && player->trickpanel > TRICKSTATE_READY)
++			{
++				low = high = 16384; // 0.25, a light hum through the trick
++			}
++			// Drift. The one thing your hands are doing on purpose for most of
++			// a lap, and the one the seat of a real kart tells you most about.
++			// It BUILDS with the charge rather than sitting flat, so the pad
++			// counts the sparks up with you and you can feel a stage land
++			// without looking down: a scrub at the start, a hard buzz by the
++			// time the boost is worth taking.
++			else if (vrfeel && player->drift != 0)
++			{
++				const INT32 full = K_GetKartDriftSparkValueForStage(player, 4);
++				fixed_t charge = 0;
++
++				if (full > 0)
++				{
++					charge = FixedDiv(min(player->driftcharge, full), full);
++					if (charge > FRACUNIT)
++						charge = FRACUNIT;
++				}
++
++				// 0.08 floor so the moment you tuck in is felt, rising to 0.42
++				// at a full charge - under a spinout, well over the engine.
++				low = high = (UINT16)(5243 + ((22282 * charge) / FRACUNIT));
++			}
+ 			else if (player->sneakertimer > (sneakertime-(TICRATE/2)) || player->panelsneakertimer > (sneakertime-(TICRATE/2)) || player->weaksneakertimer > (sneakertime-(TICRATE/2)))
+ 			{
+ 				low = high = 65536 / (3+player->numsneakers+player->numpanelsneakers+player->numweaksneakers);
+@@ -981,6 +1050,10 @@ void P_Ticker(boolean run)
+ 				}
+ 			}
+ 
++			// Burning has to be measured before the rumble reads it, so the
++			// hands and the screen are showing the same tic.
++			K_HazardFeedbackTick();
++
+ 			// Apply rumble to local players
+ 			if (!demo.playback)
+ 			{

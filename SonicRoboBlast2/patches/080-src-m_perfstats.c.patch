@@ -1,0 +1,12 @@
+diff --git a/src/m_perfstats.c b/src/m_perfstats.c
+index 33a774acf..b39b8539a 100644
+--- a/src/m_perfstats.c
++++ b/src/m_perfstats.c
+@@ -88,6 +88,7 @@ ps_metric_t ps_otherlogictime = {0};
+ perfstatrow_t rendertime_rows[] = {
+ 	{"frmtime", "Frame time:    ", &ps_frametime, PS_TIME},
+ 	{"drwtime", "3d rendering:  ", &ps_rendercalltime, PS_TIME|PS_LEVEL},
++	{"vreyes ", "VR eye renders:", &ps_vr_eyetime, PS_TIME|PS_LEVEL|PS_HW},
+ 
+ #ifdef HWRENDER
+ 	{" skybox ", " Skybox render: ", &ps_hw_skyboxtime, PS_TIME|PS_LEVEL|PS_HW},

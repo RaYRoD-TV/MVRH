@@ -1,0 +1,135 @@
+diff --git a/src/hardware/hw_md2.c b/src/hardware/hw_md2.c
+index 931867142..da559bbe2 100644
+--- a/src/hardware/hw_md2.c
++++ b/src/hardware/hw_md2.c
+@@ -70,6 +70,8 @@
+ 
+ #ifndef errno
+ #include "errno.h"
++
++float HWR_SurfWaterTop(sector_t *sector); // hw_main.c - underwater layers
+ #endif
+ 
+ md2_t md2_models[NUMSPRITES];
+@@ -139,6 +141,39 @@ static inline void md2_printModelInfo (model_t *model)
+ }
+ 
+ #ifdef HAVE_PNG
++// libpng lives in its own DLL with its own C runtime, so a FILE* opened here
++// is meaningless once png_init_io hands it across that boundary - libpng's
++// fread saw descriptor -1 and the CRT fast-failed (0xC0000409), which is the
++// 3D models crash. Read the file on this side and give libpng bytes instead;
++// nothing then crosses the boundary but plain memory.
++typedef struct
++{
++	const UINT8 *data;
++	size_t size;
++	size_t pos;
++} png_memsrc_t;
++
++static void PNG_MemRead(png_structp png_ptr, png_bytep out, png_size_t count)
++{
++	png_memsrc_t *src = (png_memsrc_t *)png_get_io_ptr(png_ptr);
++
++	if (src == NULL || src->pos + count > src->size)
++	{
++		png_error(png_ptr, "PNG_MemRead: read past end of buffer");
++		return;
++	}
++
++	M_Memcpy(out, src->data + src->pos, count);
++	src->pos += count;
++}
++
++// Scratch buffer for the above, grown as needed and kept for the process's
++// life. Deliberately not per-call: this function sits behind a setjmp, and a
++// local allocation would need volatile handling on every error path.
++static UINT8 *png_filebuf = NULL;
++static size_t png_filebufsize = 0;
++static png_memsrc_t png_memsrc;
++
+ static void PNG_error(png_structp PNG, png_const_charp pngtext)
+ {
+ 	CONS_Debug(DBG_RENDER, "libpng error at %p: %s", PNG, pngtext);
+@@ -211,7 +246,45 @@ static GLTextureFormat_t PNG_Load(const char *filename, int *w, int *h, GLPatch_
+ 	png_memcpy(png_jmpbuf(png_ptr), jmpbuf, sizeof jmp_buf);
+ #endif
+ 
+-	png_init_io(png_ptr, png_FILE);
++	{
++		size_t filesize;
++
++		fseek((FILE *)png_FILE, 0, SEEK_END);
++		filesize = (size_t)ftell((FILE *)png_FILE);
++		fseek((FILE *)png_FILE, 0, SEEK_SET);
++
++		if (filesize == 0)
++		{
++			png_destroy_read_struct(&png_ptr, &png_info_ptr, NULL);
++			fclose((FILE *)png_FILE);
++			return 0;
++		}
++
++		if (filesize > png_filebufsize)
++		{
++			UINT8 *grown = realloc(png_filebuf, filesize);
++			if (grown == NULL)
++			{
++				png_destroy_read_struct(&png_ptr, &png_info_ptr, NULL);
++				fclose((FILE *)png_FILE);
++				return 0;
++			}
++			png_filebuf = grown;
++			png_filebufsize = filesize;
++		}
++
++		if (fread(png_filebuf, 1, filesize, (FILE *)png_FILE) != filesize)
++		{
++			png_destroy_read_struct(&png_ptr, &png_info_ptr, NULL);
++			fclose((FILE *)png_FILE);
++			return 0;
++		}
++
++		png_memsrc.data = png_filebuf;
++		png_memsrc.size = filesize;
++		png_memsrc.pos = 0;
++		png_set_read_fn(png_ptr, &png_memsrc, PNG_MemRead);
++	}
+ 
+ #ifdef PNG_SET_USER_LIMITS_SUPPORTED
+ 	png_set_user_limits(png_ptr, 2048, 2048);
+@@ -1290,7 +1363,8 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
+ 	INT32 nextFrame = -1;
+ 	modelspr2frames_t *spr2frames = NULL;
+ 	FTransform p;
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
++
+ 
+ 	if (!cv_glmodels.value)
+ 		return false;
+@@ -1345,6 +1419,12 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
+ 	}
+ 	else
+ 		Surf.PolyColor.rgba = 0xFFFFFFFF;
++	// No water anchor for models: the model vertex shader's world_pos is
++	// gl_Vertex, which is MODEL-LOCAL here (the modelview places the model),
++	// so the caustic gate would judge a local coordinate against a world
++	// height and the pattern would crawl with vertex animation. Zero closes
++	// the caustic gate; the underwater fog column reads vr_uwsurf, not this.
++	Surf.VRWaterTop = 0.0f;
+ 
+ 	// Look at HWR_ProjectSprite for more
+ 	{
+@@ -1445,7 +1525,10 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
+ 		if (!md2->model)
+ 		{
+ 			//CONS_Debug(DBG_RENDER, "Loading model... (%s)", sprnames[spr->mobj->sprite]);
+-			sprintf(filename, "models/%s", md2->filename);
++			// md2->filename can be as long as this buffer on its own, so the
++			// "models/" prefix pushed it past the end and smashed the stack
++			// cookie - the /GS fast-fail seen crashing HWR_DrawModel.
++			snprintf(filename, sizeof(filename), "models/%s", md2->filename);
+ 			md2->model = md2_readModel(filename);
+ 
+ 			if (md2->model)

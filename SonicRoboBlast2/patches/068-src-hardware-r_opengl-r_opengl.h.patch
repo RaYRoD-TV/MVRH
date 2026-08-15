@@ -1,0 +1,12 @@
+diff --git a/src/hardware/r_opengl/r_opengl.h b/src/hardware/r_opengl/r_opengl.h
+index 197f75ea8..a068ec06f 100644
+--- a/src/hardware/r_opengl/r_opengl.h
++++ b/src/hardware/r_opengl/r_opengl.h
+@@ -81,6 +81,7 @@ void SetupGLFunc4(void);
+ void Flush(void);
+ INT32 isExtAvailable(const char *extension, const GLubyte *start);
+ void SetModelView(GLint w, GLint h);
++void SetVRViewport(GLint w, GLint h);
+ void SetStates(void);
+ 
+ #ifndef GL_EXT_texture_filter_anisotropic

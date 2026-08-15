@@ -1,0 +1,65 @@
+diff --git a/src/hardware/hw_defs.h b/src/hardware/hw_defs.h
+index 77d7133b6..62b2130a9 100644
+--- a/src/hardware/hw_defs.h
++++ b/src/hardware/hw_defs.h
+@@ -117,6 +117,8 @@ typedef struct
+ 	boolean     mirror;          // SRB2Kart: Encore Mode
+ 	boolean     shearing;        // 14042019
+ 	float       viewaiming;      // 17052019
++	boolean     vr;              // VR: render this view with the per-eye projection below
++	float       vrfov[4];        // VR: headset per-eye FOV angles (rad): left, right, up, down
+ } FTransform;
+ 
+ // Transformed vector, as passed to HWR API
+@@ -146,6 +148,8 @@ enum
+ 	SHADER_PALETTE_POSTPROCESS,
+ 	SHADER_UI_COLORMAP_FADE,
+ 	SHADER_UI_TINTED_WIPE,
++	SHADER_CRTSHARP,
++	SHADER_CRTMEGA, // Megatron-derived phosphor-mask CRT; mask type rides gr_screeneffect
+ 
+ 	NUMSHADERTARGETS
+ };
+@@ -278,6 +282,19 @@ struct FSurfaceInfo
+ 	RGBA_t			FadeColor;
+ 	UINT32			LightTableId;
+ 	FLightInfo		LightInfo;
++	// Top of the swimmable water in this surface's OWN sector (world units;
++	// 0 = dry sector). The underwater caustic/shore layers judge fragments
++	// against this, never against the viewer's sector -- so a lake dapples
++	// from any vantage and dry rooms below its waterline never catch it.
++	//
++	// DECLARE EVERY FSurfaceInfo AS "= {0}". Only about two thirds of the
++	// draw paths assign this field, and the shader gate is "not zero", so an
++	// uninitialized one lets stack garbage switch the caustic layer on for
++	// whole surfaces that hold no water. The garbage changes from frame to
++	// frame, which is a flash -- and it is invisible in the flat renderer,
++	// where the caustic pattern animates and hides it, but glaring in VR,
++	// where the pattern is deliberately frozen and can only blink on and off.
++	float			VRWaterTop;
+ };
+ typedef struct FSurfaceInfo FSurfaceInfo;
+ 
+@@ -310,6 +327,22 @@ typedef enum hwdshaderstage hwdshaderstage_t;
+ enum hwdshaderinfo
+ {
+ 	HWD_SHADERINFO_LEVELTIME = 1,
++	HWD_SHADERINFO_VRSWAY, // underwater world sway amplitude, milli-units (0 = off)
++	HWD_SHADERINFO_VRRIPPLE, // water-surface ripple boost, milli-strength (0 = off)
++	HWD_SHADERINFO_VRUWFOG,  // underwater absorption density, milli (0 = off)
++	HWD_SHADERINFO_VRUWCOLOR, // underwater ambient color, packed 0xRRGGBB
++	HWD_SHADERINFO_VRUWCAUSTIC, // caustic brightness, milli (0 = off)
++	HWD_SHADERINFO_VRUWCAUSTICTIME, // caustic animation time; negative freezes the field
++	HWD_SHADERINFO_VRUWRAY,  // god-ray strength, milli (0 = off)
++	HWD_SHADERINFO_VRUWSURF, // water surface height, world units x16
++	HWD_SHADERINFO_VREYEX,   // rendering eye position, world units x16 (map x)
++	HWD_SHADERINFO_VREYEY,   // rendering eye position, world units x16 (height)
++	HWD_SHADERINFO_VREYEZ,   // rendering eye position, world units x16 (map y)
++	HWD_SHADERINFO_SUPERSAMPLE, // extra texture taps per pixel (0 = off, 1 = on)
++	HWD_SHADERINFO_SCREENEFFECT, // final-blit filter (0 off, 1 SalCRT Sharp, 2 grille, 3 slot, 4 shadow)
++	HWD_SHADERINFO_CRTMASKSTRENGTH, // Megatron phosphor mask depth, 0-10
++	HWD_SHADERINFO_CRTBOOST, // Megatron mask brightness compensation, 0-10
++	HWD_SHADERINFO_CRTINTENSITY, // whole-effect opacity, every CRT preset, 0-10
+ };
+ 
+ typedef enum hwdshaderinfo hwdshaderinfo_t;

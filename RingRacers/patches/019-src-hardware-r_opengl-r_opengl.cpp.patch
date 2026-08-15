@@ -1,0 +1,573 @@
+diff --git a/src/hardware/r_opengl/r_opengl.cpp b/src/hardware/r_opengl/r_opengl.cpp
+index 25efbd526..355c7705b 100644
+--- a/src/hardware/r_opengl/r_opengl.cpp
++++ b/src/hardware/r_opengl/r_opengl.cpp
+@@ -26,6 +26,8 @@
+ #include "r_opengl.h"
+ #include "r_vbo.h"
+ 
++#include "../../vr/vr.h" // per-eye matrices for stereo rendering
++
+ #if defined (HWRENDER) && !defined (NOROPENGL)
+ 
+ struct GLRGBAFloat
+@@ -77,6 +79,11 @@ static GLboolean MipMap = GL_FALSE;
+ static GLint min_filter = GL_LINEAR;
+ static GLint mag_filter = GL_LINEAR;
+ static GLint anisotropic_filter = 0;
++// The filter mode the game last asked for (a HWD_SET_TEXTUREFILTER_* value -
++// i.e. the player's saved gr_filtermode). The three states above are DERIVED
++// from it, so a live VR session can override minification without the saved
++// setting ever being touched. See ApplyFilterMode.
++static INT32 filter_mode_requested = HWD_SET_TEXTUREFILTER_POINTSAMPLED;
+ static boolean model_lighting = false;
+ 
+ const GLubyte *gl_version = NULL;
+@@ -600,6 +607,9 @@ typedef enum
+ 	// misc. (custom shaders)
+ 	gluniform_leveltime,
+ 
++	// texture sampling
++	gluniform_supersample,
++
+ 	gluniform_max,
+ } gluniform_t;
+ 
+@@ -631,6 +641,7 @@ static float shader_light_y = 0.0f;
+ static float shader_light_z = 0.0f;
+ static INT32 shader_light_contrast = 0;
+ static INT32 shader_light_backlight = 0;
++static INT32 shader_supersample = 0;
+ 
+ // Lactozilla: Shader functions
+ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar *vert_shader, const GLchar *frag_shader);
+@@ -639,6 +650,46 @@ static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAF
+ 
+ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ 
++// Shader-based supersampling of the texture fetch: a 2x2 rotated grid
++// ("4 rooks") spread across the pixel's own footprint in texture space,
++// averaged. The level's textures are small pixel art carried at a single
++// mip level, so a minified texel grid aliases and crawls badly - four taps
++// inside the footprint average that away for a small fraction of what
++// rendering the whole frame at a higher resolution would cost. It is
++// self-limiting: under magnification the entire footprint sits inside one
++// texel, all four taps land on the same texel, and the art stays as crisp
++// as it was. The negative mip bias only bites when a mipmapped filter mode
++// is on, where it buys back the sharpness mipmapping gives away.
++//
++// The derivatives are taken before the branch on purpose - they are only
++// defined in uniform control flow, and this keeps them out of it entirely.
++#define GLSL_SUPERSAMPLE_FUNCTION \
++	"uniform float supersample;\n" \
++	"vec4 SampleTexture(sampler2D s, vec2 uv)\n" \
++	"{\n" \
++		"vec2 dx = dFdx(uv);\n" \
++		"vec2 dy = dFdy(uv);\n" \
++		"if (supersample < 0.5)\n" \
++			"return texture2D(s, uv);\n" \
++		"vec2 o = vec2(0.125, 0.375);\n" \
++		"vec4 acc = texture2D(s, uv + o.x * dx + o.y * dy, -1.0);\n" \
++		"acc += texture2D(s, uv - o.x * dx - o.y * dy, -1.0);\n" \
++		"acc += texture2D(s, uv + o.y * dx - o.x * dy, -1.0);\n" \
++		"acc += texture2D(s, uv - o.y * dx + o.x * dy, -1.0);\n" \
++		"acc *= 0.25;\n" \
++		/* Alpha does not get averaged. Cutout art is decided by a hard
++		   alpha test, so an averaged alpha turns the outline into a
++		   majority vote over the tap grid - and that grid's sub-texel
++		   phase lands differently in each eye, because two eyes are never
++		   a whole number of texels apart. Each eye then gets a slightly
++		   different SHAPE for the same spring or spike, which is the one
++		   disagreement binocular vision cannot resolve: it reads as the
++		   object being cross-eyed. The colour stays supersampled; the
++		   silhouette goes back to being exactly what the artist drew. */ \
++		"acc.a = texture2D(s, uv).a;\n" \
++		"return acc;\n" \
++	"}\n"
++
+ #define GLSL_DOOM_COLORMAP \
+ 	"float R_DoomColormap(float light, float z)\n" \
+ 	"{\n" \
+@@ -761,8 +812,9 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ #define GLSL_DEFAULT_FRAGMENT_SHADER \
+ 	"uniform sampler2D tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * poly_color;\n" \
++		"gl_FragColor = SampleTexture(tex, gl_TexCoord[0].st) * poly_color;\n" \
+ 	"}\0"
+ 
+ //
+@@ -778,10 +830,11 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ 	"uniform float lighting;\n" \
+ 	"uniform float fade_start;\n" \
+ 	"uniform float fade_end;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	GLSL_DOOM_COLORMAP \
+ 	GLSL_DOOM_LIGHT_EQUATION \
+ 	"void main(void) {\n" \
+-		"vec4 texel = texture2D(tex, gl_TexCoord[0].st);\n" \
++		"vec4 texel = SampleTexture(tex, gl_TexCoord[0].st);\n" \
+ 		"vec4 base_color = texel * poly_color;\n" \
+ 		"vec4 final_color = base_color;\n" \
+ 		"float brightmap_mix = floor(texture2D(brightmap, gl_TexCoord[0].st).r);\n" \
+@@ -803,10 +856,11 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ 	"uniform vec4 fade_color;\n" \
+ 	"uniform float fade_start;\n" \
+ 	"uniform float fade_end;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	GLSL_DOOM_COLORMAP \
+ 	GLSL_DOOM_LIGHT_EQUATION \
+ 	"void main(void) {\n" \
+-		"vec4 texel = texture2D(tex, gl_TexCoord[0].st);\n" \
++		"vec4 texel = SampleTexture(tex, gl_TexCoord[0].st);\n" \
+ 		"vec4 base_color = texel * poly_color;\n" \
+ 		"vec4 final_color = base_color;\n" \
+ 		"float final_lighting = gl_Color.r * 255.0;\n" \
+@@ -840,6 +894,7 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ 	"const float amp = 0.025;\n" \
+ 	"const float speed = 2.0;\n" \
+ 	"const float pi = 3.14159;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	GLSL_DOOM_COLORMAP \
+ 	GLSL_DOOM_LIGHT_EQUATION \
+ 	"void main(void) {\n" \
+@@ -847,7 +902,7 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ 		"float a = -pi * (z * freq) + (leveltime * speed);\n" \
+ 		"float sdistort = sin(a) * amp;\n" \
+ 		"float cdistort = cos(a) * amp;\n" \
+-		"vec4 texel = texture2D(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n" \
++		"vec4 texel = SampleTexture(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n" \
+ 		"vec4 base_color = texel * poly_color;\n" \
+ 		"vec4 final_color = base_color;\n" \
+ 		"float brightmap_mix = floor(texture2D(brightmap, gl_TexCoord[0].st).r);\n" \
+@@ -902,8 +957,9 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
+ #define GLSL_SKY_FRAGMENT_SHADER \
+ 	"uniform sampler2D tex;\n" \
+ 	"uniform vec4 poly_color;\n" \
++	GLSL_SUPERSAMPLE_FUNCTION \
+ 	"void main(void) {\n" \
+-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
++		"gl_FragColor = SampleTexture(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
+ 	"}\0"
+ 
+ // ================
+@@ -1078,6 +1134,9 @@ EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value)
+ 		case HWD_SHADERINFO_LIGHT_BACKLIGHT:
+ 			shader_light_backlight = value;
+ 			break;
++		case HWD_SHADERINFO_SUPERSAMPLE:
++			shader_supersample = value;
++			break;
+ 		default:
+ 			break;
+ 	}
+@@ -1576,7 +1635,16 @@ EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, f
+ {
+ 	// GL_DBG_Printf ("GClipRect(%d, %d, %d, %d)\n", minx, miny, maxx, maxy);
+ 
+-	pglViewport(minx, screen_height-maxy, maxx-minx, maxy-miny);
++	if (vr_stereo_active())
++	{
++		// VR eye pass: the raster is the whole VR mono target (player 1 only,
++		// no splitscreen windows), not the rect the caller computed from the
++		// desktop window size - including the screen_height y-flip, which
++		// would land a window-sized viewport off the taller target's edge.
++		pglViewport(0, 0, vr_eye_raster_width(), vr_eye_raster_height());
++	}
++	else
++		pglViewport(minx, screen_height-maxy, maxx-minx, maxy-miny);
+ 	NEAR_CLIPPING_PLANE = nearclip;
+ 
+ 	//pglScissor(minx, screen_height-maxy, maxx-minx, maxy-miny);
+@@ -1769,9 +1837,40 @@ static void SetBlendMode(FBITFIELD flags)
+ 			case PF_Environment:
+ 			case PF_Multiplicative:
+ 				pglAlphaFunc(GL_NOTEQUAL, 0.0f);
++				// Translucent art already carries its own soft edge; coverage
++				// on top of it would double-count and thin it out.
++				pglDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+ 				break;
+ 			default:
+-				pglAlphaFunc(GL_GREATER, 0.5f);
++				// A cutout's outline is normally a hard yes/no per pixel, and
++				// in a headset that is what makes distant props refuse to
++				// fuse. The test has no sub-pixel information, so the
++				// silhouette lands on each eye's OWN pixel grid, whose phase
++				// against the object is never the same as the other eye's.
++				// That error is fixed in PIXELS, while real stereo disparity
++				// falls with distance - so past about a thousand units the
++				// per-eye raster difference is LARGER than the depth cue it is
++				// supposed to sit on, and its sign flips as the object drifts
++				// by a fraction of a pixel. Hence "crosseyed from afar", and
++				// hence why filtering the TEXTURE never helped: mipmapping
++				// made alpha smooth in the texture, and this line re-quantised
++				// it one stage later.
++				//
++				// Alpha-to-coverage spends the multisamples on the cutout
++				// instead: coverage becomes fractional, both eyes land within
++				// a sample of each other, and the outline stops disagreeing.
++				// The test stays, dropped to a threshold that only kills
++				// genuinely empty texels so holes still read as holes.
++				if (vr_stereo_active() && vr_eye_msaa_active())
++				{
++					pglAlphaFunc(GL_GREATER, 0.02f);
++					pglEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
++				}
++				else
++				{
++					pglAlphaFunc(GL_GREATER, 0.5f);
++					pglDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
++				}
+ 				break;
+ 		}
+ 	}
+@@ -1797,7 +1896,26 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
+ 		if (Xor & PF_Decal)
+ 		{
+ 			if (PolyFlags & PF_Decal)
++			{
++				// The stereo eye passes carry more per-eye depth error than
++				// the flat margin covers, so decals need more room there.
++				// It has to come from the CONSTANT term, though. The first
++				// argument is multiplied by the polygon's steepest depth
++				// slope, and you look at the ground in a headset at grazing
++				// angles where that slope is enormous - so raising it hands
++				// ground art a bias big enough to win the depth test against
++				// terrain that is genuinely in front of it, and the size of
++				// the region it wrongly covers swings with the viewing angle.
++				// That is a shadow bleeding across hills while you drive and
++				// snapping right the moment you stop. The per-eye error being
++				// covered here is a fixed number of depth steps, not a slope,
++				// so the fixed term is where the margin belongs.
++				if (vr_stereo_active())
++					pglPolygonOffset(-1.0f, -16.0f);
++				else
++					pglPolygonOffset(-1.0f, -1.0f);
+ 				pglEnable(GL_POLYGON_OFFSET_FILL);
++			}
+ 			else
+ 				pglDisable(GL_POLYGON_OFFSET_FILL);
+ 		}
+@@ -2012,10 +2130,24 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
+ 	tex_downloaded = num;
+ 
+ 	// disable texture filtering on any texture that has holes so there's no dumb borders or blending issues
++	//
++	// ...except MINIFICATION in a headset. This pin is why the spike-strip
++	// and fence class stayed "doubled" in VR after every sprite fix: a masked
++	// midtexture's outline comes from a nearest-sampled BINARY alpha field,
++	// hard-thresholded per pixel - so the silhouette snaps to each eye's own
++	// pixel grid, and past the distance where true disparity falls under a
++	// pixel, the two eyes' outlines disagree by more than the depth they are
++	// supposed to convey. Mipmapped minification makes the alpha fractional
++	// at distance, and alpha-to-coverage (already live in the stereo eye
++	// pass) turns that into agreement between the eyes. Magnification stays
++	// NEAREST always - the original border-bleed reason is real up close.
+ 	if (pTexInfo->flags & TF_TRANSPARENT)
+ 	{
+ 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++		if (vr_is_active() && MipMap)
++			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
++		else
++			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+ 	}
+ 	else
+ 	{
+@@ -2030,8 +2162,8 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
+ 		{
+ 			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_LUMINANCE_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+ 			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+-			if (pTexInfo->flags & TF_TRANSPARENT)
+-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
++			if ((pTexInfo->flags & TF_TRANSPARENT) && !vr_is_active())
++				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff (flat; VR needs them so the eyes agree)
+ 			else
+ 				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
+ 			//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
+@@ -2051,8 +2183,8 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
+ 		{
+ 			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+ 			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+-			if (pTexInfo->flags & TF_TRANSPARENT)
+-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
++			if ((pTexInfo->flags & TF_TRANSPARENT) && !vr_is_active())
++				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff (flat; VR needs them so the eyes agree)
+ 			else
+ 				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
+ 			//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
+@@ -2072,8 +2204,8 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
+ 			pgluBuild2DMipmaps(GL_TEXTURE_2D, textureformatGL, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+ 			// Control the mipmap level of detail
+ 			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0); // the lower the number, the higer the detail
+-			if (pTexInfo->flags & TF_TRANSPARENT)
+-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
++			if ((pTexInfo->flags & TF_TRANSPARENT) && !vr_is_active())
++				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff (flat; VR needs them so the eyes agree)
+ 			else
+ 				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 5);
+ 		}
+@@ -2234,6 +2366,8 @@ static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAF
+ 
+ 		UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
+ 
++		UNIFORM_1(shader->uniforms[gluniform_supersample], (float)shader_supersample, pglUniform1f);
++
+ 		#undef UNIFORM_1
+ 		#undef UNIFORM_2
+ 		#undef UNIFORM_3
+@@ -2340,6 +2474,9 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar
+ 	// misc. (custom shaders)
+ 	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
+ 
++	// texture sampling
++	shader->uniforms[gluniform_supersample] = GETUNI("supersample");
++
+ #undef GETUNI
+ 
+ 	return true;
+@@ -2614,6 +2751,103 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
+ 	pglDisableClientState(GL_COLOR_ARRAY);
+ }
+ 
++// The player's gr_filtermode is the REQUEST; min_filter/mag_filter/MipMap are
++// what GL actually gets. They differ in exactly one case: while an OpenXR
++// session is live, minification is forced onto the mipmap chain.
++//
++// Nearest minification with no mipmaps lets a single texel - whichever one
++// lands under the pixel centre - decide a cutout sprite's silhouette, because
++// the alpha test is a hard 0.5 threshold on one texture fetch. Two eyes are
++// never a whole number of texels apart, so each eye picks a different texel and
++// gets a different SHAPE for the same distant spike or spring. Your eyes can
++// converge on a shifted image; they cannot reconcile two different shapes, and
++// it worsens with distance as each pixel covers more texels.
++//
++// It must be the TRILINEAR variant, never GL_*_MIPMAP_NEAREST: a nearest tap
++// inside the chosen level still snaps the outline to that level's texel grid
++// and the two eyes still land on different texels of it. Only a filter smooth
++// in u, v AND lambda makes alpha a continuous function of screen position,
++// which is what puts the 0.5 crossing in the same place for both eyes.
++//
++// Magnification is left exactly as the player set it, so close-up pixel art is
++// untouched, and the cvar is never written - quitting VR leaves the config as
++// it was found.
++static void ApplyFilterMode(void)
++{
++	GLint want_min, want_mag;
++	GLboolean want_mip;
++
++	switch (filter_mode_requested)
++	{
++		case HWD_SET_TEXTUREFILTER_TRILINEAR:
++			want_min = GL_LINEAR_MIPMAP_LINEAR;
++			want_mag = GL_LINEAR;
++			want_mip = GL_TRUE;
++			break;
++		case HWD_SET_TEXTUREFILTER_BILINEAR:
++			want_min = want_mag = GL_LINEAR;
++			want_mip = GL_FALSE;
++			break;
++		case HWD_SET_TEXTUREFILTER_POINTSAMPLED:
++			want_min = want_mag = GL_NEAREST;
++			want_mip = GL_FALSE;
++			break;
++		case HWD_SET_TEXTUREFILTER_MIXED1:
++			want_min = GL_NEAREST;
++			want_mag = GL_LINEAR;
++			want_mip = GL_FALSE;
++			break;
++		case HWD_SET_TEXTUREFILTER_MIXED2:
++			want_min = GL_LINEAR;
++			want_mag = GL_NEAREST;
++			want_mip = GL_FALSE;
++			break;
++		case HWD_SET_TEXTUREFILTER_MIXED3:
++			want_min = GL_LINEAR_MIPMAP_LINEAR;
++			want_mag = GL_NEAREST;
++			want_mip = GL_TRUE;
++			break;
++		default:
++			want_mag = GL_LINEAR;
++			want_min = GL_NEAREST;
++			want_mip = GL_FALSE;
++			break;
++	}
++
++	// Keyed on the SESSION, not on the eye pass: the stereo flag goes up and
++	// down inside a single frame, and every change through here costs a full
++	// texture flush.
++	if (vr_is_active() && pgluBuild2DMipmaps)
++	{
++		want_min = GL_LINEAR_MIPMAP_LINEAR;
++		want_mip = GL_TRUE;
++	}
++
++	if (!pgluBuild2DMipmaps)
++	{
++		want_mip = GL_FALSE;
++		want_min = GL_LINEAR;
++	}
++
++	// Cheap enough to call every frame: nothing changed, nothing flushed.
++	if (want_min == min_filter && want_mag == mag_filter && want_mip == MipMap)
++		return;
++
++	// Say it out loud when the VR override takes or releases. "Did the fix
++	// actually engage" is otherwise unanswerable from the outside, and this
++	// project has already lost days to a fix that shipped and never ran.
++	if (vr_is_active() && want_mip && !MipMap)
++		CONS_Printf("VR: distant textures now mipmapped (minification only; magnification stays as set)\n");
++	else if (!vr_is_active() && MipMap && !want_mip)
++		CONS_Printf("VR: texture filtering back to your own setting\n");
++
++	min_filter = want_min;
++	mag_filter = want_mag;
++	MipMap = want_mip;
++
++	Flush(); // filters and mip chains are baked at upload; rebuild the cache
++}
++
+ // ==========================================================================
+ //
+ // ==========================================================================
+@@ -2630,46 +2864,8 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
+ 			break;
+ 
+ 		case HWD_SET_TEXTUREFILTERMODE:
+-			switch (Value)
+-			{
+-				case HWD_SET_TEXTUREFILTER_TRILINEAR:
+-					min_filter = GL_LINEAR_MIPMAP_LINEAR;
+-					mag_filter = GL_LINEAR;
+-					MipMap = GL_TRUE;
+-					break;
+-				case HWD_SET_TEXTUREFILTER_BILINEAR:
+-					min_filter = mag_filter = GL_LINEAR;
+-					MipMap = GL_FALSE;
+-					break;
+-				case HWD_SET_TEXTUREFILTER_POINTSAMPLED:
+-					min_filter = mag_filter = GL_NEAREST;
+-					MipMap = GL_FALSE;
+-					break;
+-				case HWD_SET_TEXTUREFILTER_MIXED1:
+-					min_filter = GL_NEAREST;
+-					mag_filter = GL_LINEAR;
+-					MipMap = GL_FALSE;
+-					break;
+-				case HWD_SET_TEXTUREFILTER_MIXED2:
+-					min_filter = GL_LINEAR;
+-					mag_filter = GL_NEAREST;
+-					MipMap = GL_FALSE;
+-					break;
+-				case HWD_SET_TEXTUREFILTER_MIXED3:
+-					min_filter = GL_LINEAR_MIPMAP_LINEAR;
+-					mag_filter = GL_NEAREST;
+-					MipMap = GL_TRUE;
+-					break;
+-				default:
+-					mag_filter = GL_LINEAR;
+-					min_filter = GL_NEAREST;
+-			}
+-			if (!pgluBuild2DMipmaps)
+-			{
+-				MipMap = GL_FALSE;
+-				min_filter = GL_LINEAR;
+-			}
+-			Flush(); //??? if we want to change filter mode by texture, remove this
++			filter_mode_requested = Value;
++			ApplyFilterMode();
+ 			break;
+ 
+ 		case HWD_SET_TEXTUREANISOTROPICMODE:
+@@ -3184,18 +3380,30 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
+ 	static boolean special_splitscreen;
+ 	boolean shearing = false;
+ 	float used_fov;
++	const boolean vrstereo = vr_stereo_active();
+ 
+ 	pglLoadIdentity();
+ 
+ 	if (stransform)
+ 	{
+ 		used_fov = stransform->fovxangle;
++
++		// VR: the head's view (camera-space -> eye-space, rigid, game units)
++		// multiplies in ahead of the chase-cam chain below. The aspect scale
++		// normally carried by scaley stays out of the chain: the eye
++		// projection handles aspect natively, and a non-uniform scale under
++		// the head rotation would shear the world.
++		if (vrstereo)
++			pglMultMatrixf(vr_gl_eye_view(vr_current_eye()));
++
++		const float usedscaley = vrstereo ? stransform->scalex : stransform->scaley;
++
+ 		if (stransform->mirror)
+-			pglScalef(-stransform->scalex, stransform->scaley, -stransform->scalez);
++			pglScalef(-stransform->scalex, usedscaley, -stransform->scalez);
+ 		else if (stransform->flip)
+-			pglScalef(stransform->scalex, -stransform->scaley, -stransform->scalez);
++			pglScalef(stransform->scalex, -usedscaley, -stransform->scalez);
+ 		else
+-			pglScalef(stransform->scalex, stransform->scaley, -stransform->scalez);
++			pglScalef(stransform->scalex, usedscaley, -stransform->scalez);
+ 
+ 		if (stransform->roll)
+ 			pglRotatef(stransform->rollangle, 0.0f, 0.0f, 1.0f);
+@@ -3204,7 +3412,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
+ 		pglTranslatef(-stransform->x, -stransform->z, -stransform->y);
+ 
+ 		special_splitscreen = (stransform->splitscreen == 1);
+-		shearing = stransform->shearing;
++		shearing = vrstereo ? false : stransform->shearing;
+ 	}
+ 	else
+ 	{
+@@ -3215,23 +3423,33 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
+ 	pglMatrixMode(GL_PROJECTION);
+ 	pglLoadIdentity();
+ 
+-	// Simulate Software's y-shearing
+-	// https://zdoom.org/wiki/Y-shearing
+-	if (shearing)
++	if (vrstereo && stransform)
+ 	{
+-		float fdy = stransform->viewaiming * 2;
+-		if (stransform->flip)
+-			fdy *= -1.0f;
+-		pglTranslatef(0.0f, -fdy/BASEVIDHEIGHT, 0.0f);
++		// VR: the runtime's native asymmetric per-eye frustum (game-unit clip
++		// planes) replaces the game fov; y-shearing doesn't apply in the HMD.
++		// (Multiplied onto the fresh identity above == loading it directly.)
++		pglMultMatrixf(vr_gl_eye_projection(vr_current_eye()));
+ 	}
+-
+-	if (special_splitscreen)
++	else
+ 	{
+-		used_fov = atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI;
+-		GLPerspective(used_fov, 2*ASPECT_RATIO);
++		// Simulate Software's y-shearing
++		// https://zdoom.org/wiki/Y-shearing
++		if (shearing)
++		{
++			float fdy = stransform->viewaiming * 2;
++			if (stransform->flip)
++				fdy *= -1.0f;
++			pglTranslatef(0.0f, -fdy/BASEVIDHEIGHT, 0.0f);
++		}
++
++		if (special_splitscreen)
++		{
++			used_fov = atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI;
++			GLPerspective(used_fov, 2*ASPECT_RATIO);
++		}
++		else
++			GLPerspective(used_fov, ASPECT_RATIO);
+ 	}
+-	else
+-		GLPerspective(used_fov, ASPECT_RATIO);
+ 
+ 	pglGetFloatv(GL_PROJECTION_MATRIX, projMatrix); // added for new coronas' code (without depth buffer)
+ 	pglMatrixMode(GL_MODELVIEW);

@@ -1,0 +1,924 @@
+diff --git a/src/d_main.c b/src/d_main.c
+index d75a4d501..5192630be 100644
+--- a/src/d_main.c
++++ b/src/d_main.c
+@@ -34,6 +34,7 @@
+ #include "doomdef.h"
+ #include "am_map.h"
+ #include "console.h"
++#include "vr/i_openxr.h"
+ #include "netcode/d_net.h"
+ #include "f_finale.h"
+ #include "g_game.h"
+@@ -80,6 +81,11 @@
+ #include "config.h.in"
+ #endif
+ 
++#ifdef TOUCHINPUTS
++#include "ts_custom.h"
++#include "ts_draw.h"
++#endif
++
+ #ifdef HWRENDER
+ #include "hardware/hw_main.h" // 3D View Rendering
+ #endif
+@@ -94,6 +100,11 @@
+ 
+ #include "lua_script.h"
+ 
++#ifdef LOGMESSAGES
++FILE *logstream = NULL;
++char logfilename[1024];
++#endif
++
+ // Version numbers for netplay :upside_down_face:
+ int    VERSION;
+ int SUBVERSION;
+@@ -104,6 +115,15 @@ UINT8 window_notinfocus = false;
+ static addfilelist_t startupwadfiles;
+ static addfilelist_t startuppwads;
+ 
++#if defined(__ANDROID__) && defined(UNPACK_FILES) && defined(HAVE_WHANDLE) && defined(HAVE_SDL)
++#define ANDROID_FILE_UNPACK
++#endif
++
++static fhandletype_t startuphandletype = FILEHANDLE_STANDARD;
++
++//
++// DEMO LOOP
++//
+ boolean devparm = false; // started game with -devparm
+ 
+ boolean singletics = false; // timedemo
+@@ -132,8 +152,11 @@ INT32 debugload = 0;
+ UINT16 numskincolors;
+ menucolor_t *menucolorhead, *menucolortail;
+ 
+-char savegamename[256];
+-char liveeventbackup[256];
++char savegamename[2][SAVEGAMENAMELEN];
++char liveeventbackup[2][SAVEGAMENAMELEN];
++
++char *cursavegamename = savegamename[0];
++char *curliveeventbackup = liveeventbackup[0];
+ 
+ char srb2home[256] = ".";
+ char srb2path[256] = ".";
+@@ -227,6 +250,11 @@ void D_ProcessEvents(void)
+ 			}
+ 		}
+ 
++		// In VR, Select / D-pad Up cycle the view mode while playing; checked
++		// ahead of the screenshot responder because Select doubles as its key.
++		if (VR_GamepadResponder(ev))
++			continue;
++
+ 		// Screenshots over everything so that they can be taken anywhere.
+ 		if (M_ScreenshotResponder(ev))
+ 			continue; // ate the event
+@@ -307,7 +335,7 @@ static void D_Display(void)
+ 	static boolean wipe = false;
+ 	INT32 wipedefindex = 0;
+ 
+-	if (dedicated)
++	if (I_AppOnBackground() || dedicated)
+ 		return;
+ 
+ 	if (nodrawers)
+@@ -335,6 +363,15 @@ static void D_Display(void)
+ 	if (vid.recalc)
+ 		SCR_Recalc(); // NOTE! setsizeneeded is set by SCR_Recalc()
+ 
++#ifdef HWRENDER
++	// Display the last renderer switching error, if there was any
++	if (renderswitcherror == render_opengl)
++		VID_DisplayGLError();
++#endif
++
++	// Clear the last renderer switching error
++	renderswitcherror = 0;
++
+ 	// View morph
+ 	if (rendermode == render_soft && !splitscreen)
+ 		R_CheckViewMorph();
+@@ -347,10 +384,6 @@ static void D_Display(void)
+ 		forcerefresh = true; // force background redraw
+ 	}
+ 
+-	// draw buffered stuff to screen
+-	// Used only by linux GGI version
+-	I_UpdateNoBlit();
+-
+ 	// save the current screen if about to wipe
+ 	wipe = (gamestate != wipegamestate);
+ 	if (wipe && wipetypepre != INT16_MAX)
+@@ -385,7 +418,7 @@ static void D_Display(void)
+ 				else if (F_TryColormapFade(31))
+ 					wipetypepost = -1; // Don't run the fade below this one
+ 				F_WipeEndScreen();
+-				F_RunWipe(wipetypepre, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
++				F_RunWipe(wipetypepre, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN));
+ 			}
+ 
+ 			F_WipeStartScreen();
+@@ -396,6 +429,10 @@ static void D_Display(void)
+ 	else
+ 		wipetypepre = -1;
+ 
++#ifdef TOUCHINPUTS
++	TS_UpdateControls();
++#endif
++
+ 	// do buffered drawing
+ 	switch (gamestate)
+ 	{
+@@ -413,6 +450,9 @@ static void D_Display(void)
+ 
+ 		case GS_INTERMISSION:
+ 			Y_IntermissionDrawer();
++#ifdef TOUCHINPUTS
++			TS_DrawControlsNotInGame();
++#endif
+ 			HU_Drawer();
+ 			break;
+ 
+@@ -499,13 +539,28 @@ static void D_Display(void)
+ 					objectsdrawn = 0;
+ 	#ifdef HWRENDER
+ 					if (rendermode != render_soft)
+-						HWR_RenderPlayerView(0, &players[displayplayer]);
++					{
++						// VR in-level: the window is the headset mirror, which
++						// covers the flat body-camera render completely every
++						// frame -- so that render was a third full world pass
++						// spent on nothing. Last frame's eye grab stands in as
++						// the world layer instead; postprocessing (underwater
++						// warp, the intermission capture) still runs against
++						// it, and the HUD lands on top through the UI overlay.
++						if (VR_MirrorWorldLayer())
++							HWR_DoPostProcessor(&players[displayplayer]);
++						else
++							HWR_RenderPlayerView(0, &players[displayplayer]);
++					}
+ 					else
+ 	#endif
+ 					if (rendermode != render_none)
+ 						R_RenderPlayerView(&players[displayplayer]);
+ 				}
+ 
++				if (I_AppOnBackground())
++					return;
++
+ 				// render the second screen
+ 				if (splitscreen && players[secondarydisplayplayer].mo)
+ 				{
+@@ -526,6 +581,9 @@ static void D_Display(void)
+ 					viewwindowy = 0;
+ 				}
+ 
++				if (I_AppOnBackground())
++					return;
++
+ 				// Image postprocessing effect
+ 				if (rendermode == render_soft)
+ 				{
+@@ -556,12 +614,25 @@ static void D_Display(void)
+ 
+ 			if (gamestate == GS_LEVEL)
+ 			{
+-				ST_Drawer();
+-				F_TextPromptDrawer();
+-				HU_Drawer();
++				VR_UIOverlayBegin(); // HUD/menus/console from here go to the VR floating screen too
++				// In VR the HUD and an open menu share the floating screen; hide the
++				// HUD behind menus so they never overprint. Flatscreen stays vanilla,
++				// and so does Theater mode - its flat frame is what the screen shows.
++				if (!(menuactive && VR_IsActive() && !VR_TheaterActive()))
++				{
++					ST_Drawer();
++					F_TextPromptDrawer();
++					HU_Drawer();
++				}
+ 			}
+ 			else
++			{
++				// With the title flyby rendering in the headset, the logo/menu become
++				// a transparent overlay on the screen instead of a flat opaque frame.
++				if (VR_WorldVisible())
++					VR_UIOverlayBegin();
+ 				F_TitleScreenDrawer();
++			}
+ 		}
+ 		else
+ 		{
+@@ -607,6 +678,8 @@ static void D_Display(void)
+ 
+ 	CON_Drawer();
+ 
++	VR_UIOverlayEnd(); // close the VR overlay and put it back on the desktop frame
++
+ 	PS_STOP_TIMING(ps_uitime);
+ 
+ 	//
+@@ -642,7 +715,7 @@ static void D_Display(void)
+ 				wipestyleflags &= ~WSF_FADEOUT;
+ 			}
+ 
+-			F_RunWipe(wipetypepost, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
++			F_RunWipe(wipetypepost, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN));
+ 		}
+ 
+ 		// reset counters so timedemo doesn't count the wipe duration
+@@ -712,6 +785,10 @@ void D_SRB2Loop(void)
+ 	double deltasecs = 0.0;
+ 	static lumpnum_t gstartuplumpnum;
+ 
++#if defined(__ANDROID__)
++	boolean firstframe = false;
++#endif
++
+ 	boolean interp = false;
+ 	boolean doDisplay = false;
+ 
+@@ -725,7 +802,13 @@ void D_SRB2Loop(void)
+ 	I_DoStartupMouse();
+ #endif
+ 
++#ifdef TOUCHINPUTS
++	CONS_Printf("I_InitTouchScreen()...\n");
++	I_InitTouchScreen();
++#endif
++
+ 	I_UpdateTime(cv_timescale.value);
++
+ 	oldentertics = I_GetTime();
+ 
+ 	// end of loading screen: CONS_Printf() will no more call FinishUpdate()
+@@ -736,6 +819,12 @@ void D_SRB2Loop(void)
+ 	SCR_SetMode(); // change video mode
+ 	SCR_Recalc();
+ 
++#ifdef TOUCHINPUTS
++	if (usertouchcontrols == NULL)
++		TS_DefaultControlLayout(true);
++	TS_UpdateControls();
++#endif
++
+ 	chosenrendermode = render_none;
+ 
+ 	// Check and print which version is executed.
+@@ -747,8 +836,10 @@ void D_SRB2Loop(void)
+ 	"                            ...wait. =P\n"
+ 	"===========================================================================\n");
+ 
++#if !defined(__ANDROID__)
+ 	// hack to start on a nice clear console screen.
+ 	COM_ImmedExecute("cls;version");
++#endif
+ 
+ 	I_FinishUpdate(); // page flip or blit buffer
+ 	/*
+@@ -756,7 +847,7 @@ void D_SRB2Loop(void)
+ 	because I_FinishUpdate was called afterward
+ 	*/
+ 	/* Smells like a hack... Don't fade Sonic's ass into the title screen. */
+-	if (gamestate != GS_TITLESCREEN)
++	if (!I_AppOnBackground() && gamestate != GS_TITLESCREEN)
+ 	{
+ 		gstartuplumpnum = W_CheckNumForPatchName("STARTUP");
+ 		if (gstartuplumpnum == LUMPERROR)
+@@ -818,6 +909,10 @@ void D_SRB2Loop(void)
+ 			if (realtics > 8)
+ 				realtics = 1;
+ 
++#ifdef TOUCHINPUTS
++			TS_UpdateControls();
++#endif
++
+ 			// process tics (but maybe not if realtic == 0)
+ 			TryRunTics(realtics);
+ 
+@@ -881,7 +976,21 @@ void D_SRB2Loop(void)
+ 
+ 		if (interp || doDisplay)
+ 		{
++			VR_BeginFrame();
++			// xrWaitFrame (inside VR_BeginFrame) can block for up to a frame,
++			// so the interpolation fraction sampled at loop entry is stale by
++			// the wait -- geometry would render behind the head pose, which
++			// reads as translation judder at speed. Advance the fraction by
++			// the real time that just passed, capped at the tic boundary.
++			if (interp && VR_IsActive() && rendertimefrac < FRACUNIT)
++			{
++				const double waited = (double)(I_GetPreciseTime() - enterprecise) / I_GetPrecisePrecision();
++				const fixed_t adv = FLOAT_TO_FIXED((float)(waited * TICRATE) * FIXED_TO_FLOAT(cv_timescale.value));
++				if (adv > 0)
++					rendertimefrac = min(rendertimefrac + adv, FRACUNIT);
++			}
+ 			D_Display();
++			VR_EndFrame();
+ 		}
+ 
+ 		// Only take screenshots after drawing.
+@@ -901,6 +1010,15 @@ void D_SRB2Loop(void)
+ 
+ 		LUA_Step();
+ 
++#if defined(__ANDROID__)
++		if (!firstframe)
++		{
++			COM_ImmedExecute("cls;version"); // hack to start on a nice clear console screen.
++			CON_ClearHUD();
++			firstframe = true;
++		}
++#endif
++
+ 		// Fully completed frame made.
+ 		finishprecise = I_GetPreciseTime();
+ 		if (!singletics)
+@@ -993,6 +1111,10 @@ void D_StartTitle(void)
+ 	// empty maptol so mario/etc sounds don't play in sound test when they shouldn't
+ 	maptol = 0;
+ 
++	// reset savegame names
++	cursavegamename = savegamename[0];
++	curliveeventbackup = liveeventbackup[0];
++
+ 	gameaction = ga_nothing;
+ 	displayplayer = consoleplayer = 0;
+ 	G_SetGametype(GT_COOP);
+@@ -1003,6 +1125,10 @@ void D_StartTitle(void)
+ 
+ 	currentMenu = &MainDef; // reset the current menu ID
+ 
++#ifdef TOUCHINPUTS
++	TS_PositionNavigation();
++#endif
++
+ 	// Reset the palette
+ 	if (rendermode != render_none)
+ 		V_SetPaletteLump("PLAYPAL");
+@@ -1015,7 +1141,12 @@ void D_StartTitle(void)
+ 		CV_SetValue(&cv_alwaysfreelook, tutorialfreelook);
+ 		CV_SetValue(&cv_mousemove, tutorialmousemove);
+ 		CV_SetValue(&cv_analog[0], tutorialanalog);
+-		M_StartMessage("Do you want to \x82save the recommended \x82movement controls?\x80\n\nPress 'Y' or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
++		M_StartMessage("Do you want to \x82save the recommended \x82movement controls?\x80\n\n"
++#ifdef TOUCHINPUTS
++			"Tap 'Confirm' to save\nTap 'Back' to keep \nyour current controls",
++#else
++			"Press 'Y' or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
++#endif
+ 			M_TutorialSaveControlResponse, MM_YESNO);
+ 	}
+ 	tutorialmode = false;
+@@ -1025,17 +1156,20 @@ void D_StartTitle(void)
+ 	if (list->files == NULL) \
+ 	{ \
+ 		list->files = calloc(2, sizeof(list->files)); \
++		list->hashes = calloc(2, sizeof(list->hashes)); \
+ 		list->numfiles = 1; \
+ 	} \
+ 	else \
+ 	{ \
+ 		index = list->numfiles; \
+-		list->files = realloc(list->files, sizeof(list->files) * ((++list->numfiles) + 1)); \
+-		if (list->files == NULL) \
++		list->numfiles++; \
++		list->files = realloc(list->files, sizeof(list->files) * list->numfiles); \
++		list->hashes = realloc(list->hashes, sizeof(list->hashes) * list->numfiles); \
++		if (list->files == NULL || list->hashes == NULL) \
+ 			I_Error("%s: No more free memory to add file %s", __FUNCTION__, file); \
+ 	}
+ 
+-static void D_AddFile(addfilelist_t *list, const char *file)
++static void D_AddFile(addfilelist_t *list, const char *file, const char *hash)
+ {
+ 	char *newfile;
+ 	size_t index = 0;
+@@ -1048,6 +1182,7 @@ static void D_AddFile(addfilelist_t *list, const char *file)
+ 
+ 	strcpy(newfile, file);
+ 	list->files[index] = newfile;
++	list->hashes[index] = hash;
+ }
+ 
+ static void D_AddFolder(addfilelist_t *list, const char *file)
+@@ -1065,6 +1200,7 @@ static void D_AddFolder(addfilelist_t *list, const char *file)
+ 	strcat(newfile, PATHSEP);
+ 
+ 	list->files[index] = newfile;
++	list->hashes[index] = NULL;
+ }
+ 
+ #undef REALLOC_FILE_LIST
+@@ -1079,12 +1215,16 @@ static inline void D_CleanFile(addfilelist_t *list)
+ 			free(list->files[pnumwadfiles]);
+ 
+ 		free(list->files);
++		free(list->hashes);
++
+ 		list->files = NULL;
++		list->hashes = NULL;
+ 	}
+ 
+ 	list->numfiles = 0;
+ }
+ 
++#if !defined(__ANDROID__)
+ ///\brief Checks if a netgame URL is being handled, and changes working directory to the EXE's if so.
+ ///       Done because browsers (at least, Firefox on Windows) launch the game from the browser's directory, which causes problems.
+ static void ChangeDirForUrlHandler(void)
+@@ -1118,25 +1258,35 @@ static void ChangeDirForUrlHandler(void)
+ #endif
+ 	}
+ }
++#endif
+ 
+ // ==========================================================================
+ // Identify the SRB2 version, and IWAD file to use.
+ // ==========================================================================
+ 
++#define FILEPATH(fname) va(pandf,srb2waddir,fname)
++
+ static void IdentifyVersion(void)
+ {
+-	char *srb2wad;
++	const char *basepk3 = "srb2.pk3";
+ 	const char *srb2waddir = NULL;
+ 
++#if defined(__ANDROID__)
++	fhandletype_t handletype = FILEHANDLE_SDL;
++#else
++	fhandletype_t handletype = FILEHANDLE_STANDARD;
++#endif
++
+ #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
+ 	// change to the directory where 'srb2.pk3' is found
+ 	srb2waddir = I_LocateWad();
+ #endif
+ 
++#if !defined(__ANDROID__)
+ 	// get the current directory (possible problem on NT with "." as current dir)
+ 	if (srb2waddir)
+ 	{
+-		strlcpy(srb2path,srb2waddir,sizeof (srb2path));
++		strlcpy(srb2path, srb2waddir,sizeof (srb2path));
+ 	}
+ 	else
+ 	{
+@@ -1147,54 +1297,66 @@ static void IdentifyVersion(void)
+ 			srb2waddir = ".";
+ 		}
+ 	}
++#endif
+ 
+ #if defined (macintosh) && !defined (HAVE_SDL)
+ 	// cwd is always "/" when app is dbl-clicked
+ 	if (!stricmp(srb2waddir, "/"))
+ 		srb2waddir = I_GetWadDir();
+ #endif
+-	// Commercial.
+-	srb2wad = malloc(strlen(srb2waddir)+1+8+1);
+-	if (srb2wad == NULL)
+-		I_Error("No more free memory to look in %s", srb2waddir);
+-	else
+-		sprintf(srb2wad, pandf, srb2waddir, "srb2.pk3");
+ 
++#if defined(__ANDROID__)
++	// Simplified
++	D_AddFile(&startupwadfiles, FILEPATH(basepk3), ASSET_HASH_SRB2_PK3);
++#else
+ 	// will be overwritten in case of -cdrom or unix/win home
+ 	snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2waddir);
+ 	configfile[sizeof configfile - 1] = '\0';
+ 
++	// Commercial.
++	char *srb2wad = malloc(strlen(srb2waddir)+1+strlen(basepk3)+1);
++	if (srb2wad == NULL)
++		I_Error("No more free memory to look in %s", srb2waddir);
++	else
++		sprintf(srb2wad, pandf, srb2waddir, basepk3);
++
+ 	// Load the IWAD
+ 	if (srb2wad != NULL && FIL_ReadFileOK(srb2wad))
+-		D_AddFile(&startupwadfiles, srb2wad);
++		D_AddFile(&startupwadfiles, srb2wad, ASSET_HASH_SRB2_PK3);
+ 	else
+-		I_Error("srb2.pk3 not found! Expected in %s, ss file: %s\n", srb2waddir, srb2wad);
++		I_Error("%s not found! Expected in %s, ss file: %s\n", basepk3, srb2waddir, srb2wad);
+ 
+ 	if (srb2wad)
+ 		free(srb2wad);
++#endif
+ 
+ 	// if you change the ordering of this or add/remove a file, be sure to update the md5
+ 	// checking in D_SRB2Main
+ 
+ 	// Add the maps
+-	D_AddFile(&startupwadfiles, va(pandf,srb2waddir, "zones.pk3"));
++	D_AddFile(&startupwadfiles, FILEPATH("zones.pk3"), ASSET_HASH_ZONES_PK3);
+ 
+ 	// Add the characters
+-	D_AddFile(&startupwadfiles, va(pandf,srb2waddir, "characters.pk3"));
++	D_AddFile(&startupwadfiles, FILEPATH("characters.pk3"), ASSET_HASH_CHARACTERS_PK3);
+ 
+ #ifdef USE_PATCH_DTA
+ 	// Add our crappy patches to fix our bugs
+-	D_AddFile(&startupwadfiles, va(pandf,srb2waddir, "patch.pk3"));
++	D_AddFile(&startupwadfiles, FILEPATH("patch.pk3"), ASSET_HASH_PATCH_PK3);
++#endif
++
++#ifdef USE_ANDROID_PK3
++	// Android assets
++	D_AddFile(&startupwadfiles, ANDROID_PK3_FILENAME, ASSET_HASH_ANDROID_PK3);
+ #endif
+ 
+ #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
+ 	{
+ #define MUSICTEST(str) \
+ 		{\
+-			const char *musicpath = va(pandf,srb2waddir,str);\
+-			int ms = W_VerifyNMUSlumps(musicpath, false); \
++			const char *musicpath = FILEPATH(str);\
++			int ms = W_VerifyNMUSlumps(musicpath, handletype, false); \
+ 			if (ms == 1) \
+-				D_AddFile(&startupwadfiles, musicpath); \
++				D_AddFile(&startupwadfiles, musicpath, NULL); \
+ 			else if (ms == 0) \
+ 				I_Error("File "str" has been modified with non-music/sound lumps"); \
+ 		}
+@@ -1205,6 +1367,8 @@ static void IdentifyVersion(void)
+ #endif
+ }
+ 
++#undef FILEPATH
++
+ static void
+ D_ConvertVersionNumbers (void)
+ {
+@@ -1279,8 +1443,14 @@ void D_SRB2Main(void)
+ 	// Test Dehacked lists
+ 	DEH_TableCheck();
+ 
++#if !defined(__ANDROID__)
+ 	// Netgame URL special case: change working dir to EXE folder.
+ 	ChangeDirForUrlHandler();
++#endif
++
++#if defined(__ANDROID__)
++	D_SetupHome();
++#endif
+ 
+ 	// identify the main IWAD file to use
+ 	IdentifyVersion();
+@@ -1303,58 +1473,9 @@ void D_SRB2Main(void)
+ 	if (devparm)
+ 		CONS_Printf(M_GetText("Development mode ON.\n"));
+ 
+-	// default savegame
+-	strcpy(savegamename, SAVEGAMENAME"%u.ssg");
+-	strcpy(liveeventbackup, "live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
+-
+-	{
+-		const char *userhome = D_Home(); //Alam: path to home
+-
+-		if (!userhome)
+-		{
+-#if (defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)
+-			I_Error("Please set $HOME to your home directory\n");
+-#else
+-			if (dedicated)
+-				snprintf(configfile, sizeof configfile, "d"CONFIGFILENAME);
+-			else
+-				snprintf(configfile, sizeof configfile, CONFIGFILENAME);
++#if !defined(__ANDROID__)
++	D_SetupHome();
+ #endif
+-		}
+-		else
+-		{
+-			// use user specific config file
+-#ifdef DEFAULTDIR
+-			snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
+-			snprintf(downloaddir, sizeof downloaddir, "%s" PATHSEP "DOWNLOAD", srb2home);
+-			if (dedicated)
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, srb2home);
+-			else
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
+-
+-			// can't use sprintf since there is %u in savegamename
+-			strcatbf(savegamename, srb2home, PATHSEP);
+-			strcatbf(liveeventbackup, srb2home, PATHSEP);
+-
+-			snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", srb2home);
+-#else // DEFAULTDIR
+-			snprintf(srb2home, sizeof srb2home, "%s", userhome);
+-			snprintf(downloaddir, sizeof downloaddir, "%s", userhome);
+-			if (dedicated)
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, userhome);
+-			else
+-				snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
+-
+-			// can't use sprintf since there is %u in savegamename
+-			strcatbf(savegamename, userhome, PATHSEP);
+-			strcatbf(liveeventbackup, userhome, PATHSEP);
+-
+-			snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", userhome);
+-#endif // DEFAULTDIR
+-		}
+-
+-		configfile[sizeof configfile - 1] = '\0';
+-	}
+ 
+ 	// Create addons dir
+ 	snprintf(addonsdir, sizeof addonsdir, "%s%s%s", srb2home, PATHSEP, "addons");
+@@ -1401,7 +1522,7 @@ void D_SRB2Main(void)
+ 			else if (myargv[i][0] == '-' || myargv[i][0] == '+')
+ 				addontype = 0;
+ 			else if (addontype == 1)
+-				D_AddFile(&startuppwads, myargv[i]);
++				D_AddFile(&startuppwads, myargv[i], NULL);
+ 			else if (addontype == 2)
+ 				D_AddFolder(&startuppwads, myargv[i]);
+ 		}
+@@ -1431,28 +1552,45 @@ void D_SRB2Main(void)
+ 	// Make backups of some SOCcable tables.
+ 	P_BackupTables();
+ 
++#ifdef SPLASH_SCREEN
++	I_ShowSplashScreen();
++#endif
++
+ 	mainwads = 3; // doesn't include music.pk3
+ #ifdef USE_PATCH_DTA
+ 	mainwads++;
+ #endif
++#ifdef USE_ANDROID_PK3
++	mainwads++;
++#endif
++
++#ifdef ANDROID_FILE_UNPACK
++	CONS_Printf("W_UnpackMultipleFiles(): Unpacking IWAD and main PWADs.\n");
++
++#ifndef DEVELOP
++	W_UnpackMultipleFiles(&startupwadfiles, true);
++#else
++	W_UnpackMultipleFiles(&startupwadfiles, false);
++#endif
++
++	// The main files added at startup are handled by SDL_RWops
++	// and can be loaded from the inside the APK.
++	startuphandletype = FILEHANDLE_SDL;
++#endif
+ 
+ 	// load wad, including the main wad file
+ 	CONS_Printf("W_InitMultipleFiles(): Adding IWAD and main PWADs.\n");
+-	W_InitMultipleFiles(&startupwadfiles);
++	W_InitMultipleFiles(&startupwadfiles, startuphandletype);
+ 	D_CleanFile(&startupwadfiles);
+ 
+-#ifndef DEVELOP // md5s last updated 22/02/20 (ddmmyy)
++	// MD5s of the main files are checked against the asset
++	// hashes as W_InitMultipleFiles adds them; music.pk3 is
++	// left unchecked because people like to modify it, and
++	// W_VerifyNMUSlumps catches anything that matters.
+ 
+-	// Check MD5s of autoloaded files
+-	W_VerifyFileMD5(0, ASSET_HASH_SRB2_PK3); // srb2.pk3
+-	W_VerifyFileMD5(1, ASSET_HASH_ZONES_PK3); // zones.pk3
+-	W_VerifyFileMD5(2, ASSET_HASH_CHARACTERS_PK3); // characters.pk3
+-#ifdef USE_PATCH_DTA
+-	W_VerifyFileMD5(3, ASSET_HASH_PATCH_PK3); // patch.pk3
++#ifdef UNPACK_FILES
++	UnpackFile_ProgressClear();
+ #endif
+-	// don't check music.pk3 because people like to modify it, and it doesn't matter if they do
+-	// ...except it does if they slip maps in there, and that's what W_VerifyNMUSlumps is for.
+-#endif //ifndef DEVELOP
+ 
+ 	cht_Init();
+ 
+@@ -1481,6 +1619,11 @@ void D_SRB2Main(void)
+ 
+ 	D_RegisterServerCommands();
+ 	D_RegisterClientCommands(); // be sure that this is called before D_CheckNetGame
++
++	// Initialize joysticks
++	I_InitJoystick();
++	I_InitJoystick2();
++
+ 	R_RegisterEngineStuff();
+ 	S_RegisterSoundStuff();
+ 
+@@ -1491,7 +1634,7 @@ void D_SRB2Main(void)
+ 	if (startuppwads.numfiles)
+ 	{
+ 		CONS_Printf("W_InitMultipleFiles(): Adding extra PWADs.\n");
+-		W_InitMultipleFiles(&startuppwads);
++		W_InitMultipleFiles(&startuppwads, FILEHANDLE_STANDARD);
+ 		D_CleanFile(&startuppwads);
+ 	}
+ 
+@@ -1513,6 +1656,15 @@ void D_SRB2Main(void)
+ 	G_LoadGameData(clientGamedata);
+ 	M_CopyGameData(serverGamedata, clientGamedata);
+ 
++	// vr_unlockall came in with the config, before the gamedata it forces
++	// existed -- apply it now that the arrays are real. No-op when Off.
++	M_ApplyUnlockEverything();
++
++#ifdef TOUCHINPUTS
++	TS_InitLayouts();
++	TS_LoadUserLayouts(); // will call TS_LoadLayouts
++#endif
++
+ 	VID_PrepareModeList(); // Regenerate Modelist according to cv_fullscreen
+ 
+ 	// set user default mode or mode set at cmdline
+@@ -1607,6 +1759,10 @@ void D_SRB2Main(void)
+ #endif
+ 	}
+ 
++#ifdef SPLASH_SCREEN
++	I_HideSplashScreen();
++#endif
++
+ 	// init all NETWORK
+ 	CONS_Printf("D_CheckNetGame(): Checking network game status.\n");
+ 	if (D_CheckNetGame())
+@@ -1752,8 +1908,9 @@ void D_SRB2Main(void)
+ 			}
+ 		}
+ 	}
+-	else if (M_CheckParm("-skipintro"))
++	else if (M_CheckParm("-skipintro") || VR_WantVR())
+ 	{
++		// In VR, boot straight to the title menu on the headset's floating screen.
+ 		F_InitMenuPresValues();
+ 		F_StartTitleScreen();
+ 	}
+@@ -1775,13 +1932,14 @@ const char *D_Home(void)
+ {
+ 	const char *userhome = NULL;
+ 
+-#ifdef ANDROID
+-	return "/data/data/org.srb2/";
+-#endif
+-
+ 	if (M_CheckParm("-home") && M_IsNextParm())
+ 		userhome = M_GetNextParm();
+ 	else
++#if defined(__ANDROID__)
++	if (I_SharedStorageLocation())
++		userhome = I_SharedStorageLocation();
++	else
++#endif
+ 	{
+ #if !(defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON))
+ 		if (FIL_FileOK(CONFIGFILENAME))
+@@ -1818,6 +1976,144 @@ const char *D_Home(void)
+ 	else return NULL;
+ }
+ 
++// default savegame
++void D_DefaultSaveGameName(const char *name)
++{
++	strlcpy(savegamename[0], name, sizeof(savegamename[0]));
++#ifdef USE_SAVEGAME_PATHS
++	strlcpy(savegamename[1], name, sizeof(savegamename[1]));
++#endif
++}
++
++void D_DefaultLiveEventName(const char *name)
++{
++	strlcpy(liveeventbackup[0], name, sizeof(liveeventbackup[0]));
++#ifdef USE_SAVEGAME_PATHS
++	strlcpy(liveeventbackup[1], name, sizeof(liveeventbackup[1]));
++#endif
++}
++
++void D_MakeSaveGamePaths(const char *home)
++{
++	// can't use snprintf since there is %u in savegamename
++	strcatbf(savegamename[0], home, PATHSEP);
++	strcatbf(liveeventbackup[0], home, PATHSEP);
++
++#ifdef USE_SAVEGAME_PATHS
++	strcatbf(savegamename[1], srb2path, PATHSEP);
++	strcatbf(liveeventbackup[1], srb2path, PATHSEP);
++#endif
++}
++
++#if defined(__ANDROID__)
++static void FindUsableStorageLocation(char *dest, size_t destsize, char *path, const char **homelist, char *defpath)
++{
++	for (INT32 i = 0; homelist[i]; i++)
++	{
++		snprintf(dest, destsize, "%s" PATHSEP "%s", homelist[i], path);
++		if (FIL_ReadFileOK(dest))
++			return;
++	}
++
++	snprintf(dest, destsize, "%s" PATHSEP "%s", defpath, path);
++}
++
++static void D_AndroidSetupHome(const char *userhome)
++{
++	const char *homelist[3] = { NULL, NULL, NULL };
++	INT32 next = 0;
++
++	strlcpy(srb2home, userhome, sizeof(srb2home));
++
++#define ListAdd(path) \
++	homelist[next] = path; \
++	if (homelist[next]) \
++		next++;
++
++	ListAdd(srb2home);
++	ListAdd(I_AppStorageLocation());
++
++#define SetupLocation(loc, path) FindUsableStorageLocation(loc, sizeof(loc), path, homelist, srb2home)
++
++	SetupLocation(downloaddir, "DOWNLOAD");
++
++	if (dedicated)
++		SetupLocation(configfile, "d"CONFIGFILENAME);
++	else
++		SetupLocation(configfile, CONFIGFILENAME);
++
++#ifdef TOUCHINPUTS
++	SetupLocation(touchlayoutfolder, "touchlayouts");
++#endif
++
++	SetupLocation(luafiledir, "luafiles");
++
++#undef SetupLocation
++#undef ListAdd
++}
++#endif
++
++void D_SetupHome(void)
++{
++	const char *userhome = D_Home(); //Alam: path to home
++
++#if defined(__ANDROID__)
++	strlcpy(srb2path, I_AppStorageLocation(), sizeof(srb2path));
++#endif
++
++	D_DefaultSaveGameName(SAVEGAMENAME"%u.ssg");
++	D_DefaultLiveEventName("live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
++
++	if (!userhome)
++	{
++#if (defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)
++		I_Error("Please set $HOME to your home directory\n");
++#else
++		if (dedicated)
++			snprintf(configfile, sizeof configfile, "d"CONFIGFILENAME);
++		else
++			snprintf(configfile, sizeof configfile, CONFIGFILENAME);
++#endif
++	}
++	else
++	{
++#if defined(__ANDROID__)
++		D_AndroidSetupHome(userhome);
++#elif defined(DEFAULTDIR)
++		// use user specific config file
++		snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
++		snprintf(downloaddir, sizeof downloaddir, "%s" PATHSEP "DOWNLOAD", srb2home);
++		if (dedicated)
++			snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, srb2home);
++		else
++			snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
++
++#ifdef TOUCHINPUTS
++		snprintf(touchlayoutfolder, sizeof touchlayoutfolder, "%s" PATHSEP "touchlayouts", srb2home);
++#endif
++
++		snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", srb2home);
++#else // DEFAULTDIR
++		snprintf(srb2home, sizeof srb2home, "%s", userhome);
++		snprintf(downloaddir, sizeof downloaddir, "%s", userhome);
++		if (dedicated)
++			snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, userhome);
++		else
++			snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
++
++#ifdef TOUCHINPUTS
++		snprintf(touchlayoutfolder, sizeof touchlayoutfolder, "%s" PATHSEP "touchlayouts", userhome);
++#endif
++
++		snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", userhome);
++#endif // DEFAULTDIR
++
++		D_MakeSaveGamePaths(srb2home);
++	}
++
++	configfile[sizeof configfile - 1] = '\0';
++}
++
+ static boolean check_top_dir(const char **path, const char *top)
+ {
+ 	// empty string does NOT match

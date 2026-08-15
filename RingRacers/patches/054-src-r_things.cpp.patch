@@ -1,0 +1,94 @@
+diff --git a/src/r_things.cpp b/src/r_things.cpp
+index d026bf21c..ac49b0220 100644
+--- a/src/r_things.cpp
++++ b/src/r_things.cpp
+@@ -51,6 +51,7 @@
+ // SRB2kart
+ #include "k_color.h"
+ #include "k_hitlag.h" // HITLAGJITTERS
++#include "vr/vr.h" // VR_VIEW_* (flat first-person kart hide)
+ #include "r_fps.h"
+ 
+ #define MINZ (FRACUNIT*4)
+@@ -1314,6 +1315,10 @@ static patch_t *R_CacheSpriteBrightMap(const spriteinfo_t *sprinfo, UINT8 frame)
+ // Get the first visible floor below the object for shadows
+ // shadowslope is filled with the floor's slope, if provided
+ //
++// Set only while a drop shadow is being built, so the ground query underneath it
++// is sampled at the same moment the quad is.
++boolean r_shadow_freeze_interp = false;
++
+ fixed_t R_GetShadowZ(
+ 	mobj_t *thing, pslope_t **shadowslope)
+ {
+@@ -1338,7 +1343,11 @@ fixed_t R_GetShadowZ(
+ 	// for frame interpolation
+ 	interpmobjstate_t interp = {0};
+ 
+-	if (R_UsingFrameInterpolation() && !paused)
++	// r_shadow_freeze_interp: draw the shadow the way the PAUSE MENU draws it,
++	// i.e. sampled at the tic position instead of between tics. It is the one
++	// difference pausing makes to this path, and pausing is the state where the
++	// headset shows shadows correctly.
++	if (R_UsingFrameInterpolation() && !paused && !r_shadow_freeze_interp)
+ 	{
+ 		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+ 	}
+@@ -1703,6 +1712,24 @@ fixed_t R_GetSpriteDirectionalLighting(angle_t angle)
+ 	return extralight;
+ }
+ 
++//
++// R_WarnMissingSprite
++// The installed assets carry no lumps for this sprite (code newer than the
++// data). Note it once and let the projectors skip the mobj - repeating the
++// alert every projected frame drowns the log and the on-screen console.
++//
++void R_WarnMissingSprite(INT32 sprnum, const char *caller)
++{
++	static UINT8 warned[NUMSPRITES];
++
++	if (sprnum < 0 || sprnum >= NUMSPRITES || warned[sprnum])
++		return;
++
++	warned[sprnum] = 1;
++	CONS_Alert(CONS_WARNING, M_GetText("%s: no frames loaded for sprite %s (assets predate it); leaving it undrawn.\n"),
++		caller, sprnames[sprnum]);
++}
++
+ //
+ // R_ProjectSprite
+ // Generates a vissprite for a thing
+@@ -1872,6 +1899,12 @@ static void R_ProjectSprite(mobj_t *thing)
+ 		sprinfo = &spriteinfo[thing->sprite];
+ #endif
+ 
++		if (sprdef->numframes == 0)
++		{
++			R_WarnMissingSprite(thing->sprite, "R_ProjectSprite");
++			return;
++		}
++
+ 		if (frame >= sprdef->numframes)
+ 		{
+ 			CONS_Alert(CONS_ERROR, M_GetText("R_ProjectSprite: invalid sprite frame %s/%s for %s\n"),
+@@ -3821,6 +3854,19 @@ boolean R_ThingVisible (mobj_t *thing)
+ 	if (thing->sprite == SPR_NULL)
+ 		return false;
+ 
++	// Flat first person: the viewpoint kart (and anything linkdrawn onto
++	// it) never draws - the camera sits inside it. The VR eye pass keeps
++	// its own later skip (vr_fp_hide_player) so its drop shadow survives;
++	// P_FlatViewMode reads third person while a session runs.
++	if (P_FlatViewMode() == VR_VIEW_FIRST_PERSON)
++	{
++		mobj_t *pmo = players[displayplayers[viewssnum]].mo;
++
++		if (thing == pmo
++			|| ((thing->flags2 & MF2_LINKDRAW) && thing->tracer == pmo))
++			return false;
++	}
++
+ 	if (!R_DrawPickups())
+ 	{
+ 		switch (thing->type)

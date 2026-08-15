@@ -1,0 +1,50 @@
+diff --git a/src/k_respawn.c b/src/k_respawn.c
+index 4882ce30a..a74531d33 100644
+--- a/src/k_respawn.c
++++ b/src/k_respawn.c
+@@ -13,6 +13,7 @@
+ #include "doomdef.h"
+ #include "d_player.h"
+ #include "k_kart.h"
++#include "k_hazard.h" // K_LandingDashActive / LANDDASHWINDOW
+ #include "k_battle.h"
+ #include "k_objects.h" // Obj_FindCheckpoint, etc
+ #include "g_game.h"
+@@ -880,12 +881,12 @@ static void K_HandleDropDash(player_t *player)
+ 			player->respawn.dropdash = 0;
+ 		}
+ 
+-		if (player->respawn.dropdash == TICRATE/4)
++		if (player->respawn.dropdash == K_DropDashChargeTics())
+ 		{
+ 			S_StartSound(player->mo, sfx_ddash);
+ 		}
+ 
+-		if ((player->respawn.dropdash >= TICRATE/4) && (player->respawn.dropdash & 1))
++		if ((player->respawn.dropdash >= K_DropDashChargeTics()) && (player->respawn.dropdash & 1))
+ 		{
+ 			player->mo->colorized = true;
+ 		}
+@@ -902,12 +903,21 @@ static void K_HandleDropDash(player_t *player)
+ 	}
+ 	else
+ 	{
+-		if ((buttons & BT_ACCELERATE) && (player->respawn.dropdash >= TICRATE/4))
++		if ((buttons & BT_ACCELERATE) && (player->respawn.dropdash >= K_DropDashChargeTics()))
+ 		{
+ 			S_StartSound(player->mo, sfx_s23c);
+ 			player->dropdashboost = 50;
+ 			K_SpawnDashDustRelease(player);
+ 		}
++		else if (K_LandingDashActive())
++		{
++			// No charged Drop Dash, so the harder input is still on the
++			// table: hit gas just after the wheels bite and take a bigger
++			// boost than holding it down the whole way would have paid.
++			// One landing, one boost - this only opens because the branch
++			// above declined.
++			player->landdash = LANDDASHWINDOW;
++		}
+ 
+ 		player->mo->colorized = false;
+ 		player->respawn.dropdash = 0;

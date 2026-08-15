@@ -1,0 +1,76 @@
+diff --git a/src/hardware/hw_draw.c b/src/hardware/hw_draw.c
+index 369f59ac2..98733fb72 100644
+--- a/src/hardware/hw_draw.c
++++ b/src/hardware/hw_draw.c
+@@ -291,7 +291,7 @@ void HWR_DrawStretchyFixedPatch(patch_t *gpatch, fixed_t x, fixed_t y, fixed_t p
+ 
+ 	if (alphalevel)
+ 	{
+-		FSurfaceInfo Surf;
++		FSurfaceInfo Surf = {0};
+ 		Surf.PolyColor.s.red = Surf.PolyColor.s.green = Surf.PolyColor.s.blue = 0xff;
+ 		Surf.PolyColor.s.alpha = opacity;
+ 		flags |= PF_Modulated;
+@@ -577,7 +577,7 @@ void HWR_DrawCroppedPatch(patch_t *gpatch, fixed_t x, fixed_t y, fixed_t pscale,
+ 
+ 	if (alphalevel)
+ 	{
+-		FSurfaceInfo Surf;
++		FSurfaceInfo Surf = {0};
+ 		Surf.PolyColor.s.red = Surf.PolyColor.s.green = Surf.PolyColor.s.blue = 0xff;
+ 
+ 		if (alphalevel == 10) Surf.PolyColor.s.alpha = softwaretranstogl_lo[st_translucency]; // V_HUDTRANSHALF
+@@ -645,7 +645,7 @@ void HWR_DrawFlatFill (INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatlumpnum
+ void HWR_FadeScreenMenuBack(UINT16 color, UINT8 strength)
+ {
+ 	FOutVector  v[4];
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	FBITFIELD poly_flags = PF_NoTexture|PF_Modulated|PF_NoDepthTest;
+ 
+ 	v[0].x = v[3].x = -1.0f;
+@@ -720,7 +720,7 @@ void HWR_FadeScreenMenuBack(UINT16 color, UINT8 strength)
+ void HWR_DrawFadeFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 color, UINT16 actualcolor, UINT8 strength)
+ {
+ 	FOutVector v[4];
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	float fx, fy, fw, fh;
+ 
+ 	UINT8 perplayershuffle = 0;
+@@ -890,7 +890,7 @@ void HWR_DrawFadeFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 color, UINT16 ac
+ void HWR_DrawConsoleBack(UINT32 color, INT32 height)
+ {
+ 	FOutVector  v[4];
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 
+ 	// setup some neat-o translucency effect
+ 	if (!height) //cool hack 0 height is full height
+@@ -917,7 +917,7 @@ void HWR_DrawConsoleBack(UINT32 color, INT32 height)
+ void HWR_DrawTutorialBack(UINT32 color, INT32 boxheight)
+ {
+ 	FOutVector  v[4];
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	INT32 height;
+ 	if (boxheight < 0)
+ 		height = -boxheight;
+@@ -974,7 +974,7 @@ void HWR_drawAMline(const fline_t *fl, INT32 color)
+ void HWR_DrawConsoleFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 color, UINT32 actualcolor)
+ {
+ 	FOutVector v[4];
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	float fx, fy, fw, fh;
+ 
+ 	UINT8 perplayershuffle = 0;
+@@ -1140,7 +1140,7 @@ void HWR_DrawConsoleFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 color, UINT32
+ void HWR_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 color)
+ {
+ 	FOutVector v[4];
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	float fx, fy, fw, fh;
+ 	RGBA_t *palette = HWR_GetTexturePalette();
+ 	UINT8 alphalevel = ((color & V_ALPHAMASK) >> V_ALPHASHIFT);

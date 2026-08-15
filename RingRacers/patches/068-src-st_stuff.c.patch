@@ -1,0 +1,16 @@
+diff --git a/src/st_stuff.c b/src/st_stuff.c
+index 6f67d6a8f..7faa08a89 100644
+--- a/src/st_stuff.c
++++ b/src/st_stuff.c
+@@ -190,10 +190,9 @@ void ST_LoadFaceGraphics(INT32 skinnum)
+ 	}
+ 	if (i < FACE_MAX)
+ 	{
+-		patch_t *missing = W_CachePatchName("MISSING", PU_HUDGFX);
+ 		while (i < FACE_MAX)
+ 		{
+-			faceprefix[skinnum][i] = missing;
++			faceprefix[skinnum][i] = missingpat;
+ 			i++;
+ 		}
+ 	}

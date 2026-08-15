@@ -1,0 +1,575 @@
+diff --git a/src/m_menu.c b/src/m_menu.c
+index 37d191a0d..18a37ff7e 100644
+--- a/src/m_menu.c
++++ b/src/m_menu.c
+@@ -74,8 +74,11 @@
+ // And just some randomness for the exits.
+ #include "m_random.h"
+ 
++#include "vr/i_openxr.h" // VR cvars + recenter (VR Options submenu)
++
+ #if defined(HAVE_SDL)
+ #include "SDL.h"
++
+ #if SDL_VERSION_ATLEAST(2,0,0)
+ #include "sdl/sdlmain.h" // JOYSTICK_HOTPLUG
+ #endif
+@@ -343,6 +346,7 @@ menu_t OP_SoundAdvancedDef;
+ menu_t OP_DataOptionsDef, OP_ScreenshotOptionsDef, OP_EraseDataDef;
+ menu_t OP_ServerOptionsDef;
+ menu_t OP_MonitorToggleDef;
++menu_t OP_VROptionsDef;
+ static void M_ScreenshotOptions(INT32 choice);
+ static void M_SetupScreenshotMenu(void);
+ static void M_EraseData(INT32 choice);
+@@ -545,6 +549,8 @@ typedef enum
+ // ---------------------
+ // Pause Menu MP Edition
+ // ---------------------
++static void M_VROptions(INT32 choice); // VR Options, reachable from Options and both pause menus
++
+ static menuitem_t MPauseMenu[] =
+ {
+ 	{IT_STRING | IT_CALL,    NULL, "Add-ons...",                M_Addons,               8},
+@@ -563,6 +569,7 @@ static menuitem_t MPauseMenu[] =
+ 	{IT_STRING | IT_CALL,    NULL, "Player Setup",              M_SetupMultiPlayer,    64},
+ 
+ 	{IT_STRING | IT_CALL,    NULL, "Options",                   M_Options,             72},
++	{IT_STRING | IT_CALL,    NULL, "VR Options...",             M_VROptions,           80},
+ 
+ 	{IT_STRING | IT_CALL,    NULL, "Return to Title",           M_EndGame,             88},
+ 	{IT_STRING | IT_CALL,    NULL, "Quit Game",                 M_QuitSRB2,            96},
+@@ -583,6 +590,7 @@ typedef enum
+ 	mpause_switchteam,
+ 	mpause_psetup,
+ 	mpause_options,
++	mpause_vroptions,
+ 
+ 	mpause_title,
+ 	mpause_quit
+@@ -601,6 +609,7 @@ static menuitem_t SPauseMenu[] =
+ 	{IT_CALL | IT_STRING,    NULL, "Continue",             M_SelectableClearMenus,48},
+ 	{IT_CALL | IT_STRING,    NULL, "Retry",                M_Retry,               56},
+ 	{IT_CALL | IT_STRING,    NULL, "Options",              M_Options,             64},
++	{IT_CALL | IT_STRING,    NULL, "VR Options...",        M_VROptions,           72},
+ 
+ 	{IT_CALL | IT_STRING,    NULL, "Return to Title",      M_EndGame,             80},
+ 	{IT_CALL | IT_STRING,    NULL, "Quit Game",            M_QuitSRB2,            88},
+@@ -615,6 +624,7 @@ typedef enum
+ 	spause_continue,
+ 	spause_retry,
+ 	spause_options,
++	spause_vroptions,
+ 
+ 	spause_title,
+ 	spause_quit
+@@ -1037,6 +1047,187 @@ static menuitem_t OP_MainMenu[] =
+ 	{IT_CALL    | IT_STRING, NULL, "Server Options...",    M_ServerOptions,     80},
+ 
+ 	{IT_SUBMENU | IT_STRING, NULL, "Data Options...",      &OP_DataOptionsDef, 100},
++
++	{IT_CALL    | IT_STRING, NULL, "VR Options...",        M_VROptions,        120},
++};
++
++static void M_VRRecenter(INT32 choice)
++{
++	(void)choice;
++	VR_RecenterScreen();
++}
++
++// Enter VR Options from anywhere (Options menu, either pause menu):
++// back out and you land where you came from.
++static void M_VROptions(INT32 choice)
++{
++	(void)choice;
++	OP_VROptionsDef.prevMenu = currentMenu;
++	M_SetupNextMenu(&OP_VROptionsDef);
++}
++
++// Menu background fade. Flatscreen keeps the vanilla strength. In VR the fade
++// is skipped here entirely -- smoking the floating screen's pane made the
++// whole title screen read opaque. The menu dim lives in the EYE render
++// instead (hw_main draws a vr_menudim-strength wash over the world while a
++// menu is up), so the pane stays clear glass and the text still reads.
++static void M_DrawMenuFade(void)
++{
++	if (curfadevalue && !VR_IsActive())
++		V_DrawFadeScreen(0xFF00, curfadevalue);
++}
++
++static void M_VRDefaults(INT32 choice)
++{
++	(void)choice;
++	CV_Set(&cv_vrviewmode, cv_vrviewmode.defaultvalue);
++	CV_Set(&cv_vrscale, cv_vrscale.defaultvalue);
++	CV_Set(&cv_vrstereo, cv_vrstereo.defaultvalue);
++	CV_Set(&cv_vrheadscale, cv_vrheadscale.defaultvalue);
++	CV_Set(&cv_vrrenderscale, cv_vrrenderscale.defaultvalue);
++	CV_Set(&cv_vrculling, cv_vrculling.defaultvalue);
++	CV_Set(&cv_vrthirddist, cv_vrthirddist.defaultvalue);
++	CV_Set(&cv_vrdioramascale, cv_vrdioramascale.defaultvalue);
++	CV_Set(&cv_vrdioramadist, cv_vrdioramadist.defaultvalue);
++	CV_Set(&cv_vrdioramaheight, cv_vrdioramaheight.defaultvalue);
++	CV_Set(&cv_vrmsaa, cv_vrmsaa.defaultvalue);
++	CV_Set(&cv_vrscreendist, cv_vrscreendist.defaultvalue);
++	CV_Set(&cv_vrscreensize, cv_vrscreensize.defaultvalue);
++	CV_Set(&cv_vrhud, cv_vrhud.defaultvalue);
++	CV_Set(&cv_vrhudalpha, cv_vrhudalpha.defaultvalue);
++	CV_Set(&cv_vrwateratmo, cv_vrwateratmo.defaultvalue);
++	CV_Set(&cv_vrbubbles, cv_vrbubbles.defaultvalue);
++	CV_Set(&cv_vrwatermuffle, cv_vrwatermuffle.defaultvalue);
++	CV_Set(&cv_vrwatersway, cv_vrwatersway.defaultvalue);
++	CV_Set(&cv_vrripple, cv_vrripple.defaultvalue);
++	CV_Set(&cv_vrwaterfog, cv_vrwaterfog.defaultvalue);
++	CV_Set(&cv_vrcaustics, cv_vrcaustics.defaultvalue);
++	CV_Set(&cv_vrgodrays, cv_vrgodrays.defaultvalue);
++	CV_Set(&cv_vrsticklook, cv_vrsticklook.defaultvalue);
++	CV_Set(&cv_vrheadmove, cv_vrheadmove.defaultvalue);
++	CV_Set(&cv_vrsnapturn, cv_vrsnapturn.defaultvalue);
++	CV_Set(&cv_vrmenudim, cv_vrmenudim.defaultvalue);
++	VR_RecenterScreen();
++}
++
++static void M_NextOpt(void);
++static void M_UpdateItemOn(void);
++
++// VR: the right trigger in the in-level pause menu jumps straight here, so
++// live look/comfort tuning never means digging through Options by hand.
++void M_VROptionsShortcut(void)
++{
++	if (menuactive && currentMenu == &OP_VROptionsDef)
++		return; // already there
++	if (!menuactive)
++		M_StartControlPanel();
++	OP_VROptionsDef.prevMenu = currentMenu;
++	M_SetupNextMenu(&OP_VROptionsDef);
++	S_StartSound(NULL, sfx_menu1);
++}
++
++// The save-slot screen is showing: pads and VR controllers route B to
++// KEY_BACKSPACE (delete the hovered save) only while this is true.
++boolean M_SaveSelectActive(void)
++{
++	return menuactive && currentMenu == &SP_LoadDef;
++}
++
++// VR: the grips hop between menu sections (the yellow headers), so long
++// scroll menus page in one squeeze. Menus without headers hop to top/bottom.
++void M_MenuSectionJump(INT32 dir)
++{
++	INT16 i;
++	INT16 target = -1;
++
++	if (!menuactive)
++		return;
++	if (dir > 0)
++	{
++		for (i = itemOn + 1; i < currentMenu->numitems; i++)
++			if ((currentMenu->menuitems[i].status & IT_DISPLAY) == IT_HEADERTEXT)
++			{ target = i; break; }
++		if (target < 0)
++			target = currentMenu->numitems - 1; // no section below: bottom
++	}
++	else
++	{
++		i = itemOn - 1;
++		// standing at a section's first item: hop over its own header
++		if (i >= 0 && (currentMenu->menuitems[i].status & IT_DISPLAY) == IT_HEADERTEXT)
++			i--;
++		for (; i >= 0; i--)
++			if ((currentMenu->menuitems[i].status & IT_DISPLAY) == IT_HEADERTEXT)
++			{ target = i; break; }
++		if (target < 0)
++			target = 0; // no section above: top
++	}
++	itemOn = target;
++	// Headers and spacers are not selectable: settle on the next real item.
++	if ((currentMenu->menuitems[itemOn].status & IT_TYPE) & IT_SPACE)
++		M_NextOpt();
++	else
++		M_UpdateItemOn();
++	S_StartSound(NULL, sfx_menu1);
++}
++
++// No "VR Mode" toggle in here on purpose: switching VR off from inside the
++// headset can wedge the session. The vr_mode cvar stays console/config-only.
++// Scroll-menu layout (alphaKey doubles as the y position at 2x): the list
++// outgrew one screen, so M_DrawVROptions uses M_DrawGenericScrollMenu.
++static menuitem_t OP_VROptionsMenu[] =
++{
++	{IT_HEADER, NULL, "View & Comfort", NULL, 0},
++	{IT_STRING | IT_CVAR,                     NULL, "View Mode",       &cv_vrviewmode,     6},
++	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "World Scale",     &cv_vrscale,       11},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Stereo Depth",    &cv_vrstereo,      16},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Head Motion",     &cv_vrheadscale,   21},
++	{IT_STRING | IT_CVAR,                     NULL, "Stick Pitch",     &cv_vrsticklook,   26},
++	{IT_STRING | IT_CVAR,                     NULL, "Move by Head",    &cv_vrheadmove,    31},
++	{IT_STRING | IT_CVAR,                     NULL, "Snap Turn",       &cv_vrsnapturn,    36},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Render Scale",    &cv_vrrenderscale, 41},
++	{IT_STRING | IT_CVAR,                     NULL, "Anti-Aliasing",   &cv_vrmsaa,        46},
++	{IT_STRING | IT_CVAR,                     NULL, "World Culling",   &cv_vrculling,     51},
++#ifdef HWRENDER
++	{IT_STRING | IT_CVAR,                     NULL, "Supersampling",   &cv_glsupersample, 56},
++	{IT_STRING | IT_CVAR,                     NULL, "Screen Effect",   &cv_glscreeneffect, 61},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Effect Intensity", &cv_glcrtintensity, 66},
++	{IT_STRING | IT_CVAR,                     NULL, "3D Models",       &cv_glmodels,      71},
++#endif
++	{IT_SUBMENU | IT_STRING,                  NULL, "Video Options...", &OP_VideoOptionsDef, 76},
++
++	{IT_HEADER, NULL, "Third Person", NULL, 86},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Camera Distance", &cv_vrthirddist, 92},
++
++	{IT_HEADER, NULL, "Diorama", NULL, 102},
++	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Miniature Scale", &cv_vrdioramascale, 108},
++	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Distance",        &cv_vrdioramadist, 113},
++	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Height Below Eyes", &cv_vrdioramaheight, 118},
++
++	{IT_HEADER, NULL, "Floating Screen", NULL, 128},
++	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Screen Distance", &cv_vrscreendist, 134},
++	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Screen Size",     &cv_vrscreensize, 139},
++	{IT_STRING | IT_CALL,                     NULL, "Recenter Screen", M_VRRecenter, 144},
++
++	{IT_HEADER, NULL, "In-Level HUD", NULL, 154},
++	{IT_STRING | IT_CVAR,                     NULL, "HUD in Headset",  &cv_vrhud, 160},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "HUD Opacity",     &cv_vrhudalpha, 165},
++
++	{IT_HEADER, NULL, "Underwater", NULL, 175},
++	{IT_STRING | IT_CVAR,                     NULL, "Water Atmosphere", &cv_vrwateratmo, 181},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Water Fog",        &cv_vrwaterfog, 186},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Caustics",         &cv_vrcaustics, 191},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "God Rays",         &cv_vrgodrays, 196},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Surface Ripple",   &cv_vrripple, 201},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Water Sway",       &cv_vrwatersway, 206},
++	{IT_STRING | IT_CVAR,                     NULL, "Ambient Bubbles",  &cv_vrbubbles, 211},
++	{IT_STRING | IT_CVAR,                     NULL, "Muffled Audio",    &cv_vrwatermuffle, 216},
++
++	{IT_HEADER, NULL, "Extras", NULL, 226},
++	{IT_STRING | IT_CVAR | IT_CV_SLIDER,      NULL, "Menu Dimming",      &cv_vrmenudim, 232},
++	{IT_STRING | IT_CVAR,                     NULL, "Unlock Everything", &cv_vrunlockall, 237},
++
++	{IT_STRING | IT_CALL,                     NULL, "Reset to Defaults", M_VRDefaults, 247},
+ };
+ 
+ static menuitem_t OP_P1ControlsMenu[] =
+@@ -1402,25 +1593,33 @@ static menuitem_t OP_ColorOptionsMenu[] =
+ static menuitem_t OP_OpenGLOptionsMenu[] =
+ {
+ 	{IT_HEADER, NULL, "3D Models", NULL, 0},
+-	{IT_STRING|IT_CVAR,         NULL, "Models",              &cv_glmodels,             12},
+-	{IT_STRING|IT_CVAR,         NULL, "Frame interpolation", &cv_glmodelinterpolation, 22},
+-	{IT_STRING|IT_CVAR,         NULL, "Ambient lighting",    &cv_glmodellighting,      32},
+-
+-	{IT_HEADER, NULL, "General", NULL, 51},
+-	{IT_STRING|IT_CVAR,         NULL, "Shaders",             &cv_glshaders,            63},
+-	{IT_STRING|IT_CVAR,         NULL, "Palette rendering",   &cv_glpaletterendering,   73},
+-	{IT_STRING|IT_CVAR,         NULL, "Lack of perspective", &cv_glshearing,           83},
+-	{IT_STRING|IT_CVAR,         NULL, "Field of view",       &cv_fov,                  93},
+-
+-	{IT_HEADER, NULL, "Miscellaneous", NULL, 112},
+-	{IT_STRING|IT_CVAR,         NULL, "Bit depth",           &cv_scr_depth,           124},
+-	{IT_STRING|IT_CVAR,         NULL, "Texture filter",      &cv_glfiltermode,        134},
+-	{IT_STRING|IT_CVAR,         NULL, "Anisotropic",         &cv_glanisotropicmode,   144},
++	{IT_STRING|IT_CVAR,         NULL, "Models",              &cv_glmodels,             10},
++	{IT_STRING|IT_CVAR,         NULL, "Frame interpolation", &cv_glmodelinterpolation, 18},
++	{IT_STRING|IT_CVAR,         NULL, "Ambient lighting",    &cv_glmodellighting,      26},
++
++	{IT_HEADER, NULL, "General", NULL, 40},
++	{IT_STRING|IT_CVAR,         NULL, "Shaders",             &cv_glshaders,            50},
++	{IT_STRING|IT_CVAR,         NULL, "Palette rendering",   &cv_glpaletterendering,   58},
++	{IT_STRING|IT_CVAR,         NULL, "Lack of perspective", &cv_glshearing,           66},
++	{IT_STRING|IT_CVAR,         NULL, "Field of view",       &cv_fov,                  74},
++
++	{IT_HEADER, NULL, "Miscellaneous", NULL, 124},
++	{IT_STRING|IT_CVAR,         NULL, "Bit depth",           &cv_scr_depth,           134},
++	{IT_STRING|IT_CVAR,         NULL, "Texture filter",      &cv_glfiltermode,        142},
++	{IT_STRING|IT_CVAR,         NULL, "Anisotropic",         &cv_glanisotropicmode,   150},
++	{IT_STRING|IT_CVAR,         NULL, "Supersampling",       &cv_glsupersample,        82},
++	{IT_STRING|IT_CVAR,         NULL, "Screen effect",       &cv_glscreeneffect,       90},
++	// Effect intensity fades ANY preset toward the clean frame; the two
++	// below are Megatron-only (mask depth, and the brightness that pays
++	// back what the phosphor mask absorbs). SalCRT Sharp ignores those.
++	{IT_STRING|IT_CVAR|IT_CV_SLIDER, NULL, "Effect intensity", &cv_glcrtintensity,     98},
++	{IT_STRING|IT_CVAR|IT_CV_SLIDER, NULL, "Mask strength",  &cv_glcrtmaskstrength,   106},
++	{IT_STRING|IT_CVAR|IT_CV_SLIDER, NULL, "CRT brightness", &cv_glcrtbrightness,     114},
+ #ifdef ALAM_LIGHTING
+-	{IT_SUBMENU|IT_STRING,      NULL, "Lighting...",         &OP_OpenGLLightingDef,   154},
++	{IT_SUBMENU|IT_STRING,      NULL, "Lighting...",         &OP_OpenGLLightingDef,   164},
+ #endif
+ #if defined (_WINDOWS) && (!(defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)))
+-	{IT_STRING|IT_CVAR,         NULL, "Fullscreen",          &cv_fullscreen,          164},
++	{IT_STRING|IT_CVAR,         NULL, "Fullscreen",          &cv_fullscreen,          174},
+ #endif
+ };
+ 
+@@ -2206,6 +2405,63 @@ menu_t OP_DataOptionsDef = DEFAULTMENUSTYLE(
+ 	MTREE2(MN_OP_MAIN, MN_OP_DATA),
+ 	"M_DATA", OP_DataOptionsMenu, &OP_MainDef, 60, 30);
+ 
++// Scroll menu plus a live readout while World Scale is selected: the scale as
++// "how big the world feels" vs the default, updating while the slider is
++// dragged (the world behind the floating menu rescales in step, so the change
++// is visible). Drawn under the scroll area (2 x the 72-row scrollareaheight).
++static void M_DrawVROptions(void)
++{
++	M_DrawGenericScrollMenu();
++
++	if (currentMenu->menuitems[itemOn].itemaction == (void *)&cv_vrscale)
++	{
++		float s = (float)atof(cv_vrscale.string);
++		float def = (float)atof(cv_vrscale.defaultvalue);
++		if (s < 1.0f)
++			s = def;
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 12, V_YELLOWMAP,
++			va("World feels x%.2f its normal size", def/s));
++	}
++	else if (currentMenu->menuitems[itemOn].itemaction == (void *)&cv_vrheadmove)
++	{
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 4, V_YELLOWMAP,
++			cv_vrheadmove.value ? "Forward is where your head faces,"
++			                    : "Forward is where your body faces,");
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 12, V_YELLOWMAP,
++			cv_vrheadmove.value ? "not where the turn stick left you."
++			                    : "set by the turn stick.");
++	}
++	else if (currentMenu->menuitems[itemOn].itemaction == (void *)&cv_vrsnapturn)
++	{
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 4, V_YELLOWMAP,
++			cv_vrsnapturn.value ? va("Turning cuts %d degrees per flick.", cv_vrsnapturn.value)
++			                    : "Turning sweeps with the stick.");
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 12, V_YELLOWMAP,
++			cv_vrsnapturn.value ? "No sweep to feel: easier on the stomach."
++			                    : "Steps instead of sweeping settle queasiness.");
++	}
++	else if (currentMenu->menuitems[itemOn].itemaction == (void *)&cv_vrunlockall)
++	{
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 4, V_YELLOWMAP,
++			"Opens all levels & secrets.");
++		V_DrawString(currentMenu->x, currentMenu->y + 144 + 12, V_YELLOWMAP,
++			"Medals & records pause 'til restart.");
++	}
++}
++
++menu_t OP_VROptionsDef =
++{
++	MTREE2(MN_OP_MAIN, MN_OP_VR),
++	"M_OPTTTL",
++	sizeof (OP_VROptionsMenu)/sizeof (menuitem_t),
++	&OP_MainDef,
++	OP_VROptionsMenu,
++	M_DrawVROptions,
++	30, 30,
++	0,
++	NULL
++};
++
+ menu_t OP_ScreenshotOptionsDef =
+ {
+ 	MTREE3(MN_OP_MAIN, MN_OP_DATA, MN_OP_SCREENSHOTS),
+@@ -3051,6 +3307,23 @@ static void M_ChangeCvar(INT32 choice)
+ 
+ 	choice = (choice<<1) - 1;
+ 
++	if (cv == &cv_vrscale)
++	{
++		// World Scale spans 4-128: the generic 1/16 float step would need ~500
++		// taps end to end and each tap is invisible in the headset. Step by 2.
++		char s[20];
++		INT32 pv;
++		float n = FIXED_TO_FLOAT(cv->value) + choice*2.0f;
++		for (pv = 0; cv->PossibleValue[pv+1].strvalue; pv++);
++		if (n < FIXED_TO_FLOAT(cv->PossibleValue[0].value))
++			n = FIXED_TO_FLOAT(cv->PossibleValue[0].value);
++		else if (n > FIXED_TO_FLOAT(cv->PossibleValue[pv].value))
++			n = FIXED_TO_FLOAT(cv->PossibleValue[pv].value);
++		sprintf(s,"%ld%s",(long)n,M_Ftrim(n));
++		CV_Set(cv,s);
++		return;
++	}
++
+ 	if (cv->flags & CV_FLOAT)
+ 	{
+ 		if (((currentMenu->menuitems[itemOn].status & IT_CVARTYPE) == IT_CV_SLIDER)
+@@ -3237,12 +3510,13 @@ boolean M_Responder(event_t *ev)
+ 			{
+ 				if (Joystick.bGamepadStyle || abs(ev->y) > jdeadzone)
+ 				{
+-					if (ev->y < 0 && pjoyy >= 0)
++					// held stick repeats (joywait rate-limits) for smooth list scrolling
++					if (ev->y < 0)
+ 					{
+ 						ch = KEY_UPARROW;
+ 						joywait = I_GetTime() + NEWTICRATE/7;
+ 					}
+-					else if (ev->y > 0 && pjoyy <= 0)
++					else if (ev->y > 0)
+ 					{
+ 						ch = KEY_DOWNARROW;
+ 						joywait = I_GetTime() + NEWTICRATE/7;
+@@ -3257,12 +3531,13 @@ boolean M_Responder(event_t *ev)
+ 			{
+ 				if (Joystick.bGamepadStyle || abs(ev->x) > jdeadzone)
+ 				{
+-					if (ev->x < 0 && pjoyx >= 0)
++					// held stick repeats (joywait rate-limits), so sliders sweep smoothly
++					if (ev->x < 0)
+ 					{
+ 						ch = KEY_LEFTARROW;
+ 						joywait = I_GetTime() + NEWTICRATE/17;
+ 					}
+-					else if (ev->x > 0 && pjoyx <= 0)
++					else if (ev->x > 0)
+ 					{
+ 						ch = KEY_RIGHTARROW;
+ 						joywait = I_GetTime() + NEWTICRATE/17;
+@@ -3312,7 +3587,10 @@ boolean M_Responder(event_t *ev)
+ 	if (ch == -1)
+ 		return false;
+ 	else if (ev->type != ev_text && (ch == gamecontrol[GC_SYSTEMMENU][0] || ch == gamecontrol[GC_SYSTEMMENU][1])) // allow remappable ESC key
+-		ch = KEY_ESCAPE;
++		// On the save-slot screen Start deletes the hovered save (the screen
++		// draws the hint); B remains the way back out. Everywhere else the
++		// menu button stays escape.
++		ch = M_SaveSelectActive() ? KEY_BACKSPACE : KEY_ESCAPE;
+ 
+ 	// F-Keys
+ 	if (!menuactive)
+@@ -3595,7 +3873,10 @@ void M_Drawer(void)
+ 	if (menuactive)
+ 	{
+ 		// now that's more readable with a faded background (yeah like Quake...)
+-		if (!wipe && (curfadevalue || (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK)))
++		// In VR no fade is drawn into the overlay -- it smoked the floating
++		// screen's pane opaque. The menu dim is a wash over the EYE render
++		// instead (hw_main, vr_menudim), so the pane stays clear glass.
++		if (!wipe && !VR_IsActive() && (curfadevalue || (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK)))
+ 			V_DrawFadeScreen(0xFF00, (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK) ? 16 : curfadevalue);
+ 
+ 		if (currentMenu->drawroutine)
+@@ -3657,9 +3938,11 @@ void M_StartControlPanel(void)
+ 	if (!Playing())
+ 	{
+ 		// Secret menu!
+-		MainMenu[singleplr].alphaKey = (M_AnySecretUnlocked(clientGamedata)) ? 76 : 84;
+-		MainMenu[multiplr].alphaKey = (M_AnySecretUnlocked(clientGamedata)) ? 84 : 92;
+-		MainMenu[secrets].status = (M_AnySecretUnlocked(clientGamedata)) ? (IT_STRING | IT_CALL) : (IT_DISABLED);
++		// Extras is always on the menu: it carries Level Select, which this
++		// port opens by default (the other secrets keep their unlock gates).
++		MainMenu[singleplr].alphaKey = 76;
++		MainMenu[multiplr].alphaKey = 84;
++		MainMenu[secrets].status = IT_STRING | IT_CALL;
+ 
+ 		currentMenu = &MainDef;
+ 		itemOn = singleplr;
+@@ -3678,7 +3961,10 @@ void M_StartControlPanel(void)
+ 		boolean isforbidden = (marathonmode || ultimatemode);
+ 		boolean isdebug = ((cv_debug || devparm) && !isforbidden);
+ 		boolean pandora = ((M_SecretUnlocked(SECRET_PANDORA, serverGamedata) && !isforbidden) || isdebug);
+-		boolean lselect = ((maplistoption != 0 && !isforbidden) || isdebug);
++		// Level select is on by default in this port -- any single-player
++		// session gets it (marathon/ultimate runs and the tutorial keep it
++		// off; M_PauseLevelSelect fills in the list when there is none).
++		boolean lselect = ((!isforbidden && !tutorialmode) || isdebug);
+ 
+ 		if (gamestate != GS_LEVEL) // intermission, so gray out stuff.
+ 		{
+@@ -5966,8 +6252,7 @@ static void M_DrawLevelPlatterMenu(void)
+ 				M_DrawRecordAttackForeground();
+ 		}
+ 
+-		if (curfadevalue)
+-			V_DrawFadeScreen(0xFF00, curfadevalue);
++		M_DrawMenuFade();
+ 	}
+ 
+ 	if (currentMenu->prevMenu == &SP_NightsAttackDef)
+@@ -5981,8 +6266,7 @@ static void M_DrawLevelPlatterMenu(void)
+ 			V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 158);
+ 			M_DrawNightsAttackMountains();
+ 		}
+-		if (curfadevalue)
+-			V_DrawFadeScreen(0xFF00, curfadevalue);
++		M_DrawMenuFade();
+ 	}
+ 
+ 	// finds row at top of the screen
+@@ -6154,8 +6438,7 @@ static void M_DrawMessageMenu(void)
+ 					M_DrawRecordAttackForeground();
+ 			}
+ 		}
+-		if (curfadevalue)
+-			V_DrawFadeScreen(0xFF00, curfadevalue);
++		M_DrawMenuFade();
+ 	}
+ 
+ 	M_DrawTextBox(currentMenu->x, currentMenu->y - 8, 2+V_StringWidth(msg, 0)/8, V_StringHeight(msg, V_RETURN8)/8);
+@@ -7550,6 +7833,11 @@ static void M_PauseLevelSelect(INT32 choice)
+ 	// maplistoption is NOT specified, so that this
+ 	// transfers the level select list from the menu
+ 	// used to enter the game to the pause menu.
++	// Sessions that didn't come through a platter (level select is on by
++	// default in this port) get the full campaign list.
++	if (!maplistoption)
++		maplistoption = 1+2;
++
+ 	if (!M_PrepareLevelPlatter(-1, true))
+ 	{
+ 		M_StartMessage(M_GetText("No selectable levels found.\n"),NULL,MM_NOTHING);
+@@ -8030,7 +8318,9 @@ static void M_SecretsMenu(INT32 choice)
+ 
+ 		SR_MainMenu[i].status = IT_SECRET;
+ 
+-		if (clientGamedata->unlocked[ul])
++		// Level select is open by default in this port: its Extras row works
++		// without the unlock. Every other secret keeps its gate.
++		if (clientGamedata->unlocked[ul] || unlockables[ul].type == SECRET_LEVELSELECT)
+ 		{
+ 			switch (unlockables[ul].type)
+ 			{
+@@ -8637,6 +8927,8 @@ static void M_DrawLoad(void)
+ 		V_DrawCenteredThinString(BASEVIDWIDTH/2, 184, 0, "\x85WARNING:\x80 Cheats have been activated.");
+ 		V_DrawCenteredThinString(BASEVIDWIDTH/2, 192, 0, "Progress will not be saved.");
+ 	}
++	else
++		V_DrawCenteredThinString(BASEVIDWIDTH/2, 192, V_TRANSLUCENT, "Start / Backspace: delete the selected save");
+ }
+ 
+ //
+@@ -8668,6 +8960,8 @@ static void M_LoadSelect(INT32 choice)
+ 	}
+ 	else
+ 	{
++		// Loading a save goes straight into it; picking levels at will
++		// lives in Extras -> Level Select and the pause menu instead.
+ 		CV_StealthSet(&cv_skin, DEFAULTSKIN); // already handled by loadgame so we don't want this
+ 		G_LoadGame((UINT32)saveSlotSelected, 0);
+ 	}
+@@ -9827,8 +10121,7 @@ void M_DrawTimeAttackMenu(void)
+ 		if (!strncmp("RECATKBG", curbgname, 8))
+ 			M_DrawRecordAttackForeground();
+ 	}
+-	if (curfadevalue)
+-		V_DrawFadeScreen(0xFF00, curfadevalue);
++	M_DrawMenuFade();
+ 
+ 	M_DrawMenuTitle();
+ 
+@@ -10108,8 +10401,7 @@ void M_DrawNightsAttackMenu(void)
+ 	M_ChangeMenuMusic("_nitat", true); // Eww, but needed for when user hits escape during demo playback
+ 
+ 	M_DrawNightsAttackBackground();
+-	if (curfadevalue)
+-		V_DrawFadeScreen(0xFF00, curfadevalue);
++	M_DrawMenuFade();
+ 
+ 	M_DrawMenuTitle();
+ 
+@@ -10813,8 +11105,7 @@ void M_DrawMarathon(void)
+ 	V_DrawFill((BASEVIDWIDTH-190)/2, -diffy, 190, yspan, 31);
+ 	V_DrawFill((BASEVIDWIDTH+190)/2, -diffy, diffx+(BASEVIDWIDTH-190)/2, yspan, 158);
+ 	//M_DrawRecordAttackForeground();
+-	if (curfadevalue)
+-		V_DrawFadeScreen(0xFF00, curfadevalue);
++	M_DrawMenuFade();
+ 
+ 	x = (((BASEVIDWIDTH-82)/2)+11)<<FRACBITS;
+ 	y = (((BASEVIDHEIGHT-82)/2)+12-10)<<FRACBITS;

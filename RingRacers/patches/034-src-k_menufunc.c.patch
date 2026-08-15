@@ -1,0 +1,150 @@
+diff --git a/src/k_menufunc.c b/src/k_menufunc.c
+index 812c7f80e..c587e9f7c 100644
+--- a/src/k_menufunc.c
++++ b/src/k_menufunc.c
+@@ -21,6 +21,7 @@
+ #include "d_main.h"
+ #include "console.h"
+ #include "hu_stuff.h"
++#include "i_joy.h"
+ #include "s_sound.h"
+ #include "v_video.h"
+ #include "f_finale.h"
+@@ -150,6 +151,13 @@ static void M_AddFloatVar(consvar_t *cv, fixed_t step)
+ 	CV_Set(cv, s);
+ }
+ 
++// VR sliders cover wide integer ranges (centimeters, units-per-meter,
++// percent); they step in coarser increments below.
++extern consvar_t cv_vr_diorama_dist, cv_vr_diorama_height, cv_vr_diorama_scale,
++	cv_vr_headscale, cv_vr_huddist, cv_vr_hudscale, cv_vr_renderscale, cv_vr_stereo,
++	cv_vr_menudist, cv_vr_tp_eyeheight, cv_vr_tp_forward, cv_vr_fp_forward,
++	cv_scr_effectstrength, cv_vr_effectstrength;
++
+ void M_ChangeCvarDirect(INT32 choice, consvar_t *cv)
+ {
+ 	// Backspace sets values to default value
+@@ -177,6 +185,16 @@ void M_ChangeCvarDirect(INT32 choice, consvar_t *cv)
+ 			choice *= (TICRATE/7);
+ 		else if (cv == &cv_maxsend)
+ 			choice *= 1024;
++		else if (cv == &cv_vr_diorama_scale)
++			choice *= 64;
++		else if (cv == &cv_vr_huddist || cv == &cv_vr_diorama_dist || cv == &cv_vr_diorama_height
++			|| cv == &cv_vr_menudist || cv == &cv_vr_tp_eyeheight || cv == &cv_vr_tp_forward)
++			choice *= 10;
++		else if (cv == &cv_vr_renderscale || cv == &cv_vr_stereo
++			|| cv == &cv_vr_headscale || cv == &cv_vr_hudscale
++			|| cv == &cv_vr_fp_forward
++			|| cv == &cv_scr_effectstrength || cv == &cv_vr_effectstrength)
++			choice *= 5;
+ 
+ 		CV_AddValue(cv, choice);
+ 	}
+@@ -1082,6 +1100,15 @@ void M_SetMenuDelay(UINT8 i)
+ 	{
+ 		menucmd[i].delay = MENUMINDELAY;
+ 	}
++
++	// Analog repeat pacing: a partly tilted stick repeats slower, down to
++	// about a quarter speed near the tilt threshold, so held-stick value
++	// changes can be walked one step at a time or slammed to the far end.
++	// Digital inputs read as full deflection and keep stock pacing.
++	if (menucmd[i].dpad_mag >= JOYAXISRANGE/2 && menucmd[i].dpad_mag < JOYAXISRANGE)
++	{
++		menucmd[i].delay += ((JOYAXISRANGE - menucmd[i].dpad_mag) * 6) / (JOYAXISRANGE/2);
++	}
+ }
+ 
+ void M_UpdateMenuCMD(UINT8 i, boolean bailrequired, boolean chat_open)
+@@ -1093,6 +1120,7 @@ void M_UpdateMenuCMD(UINT8 i, boolean bailrequired, boolean chat_open)
+ 
+ 	menucmd[i].dpad_ud = 0;
+ 	menucmd[i].dpad_lr = 0;
++	menucmd[i].dpad_mag = 0;
+ 
+ 	menucmd[i].buttonsHeld = menucmd[i].buttons;
+ 	menucmd[i].buttons = 0;
+@@ -1109,11 +1137,22 @@ void M_UpdateMenuCMD(UINT8 i, boolean bailrequired, boolean chat_open)
+ 	if (menucmd[i].buttons != 0)
+ 		return;
+ 
+-	if (G_PlayerInputDown(i, gc_up,   mp)) { menucmd[i].dpad_ud--; }
+-	if (G_PlayerInputDown(i, gc_down, mp)) { menucmd[i].dpad_ud++; }
++	{
++		// Same press test as G_PlayerInputDown, but keeping the analog
++		// magnitudes: the strongest one feeds the repeat pacing in
++		// M_SetMenuDelay, so a gentle stick tilt steps values slowly.
++		const INT32 up    = abs(G_PlayerInputAnalog(i, gc_up,    mp));
++		const INT32 down  = abs(G_PlayerInputAnalog(i, gc_down,  mp));
++		const INT32 left  = abs(G_PlayerInputAnalog(i, gc_left,  mp));
++		const INT32 right = abs(G_PlayerInputAnalog(i, gc_right, mp));
+ 
+-	if (G_PlayerInputDown(i, gc_left,  mp)) { menucmd[i].dpad_lr--; }
+-	if (G_PlayerInputDown(i, gc_right, mp)) { menucmd[i].dpad_lr++; }
++		if (up    >= JOYAXISRANGE/2) { menucmd[i].dpad_ud--; }
++		if (down  >= JOYAXISRANGE/2) { menucmd[i].dpad_ud++; }
++		if (left  >= JOYAXISRANGE/2) { menucmd[i].dpad_lr--; }
++		if (right >= JOYAXISRANGE/2) { menucmd[i].dpad_lr++; }
++
++		menucmd[i].dpad_mag = max(max(up, down), max(left, right));
++	}
+ 
+ 	if (G_PlayerInputDown(i, gc_a, mp)) { menucmd[i].buttons |= MBT_A; }
+ 	if (G_PlayerInputDown(i, gc_b, mp)) { menucmd[i].buttons |= MBT_B; }
+@@ -1285,9 +1324,52 @@ static void M_HandleMenuInput(void)
+ 		lr = -menucmd[pid].dpad_ud;
+ 	}
+ 
+-	// LR does nothing in the default menu, just remap as dpad.
+-	if (menucmd[pid].buttons & MBT_L) { lr--; }
+-	if (menucmd[pid].buttons & MBT_R) { lr++; }
++	// The triggers never nudge values. In any menu with section headers they
++	// page: jump to the next or previous section and land on its first
++	// entry - what a long options list actually wants from L/R. Menus with
++	// their own trigger handling (the character grid, addons, the pause
++	// menu's option shortcuts) consumed them upstream, and menus without
++	// headers leave the triggers quiet.
++	if (M_MenuButtonPressed(pid, MBT_R) || M_MenuButtonPressed(pid, MBT_L))
++	{
++		const SINT8 dir = M_MenuButtonPressed(pid, MBT_R) ? 1 : -1;
++		INT32 look = itemOn;
++		INT32 guard = currentMenu->numitems;
++
++		while (guard-- > 0)
++		{
++			look += dir;
++			if (look < 0)
++				look = currentMenu->numitems - 1;
++			else if (look >= currentMenu->numitems)
++				look = 0;
++
++			if ((currentMenu->menuitems[look].status & IT_HEADER) != IT_HEADER)
++				continue;
++
++			if (dir < 0)
++			{
++				// The header directly above lands you back where you already
++				// are - keep walking to the previous section instead.
++				INT32 first = look;
++				do
++					first++;
++				while (first < currentMenu->numitems
++					&& (currentMenu->menuitems[first].status & IT_TYPE) == IT_SPACE);
++				if (first == itemOn)
++					continue;
++			}
++
++			itemOn = (INT16)look;
++			M_NextOpt();
++			if (!(currentMenu->behaviourflags & MBF_SOUNDLESS))
++				S_StartSound(NULL, sfx_s3k5b);
++			M_SetMenuDelay(pid);
++			return;
++		}
++
++		return; // no sections here - the triggers stay quiet
++	}
+ 
+ 	// Keys usable within menu
+ 	if (ud > 0)

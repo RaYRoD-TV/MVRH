@@ -1,0 +1,13 @@
+diff --git a/src/m_cond.h b/src/m_cond.h
+index 2491a384c..4b151f6d4 100644
+--- a/src/m_cond.h
++++ b/src/m_cond.h
+@@ -231,6 +231,8 @@ extern UINT32 unlocktriggers;
+ 
+ gamedata_t *M_NewGameDataStruct(void);
+ void M_CopyGameData(gamedata_t *dest, gamedata_t *src);
++void M_ApplyUnlockEverything(void); // vr_unlockall: force-open everything, in memory only
++boolean M_UnlockAllApplied(void); // forced unlocks live in memory: gamedata.dat writes stay off until restart
+ 
+ // Condition set setup
+ void M_AddRawCondition(UINT8 set, UINT8 id, conditiontype_t c, INT32 r, INT16 x1, INT16 x2);

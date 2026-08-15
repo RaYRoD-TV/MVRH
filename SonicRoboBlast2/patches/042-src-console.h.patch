@@ -1,0 +1,15 @@
+diff --git a/src/console.h b/src/console.h
+index 2af01f1a3..b872a660f 100644
+--- a/src/console.h
++++ b/src/console.h
+@@ -61,4 +61,10 @@ void CON_ToggleOff(void);
+ // Is console down?
+ boolean CON_Ready(void);
+ 
++// Can the console be used?
++boolean CON_Allowed(void);
++
++// Toggle the console
++void CON_Toggle(void);
++
+ void CON_LogMessage(const char *msg);

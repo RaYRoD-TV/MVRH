@@ -1,0 +1,12 @@
+diff --git a/src/hardware/hw_glob.h b/src/hardware/hw_glob.h
+index 07dfb7a16..214a38d0a 100644
+--- a/src/hardware/hw_glob.h
++++ b/src/hardware/hw_glob.h
+@@ -92,6 +92,7 @@ typedef struct gl_vissprite_s
+ 	UINT8 translucency;       //alpha level 0-255
+ 
+ 	angle_t angle; // for splats
++	angle_t bbyaw; // the yaw this card was squared up to (see HWR_BillboardYaw)
+ 
+ 	//Hurdler: 25/04/2000: now support colormap in hardware mode
+ 	UINT8 *colormap;

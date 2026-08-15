@@ -1,0 +1,17 @@
+diff --git a/src/w_wad.cpp b/src/w_wad.cpp
+index 3c68b1378..dfb6ef732 100644
+--- a/src/w_wad.cpp
++++ b/src/w_wad.cpp
+@@ -900,7 +900,11 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup, const
+ #else
+ 			if (startup)
+ 			{
+-				I_Error(M_GetText("File is old, is corrupt or has been modified: %s (found md5: %s, wanted: %s)\n"), filename, actualmd5text, md5expected);
++				// This build pairs with whatever official data it ships next
++				// to; refusing a mismatched set outright would strand every
++				// data version but one. Warn loudly and keep loading - netplay
++				// still compares file consistency per game.
++				CONS_Alert(CONS_WARNING, M_GetText("File %s does not match the expected version (found md5: %s, wanted: %s)\n"), filename, actualmd5text, md5expected);
+ 			}
+ 			else
+ 			{

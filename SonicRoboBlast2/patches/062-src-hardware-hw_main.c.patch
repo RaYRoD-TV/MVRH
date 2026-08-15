@@ -1,0 +1,1125 @@
+diff --git a/src/hardware/hw_main.c b/src/hardware/hw_main.c
+index a5befe112..1a8480ba3 100644
+--- a/src/hardware/hw_main.c
++++ b/src/hardware/hw_main.c
+@@ -1,4 +1,4 @@
+-// SONIC ROBO BLAST 2
++﻿// SONIC ROBO BLAST 2
+ //-----------------------------------------------------------------------------
+ // Copyright (C) 1998-2000 by DooM Legacy Team.
+ // Copyright (C) 1999-2024 by Sonic Team Junior.
+@@ -11,6 +11,7 @@
+ /// \brief hardware renderer, using the standard HardWareRender driver DLL for SRB2
+ 
+ #include <math.h>
++#include <stdlib.h> // atof (vr_scale)
+ 
+ #include "../doomstat.h"
+ 
+@@ -44,6 +45,7 @@
+ #include "../r_translation.h"
+ #include "../d_main.h"
+ #include "../p_slopes.h"
++#include "../vr/i_openxr.h" // g_vrActive / g_vrFov (per-eye VR projection)
+ 
+ // ==========================================================================
+ // the hardware driver object
+@@ -133,6 +135,218 @@ static boolean HWR_IsWireframeMode(void)
+ 	return (cv_glwireframe.value && cv_debug);
+ }
+ 
++// ---- VR underwater feel ----
++// The flat game's screen-space water warp can't run in the eyes (it white-outs
++// under MSAA and double-visions without it), so VR sells "submerged" with
++// stereo-correct world-space layers instead: a distance haze pushed into every
++// surface's fade band here, plus a full-eye veil drawn in HWR_DoPostProcessor.
++// The test runs at the EYE's position (the view globals are eye-true in VR),
++// so at the surface each eye crosses the waterline independently -- lean down
++// and the water climbs over your face one eye at a time, like the real thing.
++static boolean gl_vrEyeUnderwater = false;
++static float gl_vrEyeWaterDepth = 0.0f; // 0 at the surface -> 1 deep (haze strength)
++static float gl_vrEyeShallow = 1.0f;    // eases the submerged layers in over the first ~0.4 m
++static fixed_t gl_vrEyeWaterTop = 0;    // surface height of the water the eye is in
++
++static void HWR_ScanVREyeWater(void)
++{
++	sector_t *sector;
++	ffloor_t *rover;
++
++	gl_vrEyeUnderwater = false;
++	// Flatscreen gets the full stack too (the classic screen warp stays on
++	// top of it there); only the world sway remains VR-only, since the warp
++	// already gives flat its wobble.
++	if (!cv_vrwateratmo.value)
++		return;
++
++	sector = R_PointInSubsector(viewx, viewy)->sector;
++	for (rover = sector->ffloors; rover; rover = rover->next)
++	{
++		fixed_t topheight, bottomheight;
++		float s, depth;
++
++		if (!(rover->fofflags & FOF_EXISTS) || !(rover->fofflags & FOF_SWIMMABLE)
++			|| rover->fofflags & FOF_BLOCKPLAYER)
++			continue;
++
++		topheight    = P_GetFFloorTopZAt   (rover, viewx, viewy);
++		bottomheight = P_GetFFloorBottomZAt(rover, viewx, viewy);
++
++		if (viewz >= topheight || viewz <= bottomheight)
++			continue;
++
++		gl_vrEyeUnderwater = true;
++		gl_vrEyeWaterTop = topheight;
++		// Haze reaches full strength about ten meters down.
++		s = (float)atof(cv_vrscale.string);
++		if (s < 1.0f) s = 32.0f;
++		depth = FixedToFloat(topheight - viewz) / (10.0f * s);
++		gl_vrEyeWaterDepth = min(max(depth, 0.0f), 1.0f);
++		// Crossing the waterline snapped the fog/rays/veil on at full
++		// strength; easing them over the first ~0.4 m keeps each eye's own
++		// crossing (the per-eye waterline sweep stays) without the pop.
++		depth = FixedToFloat(topheight - viewz) / (0.4f * s);
++		gl_vrEyeShallow = min(max(depth, 0.0f), 1.0f);
++		return;
++	}
++
++	// Dry eye. Clear the surface reference as well: HWD_SHADERINFO_VRUWSURF is
++	// sent UNCONDITIONALLY, so leaving the last swim's water top standing fed
++	// a surface height that is no longer there into the eye column's depth
++	// term, and it changed every time the head dipped in or out. The
++	// seen-through-the-surface layers (caustics, shore blueing) are unaffected
++	// -- they don't care where the EYE stands, because every drawn surface
++	// carries its own sector's water top (HWR_SurfWaterTop).
++	gl_vrEyeWaterTop = 0;
++}
++
++// Waterline trace, "vr_waterdebug on". The remaining VR-only flashing suspect
++// is the two eyes disagreeing: the scan above runs off viewx/viewy/viewz, and
++// those differ per eye, so near the surface one eye can read submerged while
++// the other reads dry. That gives one image full fog and the other none, which
++// is binocular rivalry -- it reads as a flash, and it cannot happen flat.
++// Events are COUNTED and reported once a second, never printed as they
++// happen. Printing per event costs more than the thing being measured: at
++// headset framerate a state that flips every frame means a console write every
++// frame, which drops frames -- and a dropped frame in VR reads as a flash. A
++// chatty probe manufactures the exact symptom it was added to find. Rates are
++// the better evidence anyway: "SPLIT 90/s" and "SPLIT 0" are different bugs.
++static void HWR_LogVREyeWater(void)
++{
++	static boolean under[2];
++	static float shallow[2], depth[2];
++	static fixed_t top[2];
++	static boolean lastUnder;
++	static UINT32 nframe, nsplit, nflip, window;
++	const INT32 e = (g_vrActive && g_vrEyeIndex == 1) ? 1 : 0;
++
++	if (!cv_vrwaterdebug.value)
++		return;
++
++	under[e]   = gl_vrEyeUnderwater;
++	shallow[e] = gl_vrEyeShallow;
++	depth[e]   = gl_vrEyeWaterDepth;
++	top[e]     = gl_vrEyeWaterTop;
++
++	// Flat has one eye and tallies immediately; in stereo wait for the right
++	// eye so both halves of the comparison come from the same frame.
++	if (g_vrActive && e != 1)
++		return;
++
++	nframe++;
++	if (g_vrActive && under[0] != under[1])
++		nsplit++;
++	if (under[0] != lastUnder)
++	{
++		lastUnder = under[0];
++		nflip++;
++	}
++
++	if (leveltime - window < TICRATE)
++		return;
++	window = leveltime;
++
++	CONS_Printf("\x83""VR water\x80 %u frames  SPLIT %u  FLIP %u  under L=%d R=%d  "
++		"shallow %.3f/%.3f  depth %.3f/%.3f  top %d/%d\n",
++		nframe, nsplit, nflip, under[0], under[1],
++		shallow[0], shallow[1], depth[0], depth[1],
++		top[0] >> FRACBITS, top[1] >> FRACBITS);
++	nframe = nsplit = nflip = 0;
++}
++
++static void HWR_CheckVREyeWater(void)
++{
++	// ONE water verdict per frame, taken from the left eye and reused for the
++	// right. The scan reads viewx/viewy/viewz, which differ per eye, so near
++	// the surface the two eyes straddle the waterline and disagree: one image
++	// gets the full fog stack and the other gets none. Those cannot fuse, and
++	// the pair alternating frame to frame is the colour-shift flash.
++	//
++	// This is the same call the eye-anchored underwater math already makes for
++	// its origin a few hundred lines below -- one shared verdict beats two
++	// individually-correct ones that fight each other -- and the error it
++	// accepts is a few centimeters of waterline on the right eye, which is
++	// well under the depth over which the layers ease in.
++	if (!g_vrActive || g_vrEyeIndex == 0)
++		HWR_ScanVREyeWater();
++	else if (cv_vrwaterdebug.value)
++	{
++		// Sharing the verdict would make the two eyes agree by construction
++		// and blind the SPLIT counter to the very thing it exists to prove.
++		// With the trace on, scan what the right eye WOULD have concluded,
++		// let the log see it, then put the shared verdict back so rendering
++		// is unaffected. Costs one sector lookup, and only while tracing.
++		const boolean su = gl_vrEyeUnderwater;
++		const float sd = gl_vrEyeWaterDepth, ss = gl_vrEyeShallow;
++		const fixed_t st = gl_vrEyeWaterTop;
++
++		HWR_ScanVREyeWater();
++		HWR_LogVREyeWater();
++
++		gl_vrEyeUnderwater = su;
++		gl_vrEyeWaterDepth = sd;
++		gl_vrEyeShallow = ss;
++		gl_vrEyeWaterTop = st;
++		return;
++	}
++	HWR_LogVREyeWater();
++}
++
++// Per-surface judge for the seen-through-the-surface water layers: the top of
++// the swimmable water in the DRAWN surface's own sector, in world units
++// (0 = dry sector, the shader's "off"). Judging fragment-side by the owning
++// sector -- never by the viewer's -- is what keeps the stack cohesive: a lake
++// dapples from any vantage (no pop-in crossing sector lines) and dry rooms
++// that merely sit below some other lake's waterline never catch the bleed.
++// Real water at exactly height 0 nudges up a sliver to stay distinct from
++// "none"; 1/16 world unit is invisible.
++float HWR_SurfWaterTop(sector_t *sector)
++{
++	// Draws batch by subsector, so consecutive calls overwhelmingly hit the
++	// same sector -- one memo entry absorbs the FOF walk for nearly all of
++	// the thousands of per-draw calls a frame makes.
++	static sector_t *memosec = NULL;
++	static size_t memoframe = 0;
++	static float memoval = 0.0f;
++	ffloor_t *rover;
++	fixed_t best = INT32_MIN;
++	float h;
++
++	if (!cv_vrwateratmo.value || !cv_glshaders.value || !sector)
++		return 0.0f;
++
++	if (sector == memosec && framecount == memoframe)
++		return memoval;
++
++	for (rover = sector->ffloors; rover; rover = rover->next)
++	{
++		fixed_t top;
++
++		if (!(rover->fofflags & FOF_EXISTS) || !(rover->fofflags & FOF_SWIMMABLE)
++			|| rover->fofflags & FOF_BLOCKPLAYER)
++			continue;
++
++		top = P_GetFFloorTopZAt(rover, sector->soundorg.x, sector->soundorg.y);
++		if (top > best)
++			best = top;
++	}
++
++	if (best == INT32_MIN)
++		h = 0.0f;
++	else
++	{
++		h = FixedToFloat(best);
++		if (h == 0.0f)
++			h = 0.0625f;
++	}
++
++	memosec = sector;
++	memoframe = framecount;
++	memoval = h;
++	return h;
++}
++
+ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap)
+ {
+ 	RGBA_t poly_color, tint_color, fade_color;
+@@ -141,6 +355,10 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
+ 	tint_color.rgba = (colormap != NULL) ? (UINT32)colormap->rgba : 0x00000000;
+ 	fade_color.rgba = (colormap != NULL) ? (UINT32)colormap->fadergba : 0xFF000000;
+ 
++	// (VR underwater color lives in the fragment shaders now -- per-channel
++	// Beer-Lambert absorption via the vr_uwfog/vr_uwcolor uniforms -- so the
++	// colormap path here stays untouched.)
++
+ 	// Crappy backup coloring if you can't do shaders
+ 	if (!HWR_UseShader())
+ 	{
+@@ -353,9 +571,9 @@ static UINT8 HWR_CeilingLightLevel(sector_t *sector, INT16 base_lightlevel)
+ // -----------------+
+ // HWR_RenderPlane  : Render a floor or ceiling convex polygon
+ // -----------------+
+-static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, boolean isceiling, fixed_t fixedheight, FBITFIELD PolyFlags, INT32 lightlevel, levelflat_t *levelflat, sector_t *FOFsector, UINT8 alpha, extracolormap_t *planecolormap)
++static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, boolean isceiling, fixed_t fixedheight, FBITFIELD PolyFlags, INT32 lightlevel, levelflat_t *levelflat, sector_t *FOFsector, UINT8 alpha, extracolormap_t *planecolormap, float vrwatertop)
+ {
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	FOutVector *v3d;
+ 	polyvertex_t *pv;
+ 	pslope_t *slope = NULL;
+@@ -502,6 +720,7 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
+ 		lightlevel = HWR_CalcSlopeLight(lightlevel, R_PointToAngle2(0, 0, slope->normal.x, slope->normal.y), abs(slope->zdelta));
+ 
+ 	HWR_Lighting(&Surf, lightlevel, planecolormap);
++	Surf.VRWaterTop = vrwatertop; // this plane's own sector water (underwater layers)
+ 
+ 	if (PolyFlags & (PF_Translucent|PF_Fog|PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative|PF_Environment))
+ 	{
+@@ -957,8 +1176,9 @@ static void HWR_RenderMidtexture(INT32 gl_midtexture, float cliplow, float cliph
+ 	sector_t *front, *back;
+ 	FOutVector wallVerts[4];
+ 
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	Surf.PolyColor.s.alpha = 255;
++	Surf.VRWaterTop = HWR_SurfWaterTop(gl_frontsector); // underwater layers
+ 
+ 	// Determine if it's visible
+ 	if (!HWR_BlendMidtextureSurface(&Surf))
+@@ -1220,8 +1440,9 @@ static void HWR_ProcessSeg(void)
+ 	extracolormap_t *colormap = gl_frontsector->extra_colormap;
+ 	lightnum = colormap ? lightnum : HWR_CalcWallLight(lightnum, vs.x, vs.y, ve.x, ve.y);
+ 
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	Surf.PolyColor.s.alpha = 255;
++	Surf.VRWaterTop = HWR_SurfWaterTop(gl_frontsector); // underwater layers
+ 
+ 	INT32 gl_midtexture = R_GetTextureNum(gl_sidedef->midtexture);
+ 	GLMapTexture_t *grTex = NULL;
+@@ -2137,9 +2358,9 @@ static inline void HWR_AddPolyObjectSegs(void)
+ 
+ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, fixed_t fixedheight,
+ 									FBITFIELD blendmode, UINT8 lightlevel, levelflat_t *levelflat, sector_t *FOFsector,
+-									UINT8 alpha, extracolormap_t *planecolormap)
++									UINT8 alpha, extracolormap_t *planecolormap, float vrwatertop)
+ {
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	FOutVector *v3d;
+ 	INT32 shader = SHADER_NONE;
+ 
+@@ -2248,6 +2469,7 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling,
+ 	}
+ 
+ 	HWR_Lighting(&Surf, lightlevel, planecolormap);
++	Surf.VRWaterTop = vrwatertop; // owning sector's water (underwater layers)
+ 
+ 	if (blendmode & PF_Translucent)
+ 	{
+@@ -2292,7 +2514,7 @@ static void HWR_AddPolyObjectPlanes(void)
+ 			light = R_GetPlaneLight(gl_frontsector, polyobjsector->floorheight, true);
+ 			if (po_ptrs[i]->translucency > 0)
+ 			{
+-				FSurfaceInfo Surf;
++				FSurfaceInfo Surf = {0};
+ 				FBITFIELD blendmode;
+ 				memset(&Surf, 0x00, sizeof(Surf));
+ 				blendmode = HWR_TranstableToAlpha(po_ptrs[i]->translucency, &Surf);
+@@ -2304,7 +2526,7 @@ static void HWR_AddPolyObjectPlanes(void)
+ 				HWR_GetLevelFlat(&levelflats[polyobjsector->floorpic], false);
+ 				HWR_RenderPolyObjectPlane(po_ptrs[i], false, polyobjsector->floorheight, PF_Occlude,
+ 										(light == -1 ? gl_frontsector->lightlevel : *gl_frontsector->lightlist[light].lightlevel), &levelflats[polyobjsector->floorpic],
+-										polyobjsector, 255, (light == -1 ? gl_frontsector->extra_colormap : *gl_frontsector->lightlist[light].extra_colormap));
++										polyobjsector, 255, (light == -1 ? gl_frontsector->extra_colormap : *gl_frontsector->lightlist[light].extra_colormap), HWR_SurfWaterTop(gl_frontsector));
+ 			}
+ 		}
+ 
+@@ -2315,7 +2537,7 @@ static void HWR_AddPolyObjectPlanes(void)
+ 			light = R_GetPlaneLight(gl_frontsector, polyobjsector->ceilingheight, true);
+ 			if (po_ptrs[i]->translucency > 0)
+ 			{
+-				FSurfaceInfo Surf;
++				FSurfaceInfo Surf = {0};
+ 				FBITFIELD blendmode;
+ 				memset(&Surf, 0x00, sizeof(Surf));
+ 				blendmode = HWR_TranstableToAlpha(po_ptrs[i]->translucency, &Surf);
+@@ -2327,7 +2549,7 @@ static void HWR_AddPolyObjectPlanes(void)
+ 				HWR_GetLevelFlat(&levelflats[polyobjsector->ceilingpic], false);
+ 				HWR_RenderPolyObjectPlane(po_ptrs[i], true, polyobjsector->ceilingheight, PF_Occlude,
+ 				                          (light == -1 ? gl_frontsector->lightlevel : *gl_frontsector->lightlist[light].lightlevel), &levelflats[polyobjsector->ceilingpic],
+-				                          polyobjsector, 255, (light == -1 ? gl_frontsector->extra_colormap : *gl_frontsector->lightlist[light].extra_colormap));
++				                          polyobjsector, 255, (light == -1 ? gl_frontsector->extra_colormap : *gl_frontsector->lightlist[light].extra_colormap), HWR_SurfWaterTop(gl_frontsector));
+ 			}
+ 		}
+ 	}
+@@ -2337,7 +2559,14 @@ static FBITFIELD HWR_RippleBlend(sector_t *sector, ffloor_t *rover, boolean ceil
+ {
+ 	(void)sector;
+ 	(void)ceiling;
+-	return /*R_IsRipplePlane(sector, rover, ceiling)*/ (rover->fofflags & FOF_RIPPLE) ? PF_Ripple : 0;
++	if (rover->fofflags & FOF_RIPPLE)
++		return PF_Ripple;
++	// Almost no map sets the ripple flag, so the boosted water shader sat
++	// unused on the very surfaces it was built for. With the ripple slider
++	// up, every swimmable plane routes through it -- VR and flat alike.
++	if (cv_vrripple.value && (rover->fofflags & FOF_SWIMMABLE))
++		return PF_Ripple;
++	return 0;
+ }
+ 
+ //
+@@ -2459,7 +2688,7 @@ static void HWR_Subsector(size_t num)
+ 					// Hack to make things continue to work around slopes.
+ 					locFloorHeight == cullFloorHeight ? locFloorHeight : gl_frontsector->floorheight,
+ 					// We now return you to your regularly scheduled rendering.
+-					PF_Occlude, floorlightlevel, &levelflats[gl_frontsector->floorpic], NULL, 255, floorcolormap);
++					PF_Occlude, floorlightlevel, &levelflats[gl_frontsector->floorpic], NULL, 255, floorcolormap, HWR_SurfWaterTop(gl_frontsector));
+ 			}
+ 		}
+ 	}
+@@ -2475,7 +2704,7 @@ static void HWR_Subsector(size_t num)
+ 					// Hack to make things continue to work around slopes.
+ 					locCeilingHeight == cullCeilingHeight ? locCeilingHeight : gl_frontsector->ceilingheight,
+ 					// We now return you to your regularly scheduled rendering.
+-					PF_Occlude, ceilinglightlevel, &levelflats[gl_frontsector->ceilingpic], NULL, 255, ceilingcolormap);
++					PF_Occlude, ceilinglightlevel, &levelflats[gl_frontsector->ceilingpic], NULL, 255, ceilingcolormap, HWR_SurfWaterTop(gl_frontsector));
+ 			}
+ 		}
+ 	}
+@@ -2549,7 +2778,7 @@ static void HWR_Subsector(size_t num)
+ 					light = R_GetPlaneLight(gl_frontsector, centerHeight, viewz < bottomCullHeight ? true : false);
+ 					HWR_RenderPlane(sub, &extrasubsectors[num], false, *rover->bottomheight, HWR_RippleBlend(gl_frontsector, rover, false)|PF_Occlude,
+ 					                HWR_FloorLightLevel(rover->master->frontsector, *gl_frontsector->lightlist[light].lightlevel),
+-					                &levelflats[*rover->bottompic], rover->master->frontsector, 255, *gl_frontsector->lightlist[light].extra_colormap);
++					                &levelflats[*rover->bottompic], rover->master->frontsector, 255, *gl_frontsector->lightlist[light].extra_colormap, HWR_SurfWaterTop(gl_frontsector));
+ 				}
+ 			}
+ 
+@@ -2595,7 +2824,7 @@ static void HWR_Subsector(size_t num)
+ 					light = R_GetPlaneLight(gl_frontsector, centerHeight, viewz < topCullHeight ? true : false);
+ 					HWR_RenderPlane(sub, &extrasubsectors[num], true, *rover->topheight, HWR_RippleBlend(gl_frontsector, rover, false)|PF_Occlude,
+ 					                  HWR_CeilingLightLevel(rover->master->frontsector, *gl_frontsector->lightlist[light].lightlevel),
+-					                  &levelflats[*rover->toppic], rover->master->frontsector, 255, *gl_frontsector->lightlist[light].extra_colormap);
++					                  &levelflats[*rover->toppic], rover->master->frontsector, 255, *gl_frontsector->lightlist[light].extra_colormap, HWR_SurfWaterTop(gl_frontsector));
+ 				}
+ 			}
+ 		}
+@@ -2786,13 +3015,14 @@ static void HWR_LinkDrawHackAdd(FOutVector *verts, gl_vissprite_t *spr)
+ static void HWR_LinkDrawHackFinish(void)
+ {
+ 	UINT32 i;
+-	FSurfaceInfo surf;
++	FSurfaceInfo surf = {0};
+ 	surf.PolyColor.rgba = 0xFFFFFFFF;
+ 	surf.TintColor.rgba = 0xFFFFFFFF;
+ 	surf.FadeColor.rgba = 0xFFFFFFFF;
+ 	surf.LightInfo.light_level = 0;
+ 	surf.LightInfo.fade_start = 0;
+ 	surf.LightInfo.fade_end = 31;
++	surf.VRWaterTop = 0.0f; // z-buffer-only fill, never shaded
+ 	for (i = 0; i < linkdrawcount; i++)
+ 	{
+ 		// draw sprite shape, only to z-buffer
+@@ -2807,7 +3037,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ {
+ 	patch_t *gpatch;
+ 	FOutVector shadowVerts[4];
+-	FSurfaceInfo sSurf;
++	FSurfaceInfo sSurf = {0};
+ 	float fscale; float fx; float fy; float offset;
+ 	extracolormap_t *colormap = NULL;
+ 	FBITFIELD blendmode = PF_Translucent|PF_Modulated;
+@@ -2932,6 +3162,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+ 
+ 	HWR_Lighting(&sSurf, 0, colormap);
+ 	sSurf.PolyColor.s.alpha = FixedMul(thing->alpha, alpha);
++	sSurf.VRWaterTop = HWR_SurfWaterTop(thing->subsector->sector); // underwater layers
+ 
+ 	if (HWR_UseShader())
+ 	{
+@@ -3013,7 +3244,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr)
+ 	FOutVector wallVerts[4];
+ 	FOutVector baseWallVerts[4]; // This is what the verts should end up as
+ 	patch_t *gpatch;
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	extracolormap_t *colormap = NULL;
+ 	FUINT lightlevel;
+ 	boolean lightset = true;
+@@ -3023,6 +3254,13 @@ static void HWR_SplitSprite(gl_vissprite_t *spr)
+ 	boolean use_linkdraw_hack = false;
+ 	UINT8 alpha;
+ 
++	// No water anchor for billboards: a sprite quad is rebuilt from the view
++	// angle every frame, so its world_pos sweeps with the head and differs
++	// between the eyes -- world-keyed caustics shimmer on it even with the
++	// caustic clock frozen. Zero closes the caustic gate. The underwater fog
++	// column reads vr_uwsurf, not this, and still grades the sprite right.
++	Surf.VRWaterTop = 0.0f;
++
+ 	INT32 i;
+ 	float realtop, realbot, top, bot;
+ 	float ttop, tbot, tmult;
+@@ -3362,7 +3600,7 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
+ {
+ 	FOutVector wallVerts[4];
+ 	patch_t *gpatch;
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 	const boolean splat = R_ThingIsFloorSprite(spr->mobj);
+ 
+ 	if (!spr->mobj)
+@@ -3371,6 +3609,13 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
+ 	if (!spr->mobj->subsector)
+ 		return;
+ 
++	// No water anchor for billboards: a sprite quad is rebuilt from the view
++	// angle every frame, so its world_pos sweeps with the head and differs
++	// between the eyes -- world-keyed caustics shimmer on it even with the
++	// caustic clock frozen. Zero closes the caustic gate. The underwater fog
++	// column reads vr_uwsurf, not this, and still grades the sprite right.
++	Surf.VRWaterTop = 0.0f;
++
+ 	if (spr->mobj->subsector->sector->numlights && !splat)
+ 	{
+ 		HWR_SplitSprite(spr);
+@@ -3680,7 +3925,7 @@ static inline void HWR_DrawPrecipitationSprite(gl_vissprite_t *spr)
+ 	FBITFIELD blend = 0;
+ 	FOutVector wallVerts[4];
+ 	patch_t *gpatch;
+-	FSurfaceInfo Surf;
++	FSurfaceInfo Surf = {0};
+ 
+ 	if (!spr->mobj)
+ 		return;
+@@ -3688,6 +3933,13 @@ static inline void HWR_DrawPrecipitationSprite(gl_vissprite_t *spr)
+ 	if (!spr->mobj->subsector)
+ 		return;
+ 
++	// No water anchor for billboards: a sprite quad is rebuilt from the view
++	// angle every frame, so its world_pos sweeps with the head and differs
++	// between the eyes -- world-keyed caustics shimmer on it even with the
++	// caustic clock frozen. Zero closes the caustic gate. The underwater fog
++	// column reads vr_uwsurf, not this, and still grades the sprite right.
++	Surf.VRWaterTop = 0.0f;
++
+ 	// cache sprite graphics
+ 	gpatch = spr->gpatch;
+ 
+@@ -3901,6 +4153,7 @@ typedef struct
+ 	boolean fogplane;
+ 	boolean chromakeyed;
+ 	extracolormap_t *planecolormap;
++	float vrwatertop; // owning sector's water top, captured at add time (gl_frontsector is gone by draw time)
+ 	INT32 drawcount;
+ } planeinfo_t;
+ 
+@@ -3918,6 +4171,7 @@ typedef struct
+ 	sector_t *FOFSector;
+ 	FBITFIELD blend;
+ 	extracolormap_t *planecolormap;
++	float vrwatertop; // owning sector's water top, captured at add time
+ 	INT32 drawcount;
+ } polyplaneinfo_t;
+ 
+@@ -3966,6 +4220,7 @@ void HWR_AddTransparentFloor(levelflat_t *levelflat, extrasubsector_t *xsub, boo
+ 	planeinfo[numplanes].fogplane = fogplane;
+ 	planeinfo[numplanes].chromakeyed = chromakeyed;
+ 	planeinfo[numplanes].planecolormap = planecolormap;
++	planeinfo[numplanes].vrwatertop = HWR_SurfWaterTop(gl_frontsector);
+ 	planeinfo[numplanes].drawcount = drawcount++;
+ 
+ 	numplanes++;
+@@ -3996,6 +4251,7 @@ void HWR_AddTransparentPolyobjectFloor(levelflat_t *levelflat, polyobj_t *polyse
+ 	polyplaneinfo[numpolyplanes].FOFSector = FOFSector;
+ 	polyplaneinfo[numpolyplanes].blend = blend;
+ 	polyplaneinfo[numpolyplanes].planecolormap = planecolormap;
++	polyplaneinfo[numpolyplanes].vrwatertop = HWR_SurfWaterTop(gl_frontsector);
+ 	polyplaneinfo[numpolyplanes].drawcount = drawcount++;
+ 	numpolyplanes++;
+ }
+@@ -4133,7 +4389,7 @@ static void HWR_CreateDrawNodes(void)
+ 			if (!(sortnode[sortindex[i]].plane->blend & PF_NoTexture))
+ 				HWR_GetLevelFlat(sortnode[sortindex[i]].plane->levelflat, sortnode[sortindex[i]].plane->chromakeyed);
+ 			HWR_RenderPlane(NULL, sortnode[sortindex[i]].plane->xsub, sortnode[sortindex[i]].plane->isceiling, sortnode[sortindex[i]].plane->fixedheight, sortnode[sortindex[i]].plane->blend, sortnode[sortindex[i]].plane->lightlevel,
+-				sortnode[sortindex[i]].plane->levelflat, sortnode[sortindex[i]].plane->FOFSector, sortnode[sortindex[i]].plane->alpha, sortnode[sortindex[i]].plane->planecolormap);
++				sortnode[sortindex[i]].plane->levelflat, sortnode[sortindex[i]].plane->FOFSector, sortnode[sortindex[i]].plane->alpha, sortnode[sortindex[i]].plane->planecolormap, sortnode[sortindex[i]].plane->vrwatertop);
+ 		}
+ 		else if (sortnode[sortindex[i]].polyplane)
+ 		{
+@@ -4145,7 +4401,7 @@ static void HWR_CreateDrawNodes(void)
+ 			if (!(sortnode[sortindex[i]].polyplane->blend & PF_NoTexture))
+ 				HWR_GetLevelFlat(sortnode[sortindex[i]].polyplane->levelflat, po->flags & POF_SPLAT);
+ 			HWR_RenderPolyObjectPlane(po, sortnode[sortindex[i]].polyplane->isceiling, sortnode[sortindex[i]].polyplane->fixedheight, sortnode[sortindex[i]].polyplane->blend, sortnode[sortindex[i]].polyplane->lightlevel,
+-				sortnode[sortindex[i]].polyplane->levelflat, sortnode[sortindex[i]].polyplane->FOFSector, sortnode[sortindex[i]].polyplane->alpha, sortnode[sortindex[i]].polyplane->planecolormap);
++				sortnode[sortindex[i]].polyplane->levelflat, sortnode[sortindex[i]].polyplane->FOFSector, sortnode[sortindex[i]].polyplane->alpha, sortnode[sortindex[i]].polyplane->planecolormap, sortnode[sortindex[i]].polyplane->vrwatertop);
+ 		}
+ 		else if (sortnode[sortindex[i]].wall)
+ 		{
+@@ -5132,7 +5388,12 @@ static void HWR_DrawSkyBackground(player_t *player)
+ 
+ 	HWR_GetTexture(texturetranslation[skytexture], false);
+ 
+-	if (cv_glskydome.value)
++	// VR always takes the dome: the else-branch draws the sky as a
++	// screen-space quad sized for the flat symmetric view, which lands in a
++	// different place per eye under the asymmetric frustums (unfusable double
++	// vision -- the same failure class as the old underwater warp) and never
++	// follows head yaw. Flat play keeps the user's choice.
++	if (cv_glskydome.value || g_vrActive)
+ 	{
+ 		FTransform dometransform;
+ 
+@@ -5147,6 +5408,14 @@ static void HWR_DrawSkyBackground(player_t *player)
+ 		HWR_SetTransformAiming(&dometransform, player, false);
+ 		dometransform.angley = (float)((viewangle-ANGLE_270)>>ANGLETOFINESHIFT)*(360.0f/(float)FINEANGLES);
+ 
++		if (g_vrActive) // VR: rotate the sky dome with the head (it inherits vr/vrfov from atransform)
++		{
++			dometransform.anglex   = g_vrPitch + g_vrStickPitch; // same pitch source as the view or the sky detaches
++			dometransform.angley  += g_vrYaw;
++			dometransform.shearing = false;
++			dometransform.scaley   = 1.0f;
++		}
++
+ 		if (gl_sky.texture != texturetranslation[skytexture])
+ 		{
+ 			HWR_ClearSkyDome();
+@@ -5366,6 +5635,161 @@ static void HWR_SetupView(player_t *player, INT32 viewnumber, float fpov, boolea
+ 
+ 	atransform.fovxangle = fpov; // Tails
+ 	atransform.fovyangle = fpov; // Tails
++
++	if (g_vrActive) // VR: first-person + head-tracked via SRB2's own camera + per-eye projection
++	{
++		atransform.vr = true;
++		atransform.vrfov[0] = g_vrFov[0];
++		atransform.vrfov[1] = g_vrFov[1];
++		atransform.vrfov[2] = g_vrFov[2];
++		atransform.vrfov[3] = g_vrFov[3];
++
++		atransform.scaley    = 1.0f;   // the per-eye projection owns aspect now
++		atransform.shearing  = false;  // real 3D pitch from the headset, no software y-shear
++		atransform.roll      = false;
++		atransform.rollangle = 0.0f;
++		atransform.anglex   = g_vrPitch + g_vrStickPitch;  // headset pitch + the opt-in stick glance
++		atransform.angley  += g_vrYaw;    // viewangle (set above) + head yaw -- same source as the sky dome
++		// Camera position flows from SRB2 (R_SetupFrame): "chasecam 0" = first person at the player's
++		// eye, "chasecam 1" = third-person chase camera (which already pulls in to avoid wall clipping).
++		{ // Positional tracking + stereo: this eye's offset from the recenter anchor
++		  // (lean/step + IPD, meters) lands in the world scaled by vr_scale (units per
++		  // meter). The tracking room is glued to the body yaw, so the mapping rotates
++		  // with viewangle. Leaning visibly moves the camera; the per-eye IPD split
++		  // gives depth; dragging World Scale rescales both live.
++			// vr_scale MUST be read via atof(.string) -- its .value is not usable
++			// fixed-point (documented dead-end; .value here is ~65536x too small).
++			float s = (float)atof(cv_vrscale.string);
++			const float va = FIXED_TO_FLOAT(AngleFixed(viewangle)) * (float)(M_PIl / 180.0f);
++			float ox, oy, oz, back, up;
++			float mulx = 1.0f, muly = 1.0f, mulz = 1.0f;
++			if (s < 1.0f) s = 32.0f;
++
++			// The skybox is a scaled miniature: R_SkyboxFrame maps camera
++			// motion into it by the map's skybox scale, and not at all when
++			// there is no viewpoint mobj. The eye offset (and the quake
++			// removal below) must ride the SAME mapping -- a full-size IPD
++			// inside a 16x-smaller diorama is hyperstereo, and the backdrop
++			// reads as a doubled miniature pressed against the face.
++			if (skybox)
++			{
++				if (!skyboxmo[1])
++					mulx = muly = mulz = 0.0f;
++				else
++				{
++					const mapheader_t *smh = mapheaderinfo[gamemap-1];
++					mulx = (smh->skybox_scalex > 0) ? 1.0f / smh->skybox_scalex
++					     : (smh->skybox_scalex < 0) ? (float)-smh->skybox_scalex : 0.0f;
++					muly = (smh->skybox_scaley > 0) ? 1.0f / smh->skybox_scaley
++					     : (smh->skybox_scaley < 0) ? (float)-smh->skybox_scaley : 0.0f;
++					mulz = (smh->skybox_scalez > 0) ? 1.0f / smh->skybox_scalez
++					     : (smh->skybox_scalez < 0) ? (float)-smh->skybox_scalez : 0.0f;
++				}
++			}
++			// Diorama view: head motion and IPD cover several times more world,
++			// which reads as standing over a miniature of the level.
++			s *= VR_WorldScaleMul();
++			ox = ( g_vrEyeOff[0]*sinf(va) - g_vrEyeOff[2]*cosf(va)) * s;
++			oy = (-g_vrEyeOff[0]*cosf(va) - g_vrEyeOff[2]*sinf(va)) * s;
++			oz = g_vrEyeOff[1] * s;
++			// Diorama placement: pulling the camera back along the view and up
++			// parks the miniature in front of and below the eyes (meters).
++			VR_DioramaPark(&back, &up);
++			ox -= cosf(va) * back * s;
++			oy -= sinf(va) * back * s;
++			oz += up * s;
++			ox *= mulx;
++			oy *= muly;
++			oz *= mulz;
++			// VR Third Person distance: slide the chase camera along its own
++			// offset from the player (vr_thirddist %, 100 = the game's own
++			// distance). World-space and outside the skybox/diorama scaling
++			// above, and it never touches the flat game's camera cvars.
++			if (cv_vrviewmode.value == VR_VIEW_THIRD_PERSON && camera.chase && !skybox
++				&& player == &players[displayplayer] && player->mo)
++			{
++				const float m = cv_vrthirddist.value / 100.0f - 1.0f;
++				ox += FIXED_TO_FLOAT(camera.x - player->mo->x) * m;
++				oy += FIXED_TO_FLOAT(camera.y - player->mo->y) * m;
++				oz += FIXED_TO_FLOAT(camera.z - player->mo->z) * m;
++			}
++			atransform.x += ox;
++			atransform.y += oy;
++			atransform.z += oz;
++			// The whole render must agree on where the eye IS: the clipper's
++			// seg angles, plane above/below tests, and sprite math all read the
++			// view globals, and leaving them at the body position is what made
++			// leaning cull visible walls. One shared eye position, everywhere.
++			gl_viewx += ox;
++			gl_viewy += oy;
++			gl_viewz += oz;
++			viewx += FLOAT_TO_FIXED(ox);
++			viewy += FLOAT_TO_FIXED(oy);
++			viewz += FLOAT_TO_FIXED(oz);
++
++			// The quake shake stays out of the head: the world may rumble
++			// through object motion, but the viewpoint is never thrown around
++			// (a shaken camera is a shaken inner ear in VR). The skybox view
++			// received the quake through the same scaled mapping as the eye
++			// offset, so remove exactly what arrived, no more.
++			if (quake.time)
++			{
++				const float qx = FixedToFloat(quake.x) * mulx;
++				const float qy = FixedToFloat(quake.y) * muly;
++				const float qz = FixedToFloat(quake.z) * mulz;
++				atransform.x -= qx;
++				atransform.y -= qy;
++				atransform.z -= qz;
++				gl_viewx -= qx;
++				gl_viewy -= qy;
++				gl_viewz -= qz;
++				viewx -= FLOAT_TO_FIXED(qx); viewy -= FLOAT_TO_FIXED(qy); viewz -= FLOAT_TO_FIXED(qz);
++			}
++
++			// First person keeps its head still: the walk/run view bob reads
++			// as the whole world pumping in VR, so undo the bob term (the
++			// interpolated one, to match the interpolated viewz) render-side.
++			// The sim's viewz is untouched -- flat play and netgames see none
++			// of this.
++			if (!skybox && !camera.chase && player == &players[displayplayer]
++				&& !player->awayviewtics && player->mo && P_IsObjectOnGround(player->mo))
++			{
++				const fixed_t frac = R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT;
++				const fixed_t b1 = FixedMul(player->bob/2, FINESINE(((FINEANGLES/20)*leveltime) & FINEMASK));
++				const fixed_t b0 = FixedMul(player->bob/2, FINESINE(((FINEANGLES/20)*(leveltime-1)) & FINEMASK));
++				fixed_t vbob = b0 + FixedMul(b1 - b0, frac);
++				if (player->mo->eflags & MFE_VERTICALFLIP)
++					vbob = -vbob;
++				atransform.z -= FixedToFloat(vbob);
++				gl_viewz -= FixedToFloat(vbob);
++				viewz -= vbob;
++			}
++
++			// Lean anti-clip: keep the eye a hand's width out of the floor and
++			// ceiling it is over. Not in Diorama (the miniature sits far below
++			// the real eye on purpose) and not for the skybox vantage.
++			if (!skybox && cv_vrviewmode.value != VR_VIEW_DIORAMA)
++			{
++				sector_t *es = R_PointInSubsector(viewx, viewy)->sector;
++				const fixed_t fl = P_GetSectorFloorZAt(es, viewx, viewy) + 8*FRACUNIT;
++				const fixed_t cl = P_GetSectorCeilingZAt(es, viewx, viewy) - 8*FRACUNIT;
++				fixed_t nz = viewz;
++				if (fl < cl)
++				{
++					if (nz < fl) nz = fl;
++					if (nz > cl) nz = cl;
++				}
++				if (nz != viewz)
++				{
++					const float dz = FixedToFloat(nz - viewz);
++					viewz = nz;
++					gl_viewz += dz;
++					atransform.z += dz;
++				}
++			}
++		}
++	}
++
+ 	if (player->viewrollangle != 0)
+ 	{
+ 		fixed_t rol = AngleFixed(player->viewrollangle);
+@@ -5406,9 +5830,29 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
+ 
+ 	if (rendermode == render_opengl)
+ 	{
+-		angle_t a1 = gld_FrustumAngle(fpov, gl_aimingangle);
+ 		gld_clipper_Clear();
+-		gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
++		if (!g_vrActive)
++		{
++			angle_t a1 = gld_FrustumAngle(fpov, gl_aimingangle);
++			gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
++		}
++		else if (cv_vrculling.value)
++		{
++			// Smart VR culling: the accept wedge follows the HEAD -- its yaw
++			// and the eye's real FOV -- not the body's game FOV, and the
++			// eye-true view position (set in HWR_SetupView) makes the seg
++			// occlusion clipper exact under lean. vr_culling Off skips only
++			// this wedge; solid-wall occlusion stays active in every mode
++			// (walls genuinely hide what is behind them, so it cannot pop),
++			// and it is what keeps culling-off from drawing every hidden
++			// room. A steeply pitched gaze simply gets no wedge either.
++			angle_t a1 = gld_FrustumAngleVR(g_vrFov, g_vrPitch + g_vrStickPitch);
++			if (a1 != 0xffffffff)
++			{
++				angle_t heading = viewangle + FixedAngle(FLOAT_TO_FIXED(g_vrYaw));
++				gld_clipper_SafeAddClipRange(heading + a1, heading - a1);
++			}
++		}
+ #ifdef HAVE_SPHEREFRUSTRUM
+ 		gld_FrustrumSetup();
+ #endif
+@@ -5474,6 +5918,25 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
+ // ==========================================================================
+ //
+ // ==========================================================================
++// VR: render the local player's 3D view into the currently-bound framebuffer + viewport.
++// Called once per eye by the OpenXR frame loop (see src/vr/i_openxr.c).
++void HWR_RenderPlayerEye(void)
++{
++	// Only render the world when a map is actually live (a level, or the title
++	// screen's flyby); otherwise (menus without a map, loading) there is no
++	// map/BSP and rendering would crash.
++	if (VR_WorldVisible() && (players[displayplayer].mo || players[displayplayer].playerstate == PST_DEAD))
++	{
++		HWR_RenderPlayerView(0, &players[displayplayer]);
++	}
++	else
++	{
++		FRGBAFloat clear;
++		clear.red = 0.02f; clear.green = 0.02f; clear.blue = 0.03f; clear.alpha = 1.0f;
++		HWD.pfnClearBuffer(true, true, &clear); // calm dark backdrop behind the floating UI screen
++	}
++}
++
+ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
+ {
+ 	const float fpov = FixedToFloat(R_GetPlayerFov(player));
+@@ -5488,17 +5951,107 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
+ 	ClearColor.alpha = 1.0f;
+ 
+ 	if (cv_glshaders.value)
++	{
+ 		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LEVELTIME, (INT32)leveltime); // The water surface shader needs the leveltime.
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_SUPERSAMPLE, cv_glsupersample.value);
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_SCREENEFFECT, cv_glscreeneffect.value);
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_CRTMASKSTRENGTH, cv_glcrtmaskstrength.value);
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_CRTBOOST, cv_glcrtbrightness.value);
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_CRTINTENSITY, cv_glcrtintensity.value);
++	}
+ 
+ 	if (viewnumber == 0) // Only do it if it's the first screen being rendered
+ 		HWD.pfnClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
+ 
++	// ORDER LAW: every water uniform must be current BEFORE the skybox render
++	// below -- HWR_RenderSkyboxView is a full world render (BSP walk, sprites,
++	// water planes of the skybox scene) and consumes them all. Setting them
++	// after it meant the skybox drew on the PREVIOUS pass's values. Flat that
++	// is one frame stale and invisible; in VR the passes run flat -> left eye
++	// -> right eye, so the left eye's skybox inherited the flat pass's
++	// ANIMATING caustic clock while the right eye's got the left's FROZEN
++	// one -- the two eyes disagreed on every caustic-lit skybox surface,
++	// re-diverging as leveltime advanced. That rivalry was the VR caustic
++	// flash on skybox vistas (GFZ's lake backdrop), and no uniform VALUE
++	// could ever fix it -- only this order.
++	//
++	// The scan reads the previous pass's view position (this view's eye-true
++	// setup happens below): one pass late at the waterline, which the
++	// shallow-band easing already covers.
++	HWR_CheckVREyeWater();
++
++	// Underwater world sway: amplitude for the world vertex shader, in
++	// milli-units. Zero everywhere except a submerged VR eye, so the flat
++	// frame (and Theater's warp) never move.
++	if (cv_glshaders.value)
++	{
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRSWAY,
++			(g_vrActive && gl_vrEyeUnderwater && cv_vrwatersway.value) ? cv_vrwatersway.value * 350 : 0);
++		// Surface ripple boost: above or below the water, VR and flat alike
++		// -- a livelier surface sells the water from the shore too.
++		HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRRIPPLE, cv_vrripple.value * 100);
++		// Beer-Lambert water: density + ambient color for the fragment fog.
++		// The ambient is LUMINOUS -- sunlight scattered into the water column
++		// -- not just darkness: near the surface distant things dissolve into
++		// glowing blue-teal, and sinking dims that glow and thickens the
++		// water. A slow breath drifts the light like the surface is moving.
++		if (cv_vrwateratmo.value)
++		{
++			const float breath = 1.0f + 0.05f * sinf((float)leveltime * 0.045f);
++			// The fragment fog grades brightness by height below the surface
++			// now, so the eye-depth dimming here stays mild -- the column
++			// itself carries the up-bright / down-dark truth.
++			const float dk = (1.0f - (gl_vrEyeUnderwater ? 0.35f * gl_vrEyeWaterDepth : 0.0f)) * breath;
++			const INT32 uwr = (INT32)(0x3c * dk), uwg = (INT32)(0x86 * dk), uwb = (INT32)(0x9e * dk);
++			// Density tuned to gameplay scale, not open ocean: at the default
++			// the far end of a room gains a whisper of teal, and even slider
++			// 10 leaves swimming distances readable. (The first curve was
++			// physically honest and unplayably thick -- red gone in three
++			// meters reads as soup when rooms span thirty.)
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWFOG, gl_vrEyeUnderwater
++				? (INT32)(((180 + (INT32)(160.0f * gl_vrEyeWaterDepth)) * cv_vrwaterfog.value) / 5 * gl_vrEyeShallow) : 0);
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWCOLOR, (uwr << 16) | (uwg << 8) | uwb);
++			// Per-layer sliders, 0-10 with 5 = the tuned default strength.
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWCAUSTIC, cv_vrcaustics.value * 80);
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWCAUSTICTIME,
++				g_vrActive ? -1 : (INT32)leveltime);
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWRAY, gl_vrEyeUnderwater ? (INT32)(cv_vrgodrays.value * 26 * gl_vrEyeShallow) : 0);
++			// Surface height feeds the column gradient; the eye-anchored math
++			// (god-ray march, Snell's window) gets ONE shared origin --
++			// stamped once per frame, before the eye setup, so it is the
++			// body camera's -- for both eyes. Marching the sharp shaft field
++			// from each eye separately lands different bright spots on the
++			// same wall, which can never fuse and reads cross-eyed; from one
++			// origin the rays are a single volume, and the Snell window is
++			// degrees-wide and soft, so the few-centimeter slant never shows.
++			// Shader axes: y = height.
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWSURF, (INT32)(FixedToFloat(gl_vrEyeWaterTop) * 16.0f));
++			{
++				static float uwox, uwoy, uwoz;
++				if (!g_vrActive || g_vrEyeIndex == 0)
++				{
++					uwox = gl_viewx;
++					uwoy = gl_viewz;
++					uwoz = gl_viewy;
++				}
++				HWD.pfnSetShaderInfo(HWD_SHADERINFO_VREYEX, (INT32)(uwox * 16.0f));
++				HWD.pfnSetShaderInfo(HWD_SHADERINFO_VREYEY, (INT32)(uwoy * 16.0f));
++				HWD.pfnSetShaderInfo(HWD_SHADERINFO_VREYEZ, (INT32)(uwoz * 16.0f));
++			}
++		}
++		else
++		{
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWFOG, 0);
++			HWD.pfnSetShaderInfo(HWD_SHADERINFO_VRUWCAUSTIC, 0);
++		}
++	}
++
+ 	PS_START_TIMING(ps_hw_skyboxtime);
+ 	if (skybox && drawsky) // If there's a skybox and we should be drawing the sky, draw the skybox
+ 		HWR_RenderSkyboxView(viewnumber, player); // This is drawn before everything else so it is placed behind
+ 	PS_STOP_TIMING(ps_hw_skyboxtime);
+ 
+-	HWR_SetupView(player, viewnumber, fpov, false);
++	HWR_SetupView(player, viewnumber, fpov, false); // eye-true view globals for THIS pass's world render
+ 
+ 	framecount++; // timedemo
+ 
+@@ -5520,9 +6073,29 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
+ 
+ 	if (rendermode == render_opengl)
+ 	{
+-		angle_t a1 = gld_FrustumAngle(fpov, gl_aimingangle);
+ 		gld_clipper_Clear();
+-		gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
++		if (!g_vrActive)
++		{
++			angle_t a1 = gld_FrustumAngle(fpov, gl_aimingangle);
++			gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
++		}
++		else if (cv_vrculling.value)
++		{
++			// Smart VR culling: the accept wedge follows the HEAD -- its yaw
++			// and the eye's real FOV -- not the body's game FOV, and the
++			// eye-true view position (set in HWR_SetupView) makes the seg
++			// occlusion clipper exact under lean. vr_culling Off skips only
++			// this wedge; solid-wall occlusion stays active in every mode
++			// (walls genuinely hide what is behind them, so it cannot pop),
++			// and it is what keeps culling-off from drawing every hidden
++			// room. A steeply pitched gaze simply gets no wedge either.
++			angle_t a1 = gld_FrustumAngleVR(g_vrFov, g_vrPitch + g_vrStickPitch);
++			if (a1 != 0xffffffff)
++			{
++				angle_t heading = viewangle + FixedAngle(FLOAT_TO_FIXED(g_vrYaw));
++				gld_clipper_SafeAddClipRange(heading + a1, heading - a1);
++			}
++		}
+ #ifdef HAVE_SPHEREFRUSTRUM
+ 		gld_FrustrumSetup();
+ #endif
+@@ -5696,6 +6269,33 @@ CV_PossibleValue_t glanisotropicmode_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NU
+ 
+ consvar_t cv_glshaders = CVAR_INIT ("gr_shaders", "On", CV_SAVE|CV_CALL, glshaders_cons_t, CV_glshaders_OnChange);
+ 
++// Extra texture samples per pixel, taken inside the pixel's own footprint
++// and averaged. Distant pixel art stops crawling without the whole frame
++// being rendered larger - which matters twice over with two eyes to fill.
++consvar_t cv_glsupersample = CVAR_INIT ("gr_supersample", "On", CV_SAVE, CV_OnOff, NULL);
++
++// A CRT for the final blit. Ported from the Ring Racers VR build, where it
++// is the flagship look; this renderer has no screen-effect system, so it
++// hangs off the one place the finished frame is drawn as a single quad.
++CV_PossibleValue_t glscreeneffect_cons_t[] = {{0, "Off"}, {1, "SalCRT Sharp"},
++	{2, "Megatron Grille"}, {3, "Megatron Slot"}, {4, "Megatron Shadow"}, {0, NULL}};
++consvar_t cv_glscreeneffect = CVAR_INIT ("gr_screeneffect", "Megatron Shadow", CV_SAVE, glscreeneffect_cons_t, NULL);
++
++// Megatron mask controls. A real phosphor mask passes one channel in three,
++// so at full strength it eats two thirds of the light -- the HDR displays
++// the original Megatron shader targets pay that back with nits, an SDR
++// output cannot. Strength is mask depth; brightness pays the loss back
++// (5 = x2.0, roughly parity at the default strength). SalCRT Sharp ignores
++// both -- they are Megatron-only.
++static CV_PossibleValue_t glcrtslider_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
++consvar_t cv_glcrtmaskstrength = CVAR_INIT ("gr_crtmaskstrength", "7", CV_SAVE, glcrtslider_cons_t, NULL);
++consvar_t cv_glcrtbrightness = CVAR_INIT ("gr_crtbrightness", "5", CV_SAVE, glcrtslider_cons_t, NULL);
++// Whole-effect opacity for EVERY CRT preset: the finished effect fades
++// toward the clean frame, 10 = the effect exactly as designed. The shipped
++// default is Megatron Shadow at 1 -- a whisper of phosphor over an
++// otherwise clean image.
++consvar_t cv_glcrtintensity = CVAR_INIT ("gr_crtintensity", "1", CV_SAVE, glcrtslider_cons_t, NULL);
++
+ #ifdef ALAM_LIGHTING
+ consvar_t cv_gldynamiclighting = CVAR_INIT ("gr_dynamiclighting", "On", CV_SAVE, CV_OnOff, NULL);
+ consvar_t cv_glstaticlighting  = CVAR_INIT ("gr_staticlighting", "On", CV_SAVE, CV_OnOff, NULL);
+@@ -5722,7 +6322,9 @@ consvar_t cv_glbatching = CVAR_INIT ("gr_batching", "On", 0, CV_OnOff, NULL);
+ 
+ static CV_PossibleValue_t glpalettedepth_cons_t[] = {{16, "16 bits"}, {24, "24 bits"}, {0, NULL}};
+ 
+-consvar_t cv_glpaletterendering = CVAR_INIT ("gr_paletterendering", "On", CV_SAVE|CV_CALL, CV_OnOff, CV_glpaletterendering_OnChange);
++// Off by default in this fork: truecolor is the primary look for the VR and
++// water work; the retro palette mode remains a supported opt-in.
++consvar_t cv_glpaletterendering = CVAR_INIT ("gr_paletterendering", "Off", CV_SAVE|CV_CALL, CV_OnOff, CV_glpaletterendering_OnChange);
+ consvar_t cv_glpalettedepth = CVAR_INIT ("gr_palettedepth", "16 bits", CV_SAVE|CV_CALL, glpalettedepth_cons_t, CV_glpalettedepth_OnChange);
+ 
+ #define ONLY_IF_GL_LOADED if (vid.glstate != VID_GL_LIBRARY_LOADED) return;
+@@ -5800,6 +6402,11 @@ void HWR_AddCommands(void)
+ 
+ 	CV_RegisterVar(&cv_glfiltermode);
+ 	CV_RegisterVar(&cv_glanisotropicmode);
++	CV_RegisterVar(&cv_glsupersample);
++	CV_RegisterVar(&cv_glscreeneffect);
++	CV_RegisterVar(&cv_glcrtmaskstrength);
++	CV_RegisterVar(&cv_glcrtbrightness);
++	CV_RegisterVar(&cv_glcrtintensity);
+ 	CV_RegisterVar(&cv_glsolvetjoin);
+ 
+ 	CV_RegisterVar(&cv_glbatching);
+@@ -5976,10 +6583,15 @@ void HWR_DoPostProcessor(player_t *player)
+ 	if (player->flashcount && !HWR_ShouldUsePaletteRendering())
+ 	{
+ 		FOutVector      v[4];
+-		FSurfaceInfo Surf;
++		FSurfaceInfo Surf = {0};
++		// VR: the eye frustum is wider than the flat 90-degree view this quad was
++		// sized for -- push the corners out so the flash still fills the whole eye.
++		const float flashext = g_vrActive ? 16.0f : 4.0f;
++
++		Surf.VRWaterTop = 0.0f; // screen quad, not world geometry
+ 
+-		v[0].x = v[2].y = v[3].x = v[3].y = -4.0f;
+-		v[0].y = v[1].x = v[1].y = v[2].x = 4.0f;
++		v[0].x = v[2].y = v[3].x = v[3].y = -flashext;
++		v[0].y = v[1].x = v[1].y = v[2].x = flashext;
+ 		v[0].z = v[1].z = v[2].z = v[3].z = 4.0f; // 4.0 because of the same reason as with the sky, just after the screen is cleared so near clipping plane is 3.99
+ 
+ 		// This won't change if the flash palettes are changed unfortunately, but it works for its purpose
+@@ -5996,6 +6608,68 @@ void HWR_DoPostProcessor(player_t *player)
+ 		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
+ 	}
+ 
++	// VR underwater veil: a translucent wash over the whole eye, breathing
++	// gently with the level clock. Uniform across the eye, so both eyes fuse
++	// -- the stereo-safe stand-in for the flat screen's wavy warp. The light
++	// comes from above: pitching toward the surface brightens the veil toward
++	// sunlit teal, pitching into the deep darkens and thickens it.
++	if (g_vrActive && gl_vrEyeUnderwater)
++	{
++		FOutVector      v[4];
++		FSurfaceInfo Surf = {0};
++		const float breath = sinf((float)leveltime * 0.09f);
++		Surf.VRWaterTop = 0.0f; // screen quad, not world geometry
++		float up = (g_vrPitch + g_vrStickPitch) / 90.0f;
++		if (up > 1.0f) up = 1.0f;
++		if (up < -1.0f) up = -1.0f;
++
++		v[0].x = v[2].y = v[3].x = v[3].y = -16.0f;
++		v[0].y = v[1].x = v[1].y = v[2].x = 16.0f;
++		v[0].z = v[1].z = v[2].z = v[3].z = 4.0f;
++
++		// Lighter than before: the Beer-Lambert fog now carries the body of
++		// the look, so the veil is just the near-field glow and the light
++		// gradient -- less soup, cleaner read.
++		Surf.PolyColor.s.red   = (UINT8)(0x18 + (up >= 0.0f ? up * 0x18 : up * 0x10));
++		Surf.PolyColor.s.green = (UINT8)(0x50 + (up >= 0.0f ? up * 0x30 : up * 0x30));
++		Surf.PolyColor.s.blue  = (UINT8)(0x60 + (up >= 0.0f ? up * 0x2c : up * 0x30));
++		// The shallow ease keeps the veil from snapping on at the waterline;
++		// it fades in over the same first ~0.4 m as the fog and rays.
++		Surf.PolyColor.s.alpha = (UINT8)((26.0f + 16.0f * gl_vrEyeWaterDepth + 5.0f * breath
++			+ 10.0f * (up < 0.0f ? -up : 0.0f)) * gl_vrEyeShallow);
++
++		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Translucent|PF_NoTexture|PF_NoDepthTest);
++	}
++
++	// A menu over live stereo dims the WORLD, not the screen pane: the
++	// floating screen stays clear glass and the text reads against a hushed
++	// world instead of a smoked quad. The dim is drawn before the mirror
++	// grab, so the monitor's menu reads against the same hush.
++	if (g_vrActive && menuactive && cv_vrmenudim.value && !VR_TheaterActive())
++	{
++		FOutVector      v[4];
++		FSurfaceInfo Surf = {0};
++
++		v[0].x = v[2].y = v[3].x = v[3].y = -16.0f;
++		v[0].y = v[1].x = v[1].y = v[2].x = 16.0f;
++		v[0].z = v[1].z = v[2].z = v[3].z = 4.0f;
++
++		Surf.VRWaterTop = 0.0f; // screen quad, not world geometry
++		Surf.PolyColor.s.red = Surf.PolyColor.s.green = Surf.PolyColor.s.blue = 0;
++		Surf.PolyColor.s.alpha = (UINT8)min(cv_vrmenudim.value * 14, 224);
++
++		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Translucent|PF_NoTexture|PF_NoDepthTest);
++	}
++
++	// VR: everything below is a flat-screen trick -- capture the frame, redraw it
++	// warped as a screen-space grid. Inside the eye pass the capture can't read
++	// the multisampled eye target (leaving a stale/empty texture that redraws as
++	// a white-out) and the redraw lands differently in each eye (double vision).
++	// Skip it; the underwater/heat colormap tint is part of the world render and
++	// still applies. The flat frame keeps the warp.
++	if (g_vrActive)
++		return;
++
+ 	// Capture the screen for intermission and screen waving
+ 	if(gamestate != GS_INTERMISSION)
+ 		HWD.pfnMakeScreenTexture(HWD_SCREENTEXTURE_GENERIC1);
+@@ -6136,6 +6810,31 @@ void HWR_MakeScreenFinalTexture(void)
+ 	HWD.pfnMakeScreenTexture(tex);
+ }
+ 
++// VR eye-pass screen effect. The eye loop asks whether the effect should
++// run, then hands over the eye render's texture with the swapchain
++// framebuffer already bound as the draw target.
++boolean HWR_VREyeEffectActive(void)
++{
++	return (cv_glscreeneffect.value != 0 && HWR_UseShader());
++}
++
++void HWR_DrawVREyeEffect(UINT32 tex, int width, int height)
++{
++	HWD.pfnDrawVREyeEffect(tex, width, height);
++}
++
++// The VR floating screen (menus / title / console) must draw CLEAN: the
++// compositor resamples that quad to its apparent size in the view, and a
++// gl_FragCoord-locked scanline/grille pattern resampled off 1:1 turns into
++// moire and shimmer. The eyes carry the CRT at a true 1:1 with the
++// swapchain; the floating screen stays legible.
++void HWR_DrawScreenFinalTextureNoEffect(int width, int height)
++{
++	HWD.pfnSetShaderInfo(HWD_SHADERINFO_SCREENEFFECT, 0);
++	HWR_DrawScreenFinalTexture(width, height);
++	HWD.pfnSetShaderInfo(HWD_SHADERINFO_SCREENEFFECT, cv_glscreeneffect.value);
++}
++
+ void HWR_DrawScreenFinalTexture(int width, int height)
+ {
+ 	int tex = HWR_ShouldUsePaletteRendering() ? HWD_SCREENTEXTURE_GENERIC3 : HWD_SCREENTEXTURE_GENERIC2;

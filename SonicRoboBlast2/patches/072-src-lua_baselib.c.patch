@@ -1,0 +1,12 @@
+diff --git a/src/lua_baselib.c b/src/lua_baselib.c
+index ecd1ee55e..4b561f798 100644
+--- a/src/lua_baselib.c
++++ b/src/lua_baselib.c
+@@ -19,6 +19,7 @@
+ #include "r_main.h"
+ #include "r_draw.h"
+ #include "r_things.h" // R_Frame2Char etc
++#include "r_textures.h"
+ #include "m_random.h"
+ #include "s_sound.h"
+ #include "g_game.h"

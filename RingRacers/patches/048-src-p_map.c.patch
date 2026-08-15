@@ -1,0 +1,150 @@
+diff --git a/src/p_map.c b/src/p_map.c
+index d1ff6f8c1..2be13b26a 100644
+--- a/src/p_map.c
++++ b/src/p_map.c
+@@ -2624,6 +2624,145 @@ boolean P_CheckCameraPosition(fixed_t x, fixed_t y, camera_t *thiscam)
+ 	return true;
+ }
+ 
++//
++// P_TraceCameraClearance
++//
++// How much of the segment from the view origin out to a detached camera
++// anchor (the VR diorama eye) is free of level geometry. Walls block at the
++// exact crossing; floors, ceilings and solid FOFs are also sampled along the
++// way so the anchor gets pulled in before it pokes through a slope or an
++// overhead deck. Returns the clear fraction of the segment (FRACUNIT =
++// fully clear), already shortened by a standoff margin from whatever
++// blocked it.
++//
++
++static fixed_t clearz1, clearz2;  // segment endpoint heights
++static fixed_t clearfrac;         // nearest blocking fraction found
++
++// Is the point (x, y, z) inside sec's open space? Mirrors the camera
++// collision rules: NOCLIPCAMERA sectors never block, camsec / heightsec
++// stand in for the real heights, and only solid, visible FOFs count (the
++// same filter as P_CheckCameraPosition).
++static boolean P_ClearancePointOpen(sector_t *sec, fixed_t x, fixed_t y, fixed_t z)
++{
++	fixed_t f, c;
++	ffloor_t *rover;
++
++	if (sec->flags & MSF_NOCLIPCAMERA)
++		return true;
++
++	if (sec->camsec >= 0)
++	{
++		f = sectors[sec->camsec].floorheight;
++		c = sectors[sec->camsec].ceilingheight;
++	}
++	else if (sec->heightsec >= 0)
++	{
++		f = sectors[sec->heightsec].floorheight;
++		c = sectors[sec->heightsec].ceilingheight;
++	}
++	else
++	{
++		f = P_GetSectorFloorZAt(sec, x, y);
++		c = P_GetSectorCeilingZAt(sec, x, y);
++	}
++
++	if (z < f || z > c)
++		return false;
++
++	for (rover = sec->ffloors; rover; rover = rover->next)
++	{
++		if (!(rover->fofflags & FOF_BLOCKOTHERS) || !(rover->fofflags & FOF_EXISTS)
++			|| !(rover->fofflags & FOF_RENDERALL)
++			|| (rover->master->frontsector->flags & MSF_NOCLIPCAMERA))
++			continue;
++
++		if (z >= P_GetFFloorBottomZAt(rover, x, y) && z <= P_GetFFloorTopZAt(rover, x, y))
++			return false;
++	}
++
++	return true;
++}
++
++static boolean PTR_CameraClearanceTraverse(intercept_t *in)
++{
++	line_t *li;
++	fixed_t cx, cy, cz;
++
++	if (!in->isaline)
++		return true;
++
++	li = in->d.line;
++	cx = g_trace.x + FixedMul(g_trace.dx, in->frac);
++	cy = g_trace.y + FixedMul(g_trace.dy, in->frac);
++	cz = clearz1 + FixedMul(clearz2 - clearz1, in->frac);
++
++	if (!li->backsector)
++	{
++		if (P_PointOnLineSide(g_trace.x, g_trace.y, li))
++			return true; // crossed from the back; nothing to hit
++	}
++	else if (P_ClearancePointOpen(li->frontsector, cx, cy, cz)
++		&& P_ClearancePointOpen(li->backsector, cx, cy, cz))
++	{
++		// The crossing height fits through this line's opening.
++		return true;
++	}
++
++	clearfrac = in->frac;
++	return false; // nearest blocker: intercepts arrive sorted by fraction
++}
++
++fixed_t P_TraceCameraClearance(fixed_t x1, fixed_t y1, fixed_t z1, fixed_t x2, fixed_t y2, fixed_t z2)
++{
++	// Standoff from any blocker, so the anchor never kisses the surface.
++	const fixed_t margin = 16*FRACUNIT;
++	const INT32 samples = 8;
++	fixed_t frac, len;
++	INT32 i;
++
++	len = FixedHypot(P_AproxDistance(x2 - x1, y2 - y1), z2 - z1);
++	if (len < FRACUNIT)
++		return FRACUNIT;
++
++	clearz1 = z1;
++	clearz2 = z2;
++	clearfrac = FRACUNIT;
++
++	P_PathTraverse(x1, y1, x2, y2, PT_ADDLINES, PTR_CameraClearanceTraverse);
++	frac = clearfrac;
++
++	// Plane sweep: line crossings alone can't catch the segment poking
++	// through a sloped plane or a FOF inside a single sector.
++	for (i = 1; i <= samples; i++)
++	{
++		const fixed_t sf = (i << FRACBITS) / samples;
++		fixed_t sx, sy, sz;
++
++		if (sf >= frac)
++			break;
++
++		sx = x1 + FixedMul(x2 - x1, sf);
++		sy = y1 + FixedMul(y2 - y1, sf);
++		sz = z1 + FixedMul(z2 - z1, sf);
++
++		if (!P_ClearancePointOpen(R_PointInSubsector(sx, sy)->sector, sx, sy, sz))
++		{
++			frac = ((i - 1) << FRACBITS) / samples; // last known-open sample
++			break;
++		}
++	}
++
++	if (frac < FRACUNIT)
++	{
++		frac -= FixedDiv(margin, len);
++		if (frac < 0)
++			frac = 0;
++	}
++
++	return frac;
++}
++
+ // The highest the camera will "step up" onto another floor.
+ #define MAXCAMERASTEPMOVE MAXSTEPMOVE
+ 

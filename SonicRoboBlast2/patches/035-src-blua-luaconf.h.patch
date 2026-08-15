@@ -1,0 +1,27 @@
+diff --git a/src/blua/luaconf.h b/src/blua/luaconf.h
+index 223a85703..2c5369908 100644
+--- a/src/blua/luaconf.h
++++ b/src/blua/luaconf.h
+@@ -49,6 +49,10 @@
+ #define LUA_DL_DYLD		/* does not need extra library */
+ #endif
+ 
++#if defined(__ANDROID__)
++#define LUA_ANDROID
++#endif
++
+ 
+ 
+ /*
+@@ -534,6 +538,11 @@
+ #define LUAI_MAXNUMBER2STR	12 /* 10 digits, sign, and \0 */
+ #define lua_str2number(s,p)	strtol((s), (p), 10)
+ 
++/* Disables locale functions on Android builds. */
++#ifdef LUA_ANDROID
++#define LUA_NOLOCALE
++#endif
++
+ 
+ /*
+ @@ The luai_num* macros define the primitive operations over numbers.

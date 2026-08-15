@@ -1,0 +1,12 @@
+diff --git a/Android.mk b/Android.mk
+deleted file mode 100644
+index 240dfa843..000000000
+--- a/Android.mk
++++ /dev/null
+@@ -1,6 +0,0 @@
+-# Build both the native piece of SRB2 for Android, and the Java frontend.
+-LOCAL_PATH:= $(call my-dir)
+-
+-include $(CLEAR_VARS)
+-
+-include $(call all-makefiles-under,$(LOCAL_PATH))

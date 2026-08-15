@@ -1,0 +1,135 @@
+diff --git a/src/g_build_ticcmd.cpp b/src/g_build_ticcmd.cpp
+index cfd962e28..30a0f3cdf 100644
+--- a/src/g_build_ticcmd.cpp
++++ b/src/g_build_ticcmd.cpp
+@@ -30,6 +30,7 @@
+ #include "k_bot.h"
+ #include "k_director.h"
+ #include "k_kart.h"
++#include "k_hazard.h" // cv_trickassist lives beside the other assist knobs
+ #include "k_menu.h"
+ #include "lua_hook.h"
+ #include "m_cheat.h"
+@@ -166,11 +167,122 @@ class TiccmdBuilder
+ 		cmd->turning = clamp(cmd->turning, KART_FULLTURN);
+ 		cmd->throwdir = clamp(cmd->throwdir, KART_FULLTURN);
+ 
++		trick_assist();
++
+ 		// Send leveltime when this tic was generated to the server for control lag calculations.
+ 		// Only do this when in a level. Also do this after the hook, so that it can't overwrite this.
+ 		cmd->latency = (leveltime & TICCMD_LATENCYMASK);
+ 	}
+ 
++	// Coming off a trick panel the game arms a trick, then refuses every one
++	// of them until PF_TRICKDELAY lifts - and for a human that flag only lifts
++	// on a tic where ACCELERATE is seen released (or on a fresh spindash
++	// chord). That works if you drive by tapping, but anyone who simply holds
++	// accelerate - which is nearly everyone, and unavoidable in VR - never
++	// produces that tic, so the flag stays set and no stick flick can ever
++	// trick. It was never the aim being rejected; it was the arming.
++	//
++	// So do the arming for them. Every bit of this is ordinary input written
++	// into the ticcmd before it goes anywhere, exactly the two tics a player
++	// makes by hand, so it stays netgame-safe and replay-safe: the server sees
++	// a normal ticcmd and nothing here touches game state.
++	void trick_assist()
++	{
++		player_t *p = player();
++
++		if (!cv_trickassist.value)
++			return;
++
++		if (p->mo == NULL || P_MobjWasRemoved(p->mo))
++			return;
++
++		if (p->trickpanel != TRICKSTATE_READY)
++			return;
++
++		// Is the player actually asking for a trick this tic? Drift is the
++		// "trick now" button in the air. In Buttons Only mode it is the only
++		// ask there is - the stick never fires a trick by itself, so mid-air
++		// steering stays plain air control and a ramp can't throw you
++		// sideways off an ordinary cornering input. In On mode a flick past
++		// the game's own threshold asks too. Anyone who isn't asking is left
++		// completely alone - no arming, no lost gas, stock behaviour.
++		{
++			const boolean buttonsonly = (cv_trickassist.value >= 2);
++			const boolean asking = ((cmd->buttons & BT_DRIFT) != 0)
++				|| (buttonsonly == false
++					&& ((abs(cmd->turning) >= KART_FULLTURN / 2)
++						|| (abs(cmd->throwdir) >= KART_FULLTURN / 2)));
++
++			if (asking == false)
++				return;
++		}
++
++		if (p->pflags & PF_TRICKDELAY)
++		{
++			// Lift the accelerator, but only once the panel's own delay has
++			// run out - that is the single tic the game is watching, and
++			// holding the release longer would be a real input nobody gave.
++			// Mid-air off a panel one tic costs nothing: there's no ground to
++			// accelerate against, and it re-presses as the flag clears.
++			if (p->tricktime >= TRICKDELAY)
++				cmd->buttons &= ~BT_ACCELERATE;
++			return;
++		}
++
++		// Armed. Accelerate has to be HELD again for the trick to count, and
++		// the direction has to be unambiguous - the game throws out any input
++		// whose aim and steer magnitudes are close together, so a half-pushed
++		// diagonal reads as nothing at all. Snap to whichever axis the player
++		// is favouring, keeping their sign so a direction means exactly what
++		// it means without the assist.
++		//
++		// Drift doubles as "trick now": it only works on the ground and
++		// tricks only fire in the air, so the two can never collide. A real
++		// flick asks for a trick on its own; a lean is too small to mean it -
++		// it would fire off every twitch of the steering hand - but is plenty
++		// to say which way once drift has asked, so holding the trigger
++		// through a ramp doesn't steal the choice from someone already
++		// leaning into a side trick.
++		{
++			const boolean buttonsonly = (cv_trickassist.value >= 2);
++			const boolean trigger = (cmd->buttons & BT_DRIFT) != 0;
++			const boolean sideways = abs(cmd->turning) > abs(cmd->throwdir);
++			const INT16 aimed = sideways ? cmd->turning : cmd->throwdir;
++
++			if (buttonsonly)
++			{
++				// The trigger asked - nothing else reaches here in this mode.
++				// Straight forward, every time: a trick must never throw the
++				// kart somewhere the player didn't point it, so the stick is
++				// ignored outright and the launch keeps the line you are
++				// already on.
++				cmd->turning = 0;
++				cmd->throwdir = KART_FULLTURN;
++				cmd->buttons |= BT_ACCELERATE;
++			}
++			else if (abs(aimed) >= KART_FULLTURN / 2)
++			{
++				// The player's own flick already clears the game's threshold,
++				// so the aim is left EXACTLY as they gave it. Rewriting it to
++				// full deflection here is what broke momentum: cmd->turning
++				// feeds the steering, so a snapped-to-full stick is a hard
++				// steering input held for the whole airtime, and it bleeds
++				// speed on every stick trick. Only the arming was ever
++				// missing - the aim was always fine.
++				cmd->buttons |= BT_ACCELERATE;
++			}
++			else if (trigger)
++			{
++				// Asked for a trick without saying which. The stick is at or
++				// near neutral here by definition, so there is no steering to
++				// take away - forward, the way a ramp wants it.
++				cmd->buttons |= BT_ACCELERATE;
++				cmd->turning = 0;
++				cmd->throwdir = KART_FULLTURN;
++			}
++		}
++	}
++
+ 	// Turning was removed from G_BuildTiccmd to prevent easy client hacking.
+ 	// This brings back the camera prediction that was lost.
+ 	void angle_prediction()

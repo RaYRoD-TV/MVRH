@@ -1,0 +1,20 @@
+diff --git a/src/Sourcefile b/src/Sourcefile
+index 60ee5db5b..0f8c8614a 100644
+--- a/src/Sourcefile
++++ b/src/Sourcefile
+@@ -28,6 +28,7 @@ m_fixed.c
+ m_menu.c
+ m_misc.c
+ m_perfstats.c
++m_textreader.c
+ m_random.c
+ m_tokenizer.c
+ m_queue.c
+@@ -75,6 +76,7 @@ v_video.c
+ s_sound.c
+ sounds.c
+ w_wad.c
++w_handle.c
+ filesrch.c
+ lzf.c
+ b_bot.c

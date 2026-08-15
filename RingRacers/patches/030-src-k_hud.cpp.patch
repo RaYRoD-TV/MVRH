@@ -1,0 +1,42 @@
+diff --git a/src/k_hud.cpp b/src/k_hud.cpp
+index 1bce5976f..e614fc1b6 100644
+--- a/src/k_hud.cpp
++++ b/src/k_hud.cpp
+@@ -56,6 +56,9 @@
+ #include "f_finale.h"
+ #include "m_easing.h"
+ #include "v_draw.hpp"
++#include "vr/vr.h"
++
++extern "C" consvar_t cv_vr_hud; // VR HUD Display option (Items Only / Everything)
+ 
+ //{ 	Patch Definitions
+ static patch_t *kp_nodraw;
+@@ -7874,6 +7877,27 @@ void K_drawKartHUD(void)
+ 		}
+ 	}
+ 
++	// VR "Items Only" HUD: keep the item window, drop the rest of the overlay.
++	// Crossing the finish line hands the FULL hud back for the finish
++	// sequence - the banner, the standings, the tally are the payoff of the
++	// race - and the trimmed overlay returns with the next one. Time-overs
++	// get their moment the same way.
++	if (vr_is_active() && !cv_vr_hud.value
++		&& stplyr->exiting == 0 && !(stplyr->pflags & PF_NOCONTEST))
++	{
++		if (!stplyr->spectator && !freecam && !demo.attract && LUA_HudEnabled(hud_item))
++		{
++			if (stplyr->itemRoulette.ringbox && stplyr->itemamount == 0 && stplyr->itemtype == 0)
++				K_drawKartSlotMachine();
++			else
++				K_drawKartItem();
++
++			if (stplyr->backupitemtype)
++				K_drawBackupItem();
++		}
++		return;
++	}
++
+ 	// In case of font debugging break glass
+ #if 0
+ 	using srb2::Draw;

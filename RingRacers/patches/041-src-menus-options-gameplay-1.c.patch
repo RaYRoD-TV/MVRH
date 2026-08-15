@@ -1,0 +1,41 @@
+diff --git a/src/menus/options-gameplay-1.c b/src/menus/options-gameplay-1.c
+index 718bc5643..c7319d18e 100644
+--- a/src/menus/options-gameplay-1.c
++++ b/src/menus/options-gameplay-1.c
+@@ -10,6 +10,7 @@
+ /// \brief Gameplay Options -- see gopt_e
+ 
+ #include "../k_menu.h"
++#include "../k_hazard.h" // cv_hazardsurfaces / cv_hazardtumble
+ #include "../m_cond.h"
+ 
+ menuitem_t OPTIONS_Gameplay[] =
+@@ -66,6 +67,28 @@ menuitem_t OPTIONS_Gameplay[] =
+ 		NULL, {.cvar = &cv_duelscorelimit}, 0, 0},
+ 
+ 
++	{IT_HEADER, "Hazards...", NULL,
++		NULL, {NULL}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "Hazardous Surfaces", "Lava burns you, and takes you out once your rings are gone. Offline only.",
++		NULL, {.cvar = &cv_hazardsurfaces}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "Hazards Tumble You", "Burning throws you into a tumble instead of a spinout.",
++		NULL, {.cvar = &cv_hazardtumble}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "Handling", "Grip versus slide. Higher holds your line, lower lets the kart drift wide.",
++		NULL, {.cvar = &cv_handling}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "Drift Grip", "How much the kart holds on while drifting. Higher is less slidey.",
++		NULL, {.cvar = &cv_drifthandling}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "Landing Dash", "Hit gas the moment you land from a respawn for a bigger boost.",
++		NULL, {.cvar = &cv_landingdash}, 0, 0},
++
++	{IT_STRING | IT_CVAR, "Trick Assist", "Tricks in any air, without letting go of gas. Buttons Only: the drift button, straight forward.",
++		NULL, {.cvar = &cv_trickassist}, 0, 0},
++
++
+ 	{IT_SPACE | IT_DYBIGSPACE, NULL,  NULL,
+ 		NULL, {NULL}, 0, 0},
+ 

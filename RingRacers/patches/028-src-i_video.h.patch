@@ -1,0 +1,16 @@
+diff --git a/src/i_video.h b/src/i_video.h
+index 32390eabb..ae0e5c13f 100644
+--- a/src/i_video.h
++++ b/src/i_video.h
+@@ -84,6 +84,11 @@ INT32 VID_NumModes(void);
+ */
+ INT32 VID_GetModeForSize(INT32 w, INT32 h);
+ 
++/**	\brief	Query the desktop (native) resolution of the current display.
++	Writes 0,0 if video isn't up yet or the query fails.
++*/
++void VID_GetNativeSize(INT32 *w, INT32 *h);
++
+ 
+ /**	\brief	The VID_SetMode function
+ 

@@ -1,0 +1,41 @@
+diff --git a/src/p_spec.c b/src/p_spec.c
+index dbc06d1a7..e1b04bca8 100644
+--- a/src/p_spec.c
++++ b/src/p_spec.c
+@@ -44,6 +44,7 @@
+ 
+ // SRB2kart
+ #include "k_kart.h"
++#include "k_hazard.h" // K_HazardRulesActive (lava that burns)
+ #include "k_specialstage.h"
+ #include "console.h" // CON_LogMessage
+ #include "k_respawn.h"
+@@ -5428,6 +5429,28 @@ static void P_EvaluateDamageType(player_t *player, sector_t *sector, boolean isT
+ 			if (isTouching)
+ 				P_DamageMobj(player->mo, NULL, NULL, 1, DMG_DEATHPIT);
+ 			break;
++		case SD_LAVA:
++			// Lava is the one damage type that never got a player case: the
++			// enum slot, the MFE_TOUCHLAVA flag and the lava splash all
++			// shipped, but nothing ever burned anyone, so it read as a
++			// surface you drive across. It hurts while there are rings to
++			// burn, and once those are gone it takes you off the track -
++			// which in a kart game is what dying is. Standing down in
++			// netgames and replays keeps the simulation identical to a stock
++			// client (see K_HazardRulesActive).
++			if (isTouching && K_HazardRulesActive() && K_IsRidingFloatingTop(player) == false)
++			{
++				if (RINGTOTAL(player) <= 0)
++				{
++					P_DamageMobj(player->mo, NULL, NULL, 1, DMG_DEATHPIT);
++				}
++				else
++				{
++					P_DamageMobj(player->mo, NULL, NULL, 1,
++						(cv_hazardtumble.value != 0) ? DMG_TUMBLE : DMG_NORMAL);
++				}
++			}
++			break;
+ 		case SD_INSTAKILL:
+ 			P_DamageMobj(player->mo, NULL, NULL, 1, DMG_INSTAKILL);
+ 			break;

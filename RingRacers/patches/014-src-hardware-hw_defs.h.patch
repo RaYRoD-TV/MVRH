@@ -1,0 +1,12 @@
+diff --git a/src/hardware/hw_defs.h b/src/hardware/hw_defs.h
+index 342d67c13..a9d215bb9 100644
+--- a/src/hardware/hw_defs.h
++++ b/src/hardware/hw_defs.h
+@@ -323,6 +323,7 @@ enum hwdshaderinfo
+ 	HWD_SHADERINFO_LIGHT_Z,
+ 	HWD_SHADERINFO_LIGHT_CONTRAST,
+ 	HWD_SHADERINFO_LIGHT_BACKLIGHT,
++	HWD_SHADERINFO_SUPERSAMPLE,
+ };
+ 
+ typedef enum hwdshaderinfo hwdshaderinfo_t;

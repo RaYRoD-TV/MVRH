@@ -1,0 +1,152 @@
+diff --git a/src/k_menudraw.c b/src/k_menudraw.c
+index 7f0ea1c7c..c730735c8 100644
+--- a/src/k_menudraw.c
++++ b/src/k_menudraw.c
+@@ -2478,7 +2478,7 @@ void M_DrawCharacterSelect(void)
+ {
+ 	const UINT8 pid = 0;
+ 
+-	UINT8 i, j, k;
++	UINT8 i, j;
+ 	UINT8 priority = 0;
+ 	INT16 quadx, quady;
+ 	INT16 skin;
+@@ -2495,7 +2495,7 @@ void M_DrawCharacterSelect(void)
+ 
+ 		if (!optionsmenu.profile) // Does nothing on this screen
+ 		{
+-			K_DrawGameControl(BASEVIDWIDTH/2, kTop, pid, "<r_animated> Info   <c_animated> Default", 1, TINY_FONT, 0);
++			K_DrawGameControl(BASEVIDWIDTH/2, kTop, pid, "<z_animated> Info   <c_animated> Default", 1, TINY_FONT, 0);
+ 		}
+ 		else
+ 		{
+@@ -2552,26 +2552,14 @@ void M_DrawCharacterSelect(void)
+ 				skin = setup_chargrid[i][j].skinlist[setup_page];
+ 			}
+ 
+-			for (k = 0; k < setup_numplayers; k++)
+-			{
+-				if (setup_player[k].mdepth < CSSTEP_ASKCHANGES)
+-					continue;
+-				if (setup_player[k].gridx != i || setup_player[k].gridy != j)
+-					continue;
+-				break; // k == setup_numplayers means no one has it selected
+-			}
+-
+ 			quadx = 4 * (i / 3);
+ 			quady = 4 * (j / 3);
+ 
+ 			if (skin != -1)
+ 			{
+-				UINT8 *colormap;
+-
+-				if (k == setup_numplayers)
+-					colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_GREY, GTC_MENUCACHE);
+-				else
+-					colormap = R_GetTranslationColormap(skin, skins[skin]->prefcolor, GTC_MENUCACHE);
++				// Every icon stays in its own colors - no grey-out for unhovered slots.
++				// (The cached colormap makes this the same cost as the old grey draw.)
++				UINT8 *colormap = R_GetTranslationColormap(skin, skins[skin]->prefcolor, GTC_MENUCACHE);
+ 
+ 				V_DrawMappedPatch(basex + 82 + (i*16) + quadx, 22 + (j*16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
+ 
+@@ -2582,6 +2570,12 @@ void M_DrawCharacterSelect(void)
+ 		}
+ 	}
+ 
++	// More than one page of characters? Say so under the grid, and teach the flip buttons.
++	if (forceskin == false && setup_maxpage > 0 && setup_numplayers == 1)
++	{
++		K_DrawGameControl(basex + 158, 180, pid, va("<l_animated> Page %d/%d <r_animated>", setup_page+1, setup_maxpage+1), 1, TINY_FONT, 0);
++	}
++
+ 	// Explosions when you've made your final selection
+ 	M_DrawCharSelectExplosions(true, basex + 82, 22);
+ 
+@@ -4754,7 +4748,12 @@ void M_DrawOptionsMovingButton(void)
+ 
+ 	V_DrawFixedPatch(tx, ty, FRACUNIT, 0, butt, c);
+ 
+-	const char *s = OPTIONS_MainDef.menuitems[OPTIONS_MainDef.lastOn].text;
++	// The VR page is reached from the Video menu and the pause shortcut, not
++	// from a main-menu category, so the moving button would otherwise show
++	// whichever category was visited last.
++	const char *s = (currentMenu == &OPTIONS_VideoVRDef)
++		? "VR Options"
++		: OPTIONS_MainDef.menuitems[OPTIONS_MainDef.lastOn].text;
+ 	fixed_t w = V_StringScaledWidth(
+ 		FRACUNIT,
+ 		FRACUNIT,
+@@ -4896,6 +4895,47 @@ box_found:
+ 		optionsmenu.box.start = I_GetTime();
+ 	}
+ 
++	// A long page's expanded section can run off the screen bottom (the VR
++	// options View section did). Dry-run the same y advances the loop below
++	// makes and shift the whole list up just enough that the last line fits.
++	{
++		INT32 sy = currentMenu->y;
++		boolean scollapse = false;
++		for (i = 0; i < currentMenu->numitems; i++)
++		{
++			switch (currentMenu->menuitems[i].status & IT_DISPLAY)
++			{
++				case IT_DYBIGSPACE:
++					scollapse = false;
++					sy += SMALLLINEHEIGHT/2;
++					continue;
++
++				case IT_HEADERTEXT:
++					if (i != expand)
++						scollapse = true;
++					else
++					{
++						if (scollapse)
++							sy += 2;
++						scollapse = false;
++					}
++					if (currentMenu->menuitems[i].mvar1)
++						sy = currentMenu->y + currentMenu->menuitems[i].mvar1;
++					sy += SMALLLINEHEIGHT + 1;
++					continue;
++
++				default:
++					if (scollapse)
++						continue;
++					break;
++			}
++			sy += STRINGHEIGHT;
++		}
++		// Slack covers the section-close underline the dry pass skips.
++		if (sy > BASEVIDHEIGHT - 14)
++			y -= (sy - (BASEVIDHEIGHT - 14));
++	}
++
+ 	for (i = 0; i < currentMenu->numitems; i++)
+ 	{
+ 		boolean term = false;
+@@ -5850,8 +5890,6 @@ void M_DrawVideoModes(void)
+ }
+ 
+ // Gameplay Item Tggles:
+-tic_t shitsfree = 0;
+-
+ static void DrawMappedString(INT32 x, INT32 y, INT32 option, int font, const char *text, const UINT8 *colormap)
+ {
+ 	V_DrawStringScaled(
+@@ -5978,15 +6016,6 @@ void M_DrawItemToggles(void)
+ 		if (currentMenu->menuitems[itemOn].mvar1 == 0)
+ 		{
+ 			V_DrawScaledPatch(onx-1, ony-2, 0, W_CachePatchName("K_ITBGD", PU_CACHE));
+-			if (shitsfree)
+-			{
+-				INT32 trans = V_TRANSLUCENT;
+-				if (shitsfree-1 > TICRATE-5)
+-					trans = ((10-TICRATE)+shitsfree-1)<<V_ALPHASHIFT;
+-				else if (shitsfree < 5)
+-					trans = (10-shitsfree)<<V_ALPHASHIFT;
+-				V_DrawScaledPatch(onx-1, ony-2, trans, W_CachePatchName("K_ITFREE", PU_CACHE));
+-			}
+ 		}
+ 		else
+ 		{

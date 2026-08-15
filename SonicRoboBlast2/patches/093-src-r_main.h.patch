@@ -1,0 +1,21 @@
+diff --git a/src/r_main.h b/src/r_main.h
+index af7086e83..944f83845 100644
+--- a/src/r_main.h
++++ b/src/r_main.h
+@@ -96,6 +96,7 @@ extern ps_metric_t ps_rendercalltime;
+ extern ps_metric_t ps_otherrendertime;
+ extern ps_metric_t ps_uitime;
+ extern ps_metric_t ps_swaptime;
++extern ps_metric_t ps_vr_eyetime;
+ 
+ extern ps_metric_t ps_bsptime;
+ 
+@@ -138,6 +139,8 @@ void R_Init(void);
+ void R_CheckViewMorph(void);
+ void R_ApplyViewMorph(void);
+ 
++angle_t R_GetLocalViewRollAngle(player_t *player);
++
+ // just sets setsizeneeded true
+ extern boolean setsizeneeded;
+ void R_SetViewSize(void);

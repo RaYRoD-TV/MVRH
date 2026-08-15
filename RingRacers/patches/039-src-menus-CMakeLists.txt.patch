@@ -1,0 +1,12 @@
+diff --git a/src/menus/CMakeLists.txt b/src/menus/CMakeLists.txt
+index 21b6ea21e..41175effb 100644
+--- a/src/menus/CMakeLists.txt
++++ b/src/menus/CMakeLists.txt
+@@ -30,6 +30,7 @@ target_sources(SRB2SDL2 PRIVATE
+ 	options-video-advanced.c
+ 	options-video-colorprofile.c
+ 	options-video-modes.c
++	options-video-vr.c
+ 	options-voice.cpp
+ 	play-1.c
+ 	play-char-select.c

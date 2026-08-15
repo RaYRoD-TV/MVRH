@@ -1,0 +1,37 @@
+diff --git a/src/r_fps.c b/src/r_fps.c
+index 71f6e59a7..81a50a150 100644
+--- a/src/r_fps.c
++++ b/src/r_fps.c
+@@ -23,6 +23,7 @@
+ #include "r_state.h"
+ #include "z_zone.h"
+ #include "m_perfstats.h" // ps_metric_t
++#include "vr/i_openxr.h" // VR_IsActive
+ #ifdef HWRENDER
+ #include "hardware/hw_main.h" // for cv_glshearing
+ #endif
+@@ -53,6 +54,13 @@ UINT32 R_GetFramerateCap(void)
+ 		return TICRATE;
+ 	}
+ 
++	if (VR_IsActive())
++	{
++		// The headset paces the loop through xrWaitFrame; any cap here (the
++		// default matches the desktop monitor) only makes it miss frames.
++		return 0;
++	}
++
+ 	if (cv_fpscap.value == 0)
+ 	{
+ 		// 0: Match refresh rate
+@@ -485,8 +493,8 @@ void R_CreateInterpolator_Polyobj(thinker_t *thinker, polyobj_t *polyobj)
+ 	interp->polyobj.polyobj = polyobj;
+ 	interp->polyobj.vertices_size = polyobj->numVertices;
+ 
+-	interp->polyobj.oldvertices = Z_CallocAlign(sizeof(fixed_t) * 2 * polyobj->numVertices, PU_LEVEL, NULL, 32);
+-	interp->polyobj.bakvertices = Z_CallocAlign(sizeof(fixed_t) * 2 * polyobj->numVertices, PU_LEVEL, NULL, 32);
++	interp->polyobj.oldvertices = Z_Calloc(sizeof(fixed_t) * 2 * polyobj->numVertices, PU_LEVEL, NULL);
++	interp->polyobj.bakvertices = Z_Calloc(sizeof(fixed_t) * 2 * polyobj->numVertices, PU_LEVEL, NULL);
+ 	for (size_t i = 0; i < polyobj->numVertices; i++)
+ 	{
+ 		interp->polyobj.oldvertices[i * 2    ] = interp->polyobj.bakvertices[i * 2    ] = polyobj->vertices[i]->x;

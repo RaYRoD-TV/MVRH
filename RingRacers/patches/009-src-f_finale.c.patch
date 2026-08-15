@@ -1,0 +1,18 @@
+diff --git a/src/f_finale.c b/src/f_finale.c
+index bacb041ce..26f26db75 100644
+--- a/src/f_finale.c
++++ b/src/f_finale.c
+@@ -1896,10 +1896,9 @@ void F_VersionDrawer(void)
+ 		addtext(trans, va("%s", VERSIONSTRING));
+ #endif
+ 
+-		if (compuncommitted)
+-		{
+-			addtext(V_REDMAP|V_STRINGDANCE, "! UNCOMMITTED CHANGES !");
+-		}
++		// The uncommitted-changes stamp is a dev wart with no place on a
++		// player's title screen (releases build from the develop preset).
++		// The "version" console command still reports it for devs.
+ 	}
+ #undef addtext
+ }

@@ -1,0 +1,38 @@
+diff --git a/src/hwr2/blit_rect.hpp b/src/hwr2/blit_rect.hpp
+index 3d1c32d5f..d3359bec2 100644
+--- a/src/hwr2/blit_rect.hpp
++++ b/src/hwr2/blit_rect.hpp
+@@ -28,7 +28,8 @@ public:
+ 		kNearest,
+ 		kSharpBilinear,
+ 		kCrt,
+-		kCrtSharp
++		kCrtSharp,
++		kSoft
+ 	};
+ 
+ private:
+@@ -43,6 +44,7 @@ private:
+ 	rhi::Handle<rhi::Buffer> quad_vbo_;
+ 	rhi::Handle<rhi::Buffer> quad_ibo_;
+ 	BlitMode blit_mode_;
++	bool blend_premultiplied_ = false;
+ 	rhi::Handle<rhi::Texture> dot_pattern_;
+ 
+ 	bool quad_vbo_needs_upload_ = false;
+@@ -88,6 +90,15 @@ public:
+ 		output_correct_aspect_ = correct_aspect;
+ 		output_flip_ = flip;
+ 	}
++
++	/// @brief Blend the blit over the destination as premultiplied alpha
++	/// (One, OneMinusSrcAlpha) instead of overwriting it. The VR window
++	/// mirror uses this to lay the transparent-black 2D frame over the eye
++	/// image it blitted underneath. Off by default; set every frame.
++	void set_blend(bool premultiplied) noexcept
++	{
++		blend_premultiplied_ = premultiplied;
++	}
+ };
+ 
+ } // namespace srb2::hwr2

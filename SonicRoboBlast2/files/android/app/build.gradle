@@ -1,0 +1,73 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'org.stjr.srb2'
+    compileSdkVersion 33
+
+    defaultConfig {
+        applicationId "com.rayrod.srb2vr"
+
+        minSdkVersion 24
+        targetSdkVersion 33
+        versionCode 22150
+        versionName "2.2.15"
+
+        externalNativeBuild {
+            ndkBuild {
+                arguments "-j8"
+                abiFilters 'arm64-v8a'
+            }
+        }
+
+        setProperty("archivesBaseName", "srb2-vr-quest-v" + versionName.replace(".", ""))
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "BUILD_TYPE=release"
+                }
+            }
+        }
+        debug {
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "BUILD_TYPE=debug"
+                }
+            }
+        }
+    }
+
+    // Regenerate comptime.c (build stamp) from the repo scripts before compiling.
+    task generateCompTime(type: Exec) {
+        workingDir "$projectDir/../../"
+        ignoreExitValue true
+
+        if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+            commandLine 'cmd', '/c', '.\\comptime.bat', 'src/'
+        } else {
+            commandLine './comptime.sh', 'src/'
+        }
+    }
+    preBuild.dependsOn generateCompTime
+
+    lint {
+        abortOnError false
+    }
+
+    sourceSets.main {
+        jniLibs.srcDir 'libs'
+    }
+    externalNativeBuild {
+        ndkBuild {
+            path 'jni/Android.mk'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}

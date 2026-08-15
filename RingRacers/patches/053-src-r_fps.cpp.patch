@@ -1,0 +1,27 @@
+diff --git a/src/r_fps.cpp b/src/r_fps.cpp
+index 08750043b..f7c3019fd 100644
+--- a/src/r_fps.cpp
++++ b/src/r_fps.cpp
+@@ -25,6 +25,7 @@
+ #include "r_state.h"
+ #include "z_zone.h"
+ #include "i_time.h"
++#include "vr/vr.h"
+ 
+ UINT32 R_GetFramerateCap(void)
+ {
+@@ -35,6 +36,14 @@ UINT32 R_GetFramerateCap(void)
+ 		return TICRATE;
+ 	}
+ 
++	if (vr_is_active())
++	{
++		// xrWaitFrame paces the loop at the headset's refresh rate; a software
++		// cap here would fight it. 0 = uncapped, same as cv_fpscap -1 (this
++		// also switches frame interpolation on, which VR needs).
++		return 0;
++	}
++
+ 	if (cv_fpscap.value == 0)
+ 	{
+ 		// 0: Match refresh rate

@@ -1,0 +1,62 @@
+diff --git a/src/menus/play-char-select.c b/src/menus/play-char-select.c
+index 0eae1c169..c1eb77f86 100644
+--- a/src/menus/play-char-select.c
++++ b/src/menus/play-char-select.c
+@@ -646,16 +646,12 @@ static boolean M_HandleCSelectProfile(setup_player_t *p, UINT8 num)
+ 
+ 		p->changeselect = 0;
+ 
+-		if (p->profilen == PROFILE_GUEST)
+-		{
+-			// Guest profile, always ask for options.
+-			p->mdepth = CSSTEP_CHARS;
+-		}
+-		else
+-		{
+-			p->mdepth = CSSTEP_ASKCHANGES;
++		// Straight to the grid for every profile - the cursor already sits on
++		// the profile's saved character, so the "all good / change" prompt was
++		// just an extra click before the same choice.
++		p->mdepth = CSSTEP_CHARS;
++		if (p->profilen != PROFILE_GUEST)
+ 			M_GetFollowerState(p);
+-		}
+ 
+ 		S_StartSound(NULL, sfx_s3k63);
+ 	}
+@@ -921,7 +917,7 @@ static boolean M_HandleCharacterGrid(setup_player_t *p, UINT8 num)
+ 
+ 	if (num == 0 && setup_numplayers == 1 && setup_maxpage && !forceskin)	// ONLY one player.
+ 	{
+-		if (M_MenuButtonPressed(num, MBT_L))
++		if (M_MenuButtonPressed(num, MBT_R))
+ 		{
+ 			if (setup_page == setup_maxpage)
+ 				setup_page = 0;
+@@ -931,6 +927,16 @@ static boolean M_HandleCharacterGrid(setup_player_t *p, UINT8 num)
+ 			S_StartSound(NULL, sfx_s3k63);
+ 			M_SetMenuDelay(num);
+ 		}
++		else if (M_MenuButtonPressed(num, MBT_L))
++		{
++			if (setup_page == 0)
++				setup_page = setup_maxpage;
++			else
++				setup_page--;
++
++			S_StartSound(NULL, sfx_s3k63);
++			M_SetMenuDelay(num);
++		}
+ 	}
+ 
+ 	return false;
+@@ -1301,7 +1307,8 @@ boolean M_CharacterSelectHandler(INT32 choice)
+ 						continue;
+ 				}
+ 
+-				if (M_MenuButtonPressed(i, MBT_R))
++				// Info lives on Z/RB - the L/R triggers page through addon alts.
++				if (M_MenuButtonPressed(i, MBT_Z))
+ 				{
+ 					p->showextra ^= true;
+ 				}

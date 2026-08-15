@@ -1,0 +1,215 @@
+diff --git a/src/cvars.cpp b/src/cvars.cpp
+index f3fc0695c..ce6e09a48 100644
+--- a/src/cvars.cpp
++++ b/src/cvars.cpp
+@@ -358,12 +358,9 @@ consvar_t cv_drawinput = Player("drawinput", "Off").on_off();
+ consvar_t cv_ffloorclip = Player("ffloorclip", "On").on_off();
+ 
+ consvar_t cv_fpscap = Player("fpscap", "Match refresh rate").values({
+-#ifdef DEVELOP
+-	// Lower values are actually pretty useful for debugging interp problems!
+-	{1, "MIN"},
+-#else
++	// Floor at a playable TICRATE even in DEVELOP builds - a 1 fps cap is a
++	// footgun on the options slider. (Debugging interp wants "tics 1" anyway.)
+ 	{TICRATE, "MIN"},
+-#endif
+ 	{300, "MAX"},
+ 	{-1, "Unlimited"},
+ 	{0, "Match refresh rate"},
+@@ -441,7 +438,18 @@ consvar_t cv_scr_depth = Player("scr_depth", "16 bits").values({{8, "8 bits"}, {
+ //added : 03-02-98: default screen mode, as loaded/saved in config
+ consvar_t cv_scr_width = Player("scr_width", "640").values(CV_Unsigned);
+ consvar_t cv_scr_height = Player("scr_height", "400").values(CV_Unsigned);
+-consvar_t cv_scr_effect = Player("scr_effect", "Sharp Bilinear").values({{0, "Nearest"}, {1, "Sharp Bilinear"}, {2, "SalCRT"}, {3, "SalCRT Sharp"}}).save();
++// The value list is a named table (screen.c) rather than an inline one: a live
++// VR session swaps it for a shorter one, so the presets a headset can't afford
++// vanish from the menus instead of being offered and then dropping frames.
++extern "C" CV_PossibleValue_t scr_effect_cons_t[];
++consvar_t cv_scr_effect = Player("scr_effect", "SalCRT Sharp").values(scr_effect_cons_t).save();
++// How much of the CRT look lands, 0 (clean picture) to 100 (the full effect).
++// Only the CRT presets listen. The shaders take the INVERTED value (a fade)
++// so a binary that never sets the uniform still renders the full effect.
++// This is the FLATSCREEN dial; the headset has its own (vr_effectstrength,
++// below with the other vr_ knobs) - a mask that reads right on a monitor is
++// far too loud wrapped across your eyes.
++consvar_t cv_scr_effectstrength = Player("scr_effectstrength", "100").min_max(0, 100).save();
+ 
+ consvar_t cv_scr_scale = Player("scr_scale", "1.0").floating_point();
+ consvar_t cv_scr_x = Player("scr_x", "0.0").floating_point();
+@@ -449,6 +457,35 @@ consvar_t cv_scr_y = Player("scr_y", "0.0").floating_point();
+ 
+ consvar_t cv_display = Player("display", "0").values(CV_Unsigned).save();
+ 
++// Hazardous surfaces. Lava shipped with a damage slot nobody filled in, so it
++// has always been a surface you drive across; these turn it back into a
++// hazard. It changes the race simulation, so K_HazardRulesActive stands both
++// of them down in netgames and replays no matter what is saved here.
++// Tricks are armed by a tic with accelerate released, which nobody who simply
++// holds accelerate ever produces - so without this, a trick panel is followed
++// by a flick that does nothing. The assist writes that tic into the ticcmd
++// like any other input, so it stays netgame- and replay-safe.
++// How tightly the kart holds its line. 50 is stock; higher grips the road,
++// lower lets the back end slide. Applied to the kart's base friction.
++consvar_t cv_handling = Player("handling", "100").min_max(0, 100).save();
++
++// The same lever, but only while drifting. Defaults to full hold: a drift
++// that slides as far as the stock one does reads as losing the car.
++consvar_t cv_drifthandling = Player("drifthandling", "100").min_max(0, 100).save();
++
++// Hit gas just as you touch down from a respawn for a boost bigger than the
++// Drop Dash pays - the harder input, the better payout.
++consvar_t cv_landingdash = Player("landingdash", "On").on_off().save();
++
++// Buttons Only: the drift button fires the trick and the stick only aims it,
++// so mid-air steering stays steering. On adds the old stick-flick trigger,
++// which fires off ordinary cornering inputs and can throw you sideways.
++consvar_t cv_trickassist = Player("trickassist", "Buttons Only")
++	.values({{0, "Off"}, {1, "On"}, {2, "Buttons Only"}}).save();
++
++consvar_t cv_hazardsurfaces = Player("hazardsurfaces", "On").on_off().save();
++consvar_t cv_hazardtumble = Player("hazardtumble", "On").on_off().save();
++
+ consvar_t cv_seenames = Player("seenames", "On").on_off();
+ consvar_t cv_shadow = Player("shadow", "On").on_off();
+ consvar_t cv_showfocuslost = Player("showfocuslost", "Yes").yes_no();
+@@ -492,6 +529,127 @@ void on_set_vid_wait();
+ }
+ consvar_t cv_vidwait = GraphicsDriver("vid_wait", "Off").on_off().onchange(srb2::cvarhandler::on_set_vid_wait);
+ 
++// VR (OpenXR). The onchange handlers live in vr/vr_cvars.c and push each
++// value into the VR module, which applies it live; distances store as
++// centimeters and scales as percent so everything stays an integer slider.
++void VrDepthLayer_OnChange(void);
++void VrDiorama_OnChange(void);
++void VrFpEyeHeight_OnChange(void);
++void VrFpForward_OnChange(void);
++void VrHeadScale_OnChange(void);
++void VrHorizonLock_OnChange(void);
++void VrHudDist_OnChange(void);
++void VrHudLock_OnChange(void);
++void VrHudScale_OnChange(void);
++void VrImmersion_OnChange(void);
++void VrCalib_OnChange(void);
++void VrMenuDist_OnChange(void);
++void VrMsaa_OnChange(void);
++void VrRenderScale_OnChange(void);
++void VrStereo_OnChange(void);
++void VrTpEyeHeight_OnChange(void);
++void VrTpForward_OnChange(void);
++void VrViewMode_OnChange(void);
++void VrWorldEffect_OnChange(void);
++void VrWorldScale_OnChange(void);
++// Hands the compositor this frame's depth buffer beside the picture, so the
++// frames it has to invent between ours can move near things by their own
++// distance instead of swinging everything as one flat plate. Saved, and a
++// switch rather than always-on so the difference can be settled by looking.
++consvar_t cv_vr_depthlayer = Player("vr_depthlayer", "On").on_off().save().onchange(VrDepthLayer_OnChange);
++consvar_t cv_vr_diorama_dist = Player("vr_diorama_dist", "40").min_max(10, 500).onchange(VrDiorama_OnChange);
++consvar_t cv_vr_diorama_height = Player("vr_diorama_height", "-15").min_max(-200, 200).onchange(VrDiorama_OnChange);
++consvar_t cv_vr_diorama_scale = Player("vr_diorama_scale", "160").min_max(64, 8192).onchange(VrDiorama_OnChange);
++consvar_t cv_vr_fp_eyeheight = Player("vr_fp_eyeheight", "128").min_max(8, 256).onchange(VrFpEyeHeight_OnChange);
++consvar_t cv_vr_fp_forward = Player("vr_fp_forward", "0").min_max(-128, 256).onchange(VrFpForward_OnChange);
++// First person hides your kart, but its ground shadow used to keep drawing - a
++// dark blob gliding over the terrain under an invisible driver, which the flat
++// game never shows (there the kart hides through R_ThingVisible and takes its
++// shadow with it). Off restores that parity; On puts the reference back.
++consvar_t cv_vr_fp_shadow = Player("vr_fp_shadow", "Off").on_off().save(); // read directly by HWR_DrawSprites
++// Hundredths of a world unit. Ground art (drop shadows, floor splats) used to
++// be floated 0.4 units up in stereo to stay out of the per-eye z-fight, but
++// altitude reads as sideways travel at the grazing angles you see the ground at
++// in a headset, so it slid across the ground whenever you moved. It carries a
++// depth bias now (PF_Decal) and sits at the flat height; the knob stays live
++// because the trade is real in both directions.
++consvar_t cv_vr_shadowlift = Player("vr_shadowlift", "5").min_max(0, 100).save(); // read directly by hw_main
++// Off makes the shadow path sample at the tic position, which is exactly what
++// pausing does to it. Tried as a fix because the pause menu is the one state
++// where these shadows look right in the headset - it changed nothing, so the
++// default stays at the stock smooth sampling and this survives only as a knob:
++// it PROVES the shadow's own draw path is not where paused and live differ.
++consvar_t cv_vr_shadowinterp = Player("vr_shadowinterp", "On").on_off().save(); // read directly by hw_main
++// Diagnostic ladder, not a look setting - it exists to bisect a smear that has
++// now survived eleven attempted fixes, by REMOVING things rather than guessing
++// at them. Plain strips the texture off ground art, leaving only the quad:
++// still wrong means the shape or its depth, clean means the picture. Flat
++// Parity goes further and takes every stereo-only difference back off the
++// quad - the per-corner drape, the depth bias, the lift, the world-locked
++// splat angle - so what renders is byte-identical to the flat game's. Still
++// wrong there and the quad is exonerated outright. Deliberately NOT saved: it
++// is ugly on purpose and must never survive a restart.
++consvar_t cv_vr_shadowtest = Player("vr_shadowtest", "Off").values({
++	{0, "Off"},
++	{1, "Plain"},
++	{2, "Flat Parity"}
++}); // read directly by hw_main
++consvar_t cv_vr_headscale = Player("vr_headscale", "100").min_max(0, 100).onchange(VrHeadScale_OnChange);
++consvar_t cv_vr_horizonlock = Player("vr_horizonlock", "On").on_off().onchange(VrHorizonLock_OnChange);
++consvar_t cv_vr_hud = Player("vr_hud", "Everything").values({{0, "Items Only"}, {1, "Everything"}}); // read directly by K_drawKartHUD
++consvar_t cv_vr_huddist = Player("vr_huddist", "170").min_max(100, 500).onchange(VrHudDist_OnChange);
++consvar_t cv_vr_hudlock = Player("vr_hudlock", "World").values({{0, "Head"}, {1, "World"}}).onchange(VrHudLock_OnChange);
++consvar_t cv_vr_hudscale = Player("vr_hudscale", "150").min_max(25, 250).onchange(VrHudScale_OnChange);
++// How much of the kart's own motion the first-person eye is allowed to feel.
++// Off is the shipped behaviour exactly - the drama channel keeps its original
++// lazy chase, tricks feed nothing, and only your head moves you. Light shapes
++// every wreck into a bounded sweep the eye is actually carried through, and
++// adds a little lean on banked turns. Full raises those peaks and lets a
++// TRICK - the one rotation you pressed a button for - come through whole.
++//
++// Deliberately separate from Horizon Lock: that decides whether the WORLD
++// tilts, this decides how much of the kart the DRIVER feels. Level horizon
++// while still feeling the camber is the combination most people want.
++// Diagnostic overlay, not a setting: angular calibration lines in the eyes.
++// Deliberately NOT saved - it is scaffolding, and it must never greet a race.
++consvar_t cv_vr_calib = Player("vr_calib", "Off").on_off().onchange(VrCalib_OnChange);
++consvar_t cv_vr_immersion = Player("vr_immersion", "Full").values({
++	{0, "Off"},
++	{1, "Light"},
++	{2, "Full"}
++}).onchange(VrImmersion_OnChange);
++consvar_t cv_vr_menudist = Player("vr_menudist", "140").min_max(100, 500).onchange(VrMenuDist_OnChange);
++// The monitor window is not free: it redraws the 2D pass, runs the picture
++// filter over it and hands a frame to the desktop compositor, which holds the
++// flip at the monitor's own refresh. Measured at 11-16 ms a frame - more than
++// drawing the whole level twice for the headset - so the default no longer
++// pays it every frame. Off is worth roughly double the frame rate.
++consvar_t cv_vr_mirror = Player("vr_mirror", "Half Rate").values({{0, "Off"}, {1, "Half Rate"}, {2, "Every Frame"}}); // read directly by I_FinishUpdate
++consvar_t cv_vr_msaa = Player("vr_msaa", "4x").values({{0, "Off"}, {2, "2x"}, {4, "4x"}}).onchange(VrMsaa_OnChange);
++consvar_t cv_vr_renderscale = Player("vr_renderscale", "100").min_max(40, 150).onchange(VrRenderScale_OnChange);
++consvar_t cv_vr_stereo = Player("vr_stereo", "100").min_max(0, 100).onchange(VrStereo_OnChange);
++consvar_t cv_vr_tp_eyeheight = Player("vr_tp_eyeheight", "0").min_max(-100, 200).onchange(VrTpEyeHeight_OnChange);
++consvar_t cv_vr_tp_forward = Player("vr_tp_forward", "0").min_max(-256, 512).onchange(VrTpForward_OnChange); // applied by P_MoveChaseCamera
++consvar_t cv_vr_viewmode = Player("vr_viewmode", "Third Person").values({
++	{0, "Third Person"},
++	{1, "First Person"},
++	{2, "Theater"},
++	{3, "Diorama"}
++}).onchange(VrViewMode_OnChange);
++// The headset's own CRT strength, decoupled from the flatscreen dial. With
++// the vertical grille standing down in stereo, the full look wears fine in
++// the eyes - so both dials default to the full 100 and this one exists for
++// taste, not necessity.
++void VrEffectStrength_OnChange(void);
++consvar_t cv_vr_effectstrength = Player("vr_effectstrength", "100").min_max(0, 100).save().onchange(VrEffectStrength_OnChange);
++// The picture filter over the 3D view. Back ON by default: it was defaulted
++// off while it was breaking ground shadows, but that turned out to be a GL
++// alpha test leaking into the effect's own blit and discarding the shadow's
++// pixels, not anything about the filter itself. With that fixed the 3D view
++// wears the CRT the way the HUD and the menus already do.
++consvar_t cv_vr_worldeffect = Player("vr_worldeffect", "On").on_off().save().onchange(VrWorldEffect_OnChange);
++consvar_t cv_vr_worldscale = Player("vr_worldscale", "16").min_max(8, 128).onchange(VrWorldScale_OnChange);
++
+ // if true, all sounds are loaded at game startup
+ consvar_t precachesound = Player("precachesound", "Off").on_off();
+ 
+@@ -1490,6 +1648,11 @@ consvar_t cv_voice_allowservervoice = NetVar("voice_allowservervoice", "Off")
+ 	extern "C" void CV_glfiltermode_OnChange(void);
+ 	consvar_t cv_glfiltermode = OpenGL("gr_filtermode", "Nearest").values(glfiltermode_cons_t).onchange(CV_glfiltermode_OnChange);
+ 
++	// Extra texture samples per pixel, taken inside the pixel's own footprint
++	// and averaged. Distant pixel art stops crawling without the whole frame
++	// being rendered larger; close-up texels are untouched.
++	consvar_t cv_glsupersample = OpenGL("gr_supersample", "On").on_off();
++
+ #ifdef BAD_MODEL_OPTIONS
+ 	consvar_t cv_glmodelinterpolation = OpenGL("gr_modelinterpolation", "Sometimes").values({{0, "Off"}, {1, "Sometimes"}, {2, "Always"}});
+ 	consvar_t cv_glmodellighting = OpenGL("gr_modellighting", "Off").on_off();

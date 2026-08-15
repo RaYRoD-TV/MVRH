@@ -1,0 +1,12 @@
+diff --git a/src/d_player.h b/src/d_player.h
+index ef391957a..1a3036a7c 100644
+--- a/src/d_player.h
++++ b/src/d_player.h
+@@ -724,6 +724,7 @@ struct player_t
+ 	UINT8 startboost;		// (0 to 125) - Boost you get from start of race
+ 	UINT8 neostartboost;	// Weaker partial startboost
+ 	UINT8 dropdashboost;	// Boost you get when holding A while respawning
++	UINT8 landdash;		// Landing Dash window: tics left to hit gas after a respawn touchdown
+ 	UINT8 aciddropdashboost;	// acid dropdash
+ 
+ 	UINT16 flashing;

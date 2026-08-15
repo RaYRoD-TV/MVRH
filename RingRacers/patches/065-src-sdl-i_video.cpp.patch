@@ -1,0 +1,258 @@
+diff --git a/src/sdl/i_video.cpp b/src/sdl/i_video.cpp
+index a7356ccfe..be55f7f19 100644
+--- a/src/sdl/i_video.cpp
++++ b/src/sdl/i_video.cpp
+@@ -67,6 +67,7 @@
+ #include "../command.h"
+ #include "../r_main.h"
+ #include "../lua_hook.h"
++#include "../vr/vr.h"
+ #include "sdlmain.h"
+ #include "../i_system.h"
+ #ifdef HWRENDER
+@@ -82,7 +83,7 @@
+ #endif
+ 
+ // maximum number of windowed modes (see windowedModes[][])
+-#define MAXWINMODES (19)
++#define MAXWINMODES (21)
+ 
+ using namespace srb2;
+ 
+@@ -136,6 +137,8 @@ static uint32_t g_rhi_generation = 0;
+ // windowed video modes from which to choose from.
+ static INT32 windowedModes[MAXWINMODES][2] =
+ {
++	{3840,2160}, // 1.78,12.00
++	{2560,1440}, // 1.78,8.00
+ 	{1920,1200}, // 1.60,6.00
+ 	{1920,1080}, // 1.66
+ 	{1680,1050}, // 1.60,5.25
+@@ -179,6 +182,98 @@ static void CenterWindow(void)
+ 	);
+ }
+ 
++// Centering positions the CLIENT area, so a window as tall as the usable area
++// ends up with its title bar hanging above the top of the screen - visible in
++// the code, invisible to the player, and impossible to drag. Push the frame
++// back inside the usable rect after centering. Fullscreen and borderless have
++// no frame to keep on screen and never come through here.
++static void NudgeWindowOnScreen(void)
++{
++	SDL_Rect usable;
++	SDL_DisplayID display;
++	int top = 0, left = 0, bottom = 0, right = 0;
++	int x = 0, y = 0;
++
++	if (window == NULL || borderlesswindow)
++		return;
++
++	display = (cv_display.string != NULL && cv_display.value != 0)
++		? static_cast<SDL_DisplayID>(cv_display.value)
++		: SDL_GetPrimaryDisplay();
++
++	if (!SDL_GetDisplayUsableBounds(display, &usable))
++		return;
++
++	SDL_GetWindowBordersSize(window, &top, &left, &bottom, &right);
++	SDL_GetWindowPosition(window, &x, &y);
++
++	// x/y are the client corner; the frame starts above and left of it.
++	if (y - top < usable.y)
++		y = usable.y + top;
++	if (x - left < usable.x)
++		x = usable.x + left;
++
++	SDL_SetWindowPosition(window, x, y);
++}
++
++// A window asked to be the size of the whole desktop pushes its own title bar
++// off the top of the screen and its bottom edge past the taskbar: it reads as
++// a broken fullscreen rather than as a window, and there's no frame left to
++// grab. Keep windowed mode inside the display's usable area (which already
++// excludes the taskbar) less the frame, so the border is always there.
++// Borderless is the deliberate way to ask for no frame, so it's left alone.
++static void ClampWindowedSize(INT32 *w, INT32 *h)
++{
++	SDL_Rect usable;
++	SDL_DisplayID display;
++	int top = 0, left = 0, bottom = 0, right = 0;
++	INT32 maxw, maxh;
++
++	// Borderless is the deliberate way to ask for no frame.
++	if (borderlesswindow)
++		return;
++
++	// Ask the same question the window path asks. cv_fullscreen on its own is
++	// the wrong test: it defaults to Yes and stays Yes under -win, which sets
++	// disable_fullscreen instead - so reading the cvar raw made this bail out
++	// on exactly the windowed launches it exists for. Parenthesised on its own
++	// line because the macro is a bare ternary: folded into a larger ||, the
++	// || would bind first and invert the meaning.
++	if ((USE_FULLSCREEN))
++		return;
++
++	if (SDL_WasInit(SDL_INIT_VIDEO) == 0)
++		return;
++
++	// The first mode is set before the cvars are registered, so cv_display
++	// has no string yet and ValidateDisplay's CV_SetValue would be fatal.
++	// Read the display instead of correcting it; whoever owns that cvar
++	// validates it later, and the primary display is the right answer until
++	// they do.
++	display = (cv_display.string != NULL && cv_display.value != 0)
++		? static_cast<SDL_DisplayID>(cv_display.value)
++		: SDL_GetPrimaryDisplay();
++
++	if (!SDL_GetDisplayUsableBounds(display, &usable))
++		return;
++
++	if (window != NULL)
++		SDL_GetWindowBordersSize(window, &top, &left, &bottom, &right);
++
++	// Before the window exists SDL has no frame to measure. A title bar is
++	// never thinner than this, and guessing low only costs a few pixels.
++	if (top <= 0)
++		top = 32;
++
++	maxw = usable.w - (left + right);
++	maxh = usable.h - (top + bottom);
++
++	if (maxw > 0 && *w > maxw)
++		*w = maxw;
++	if (maxh > 0 && *h > maxh)
++		*h = maxh;
++}
++
+ static void SDLSetMode(int width, int height, bool fullscreen, bool reposition)
+ {
+ 	static bool wasfullscreen = false;
+@@ -216,6 +311,7 @@ static void SDLSetMode(int width, int height, bool fullscreen, bool reposition)
+ 				ValidateDisplay();
+ 				CenterWindow();
+ 			}
++			NudgeWindowOnScreen();
+ 		}
+ 	}
+ 	else
+@@ -1300,13 +1396,30 @@ static void init_imgui()
+ 	ImGui::StyleColorsDark();
+ }
+ 
++#ifdef __ANDROID__
++#include "i_android.h"
++
++static void AndroidFbSize(int *w, int *h)
++{
++	SDL_GetWindowSizeInPixels(window, w, h);
++}
++#endif
++
+ static bool Impl_CreateContext(void)
+ {
+ 	if (!sdlglcontext)
+ 	{
+ 		SDL_GL_ResetAttributes();
++#ifdef __ANDROID__
++		// The real context is GLES2; gl4es presents it to the renderer and
++		// the RHI as desktop GL 2.1.
++		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
++		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
++		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
++#else
+ 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+ 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
++#endif
+ 		sdlglcontext = SDL_GL_CreateContext(window);
+ 	}
+ 	if (sdlglcontext == NULL)
+@@ -1316,6 +1429,9 @@ static bool Impl_CreateContext(void)
+ 	}
+ 	init_imgui();
+ 	SDL_GL_MakeCurrent(window, sdlglcontext);
++#ifdef __ANDROID__
++	I_AndroidInitGL(AndroidFbSize);
++#endif
+ 
+ #ifdef HWRENDER
+ 	if (rendermode == render_opengl)
+@@ -1328,7 +1444,11 @@ static bool Impl_CreateContext(void)
+ 	{
+ 		std::unique_ptr<rhi::SdlGl2Platform> platform = std::make_unique<rhi::SdlGl2Platform>();
+ 		platform->window = window;
++#ifdef __ANDROID__
++		g_rhi = std::make_unique<rhi::Gl2Rhi>(std::move(platform), reinterpret_cast<rhi::GlLoadFunc>(I_AndroidGLGetProc));
++#else
+ 		g_rhi = std::make_unique<rhi::Gl2Rhi>(std::move(platform), reinterpret_cast<rhi::GlLoadFunc>(SDL_GL_GetProcAddress));
++#endif
+ 		g_rhi_generation += 1;
+ 	}
+ 
+@@ -1411,6 +1531,29 @@ static UINT32 VID_GetRefreshRate(void)
+ 	return static_cast<UINT32>(m->refresh_rate);
+ }
+ 
++void VID_GetNativeSize(INT32 *w, INT32 *h)
++{
++	*w = *h = 0;
++
++	if (SDL_WasInit(SDL_INIT_VIDEO) == 0)
++	{
++		// Video not init yet.
++		return;
++	}
++
++	SDL_DisplayID display_id = SDL_GetDisplayForWindow(window);
++	const SDL_DisplayMode *m = SDL_GetCurrentDisplayMode(display_id);
++
++	if (m == nullptr)
++	{
++		// Error has occurred.
++		return;
++	}
++
++	*w = static_cast<INT32>(m->w);
++	*h = static_cast<INT32>(m->h);
++}
++
+ INT32 VID_SetMode(INT32 modeNum)
+ {
+ 	vid.recalc = 1;
+@@ -1423,6 +1566,12 @@ INT32 VID_SetMode(INT32 modeNum)
+ 
+ 	vid.width = windowedModes[modeNum][0];
+ 	vid.height = windowedModes[modeNum][1];
++
++	// Windowed mode renders at the window's size, so the clamp has to land
++	// here - before anything downstream reads it - or the game would draw a
++	// desktop-sized frame into a smaller window.
++	ClampWindowedSize(&vid.width, &vid.height);
++
+ 	vid.realwidth = vid.width;
+ 	vid.realheight = vid.height;
+ 	vid.modenum = modeNum;
+@@ -1681,6 +1830,10 @@ void I_ShutdownGraphics(void)
+ 	}
+ 	graphics_started = false;
+ 
++	// End the OpenXR session and free its GL objects while the GL context is
++	// still alive (it is destroyed just below). No-op when VR never started.
++	vr_shutdown();
++
+ 	g_rhi.reset();
+ 	g_rhi_generation = 0;
+ 
+@@ -1729,6 +1882,13 @@ void srb2::cvarhandler::on_set_vid_wait()
+ 		interval = 1;
+ 	}
+ 
++	if (vr_is_active())
++	{
++		// xrWaitFrame paces the loop while a VR session runs; a blocking
++		// desktop swap would fight it. The setting still applies once VR ends.
++		interval = 0;
++	}
++
+ 	if (sdlglcontext == nullptr || SDL_GL_GetCurrentContext() != sdlglcontext)
+ 	{
+ 		return;

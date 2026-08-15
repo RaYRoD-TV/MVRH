@@ -1,0 +1,373 @@
+diff --git a/src/screen.c b/src/screen.c
+index dc77a9a93..28c535cc5 100644
+--- a/src/screen.c
++++ b/src/screen.c
+@@ -22,6 +22,7 @@
+ #include "r_sky.h"
+ #include "m_argv.h"
+ #include "m_misc.h"
++#include "m_menu.h"
+ #include "v_video.h"
+ #include "st_stuff.h"
+ #include "hu_stuff.h"
+@@ -41,6 +42,10 @@
+ #include "hardware/hw_model.h"
+ #endif
+ 
++#ifdef TOUCHINPUTS
++#include "ts_main.h" // touchfingers, NUMTOUCHFINGERS
++#endif
++
+ // SRB2Kart
+ #include "r_fps.h" // R_GetFramerateCap
+ 
+@@ -62,6 +67,7 @@ void (*spanfuncs_npo2[SPANDRAWFUNC_MAX])(void);
+ viddef_t vid;
+ INT32 setmodeneeded; //video mode change needed if > 0 (the mode number to set + 1)
+ UINT8 setrenderneeded = 0;
++UINT8 renderswitcherror = 0;
+ 
+ static CV_PossibleValue_t scr_depth_cons_t[] = {{8, "8 bits"}, {16, "16 bits"}, {24, "24 bits"}, {32, "32 bits"}, {0, NULL}};
+ 
+@@ -72,6 +78,28 @@ consvar_t cv_scr_width_w = CVAR_INIT ("scr_width_w", "640", CV_SAVE, CV_Unsigned
+ consvar_t cv_scr_height_w = CVAR_INIT ("scr_height_w", "400", CV_SAVE, CV_Unsigned, NULL);
+ consvar_t cv_scr_depth = CVAR_INIT ("scr_depth", "16 bits", CV_SAVE, scr_depth_cons_t, NULL);
+ 
++#ifdef NATIVESCREENRES
++static void SCR_ToggleNativeRes(void);
++static void SCR_NativeResDivChanged(void);
++static void SCR_NativeResAutoChanged(void);
++
++static CV_PossibleValue_t nativeresdiv_cons_t[] = {{FRACUNIT, "MIN"}, {20 * FRACUNIT, "MAX"}, {0, NULL}};
++static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height"}, {0, NULL}};
++
++#define NATIVERESCVAR_FLAGS(name, def, possiblevalue, func, flags) CVAR_INIT (name, def, (CV_CALL | CV_SAVE | CV_NOINIT | flags), possiblevalue, func)
++#define NATIVERESCVAR_CALL(name, def, possiblevalue, func) NATIVERESCVAR_FLAGS(name, def, possiblevalue, func, 0)
++#define NATIVERESCVAR(name, def, possiblevalue) NATIVERESCVAR_CALL(name, def, possiblevalue, SCR_ToggleNativeRes)
++
++consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "On", CV_OnOff);
++consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "1", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
++consvar_t cv_nativeresauto = NATIVERESCVAR_CALL("nativeresauto", "On", CV_OnOff, SCR_NativeResAutoChanged);
++consvar_t cv_nativeresfov = NATIVERESCVAR_CALL("nativeresfov", "On", CV_OnOff, R_SetViewSize);
++consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Height", nativerescompare_cons_t);
++
++#undef NATIVERESCVAR
++
++#endif
++
+ CV_PossibleValue_t cv_renderer_t[] = {
+ 	{1, "Software"},
+ #ifdef HWRENDER
+@@ -90,8 +118,14 @@ consvar_t cv_fullscreen = CVAR_INIT ("fullscreen", "Yes", CV_SAVE|CV_CALL, CV_Ye
+ //                           SCREEN VARIABLES
+ // =========================================================================
+ 
++static boolean scr_startupmodeset = false;
++
+ INT32 scr_bpp; // current video mode bytes per pixel
+ 
++#ifdef NATIVESCREENRES
++float scr_resdiv = 1.0f;
++#endif
++
+ // =========================================================================
+ 
+ void SCR_SetDrawFuncs(void)
+@@ -264,6 +298,8 @@ void SCR_CheckDefaultMode(void)
+ {
+ 	INT32 scr_forcex, scr_forcey; // resolution asked from the cmd-line
+ 
++	scr_startupmodeset = true;
++
+ 	if (dedicated)
+ 		return;
+ 
+@@ -276,6 +312,11 @@ void SCR_CheckDefaultMode(void)
+ 	if (M_CheckParm("-height") && M_IsNextParm())
+ 		scr_forcey = atoi(M_GetNextParm());
+ 
++#ifdef NATIVESCREENRES
++	if (cv_nativeres.value)
++		SCR_CheckNativeMode();
++#endif
++
+ 	if (scr_forcex && scr_forcey)
+ 	{
+ 		CONS_Printf(M_GetText("Using resolution: %d x %d\n"), scr_forcex, scr_forcey);
+@@ -284,13 +325,41 @@ void SCR_CheckDefaultMode(void)
+ 	}
+ 	else
+ 	{
++		// The shipped default was 1280x800; a config that still says exactly
++		// that (fresh install, or never changed) comes up at the desktop's
++		// own resolution instead. Any hand-picked size misses this gate.
++		if (cv_scr_width.value == 1280 && cv_scr_height.value == 800)
++		{
++			INT32 nw, nh;
++			if (VID_GetNativeSize(&nw, &nh))
++			{
++				CV_StealthSetValue(&cv_scr_width, nw);
++				CV_StealthSetValue(&cv_scr_height, nh);
++			}
++		}
++
++		// Windowed stays cozy: the old 640x400 default is a postage stamp,
++		// and a window the size of the whole desktop is fullscreen's job.
++		// Both migrate to the biggest listed mode that leaves real margins;
++		// any other hand-picked size stays. The window is created at the
++		// mode size, so the render resolution always matches the window.
++		{
++			INT32 nw, nh, ww, wh;
++			const boolean oldstamp = (cv_scr_width_w.value == 640 && cv_scr_height_w.value == 400);
++			const boolean deskwide = (VID_GetNativeSize(&nw, &nh)
++				&& cv_scr_width_w.value == nw && cv_scr_height_w.value == nh);
++			if ((oldstamp || deskwide) && VID_GetWindowedDefault(&ww, &wh))
++			{
++				CV_StealthSetValue(&cv_scr_width_w, ww);
++				CV_StealthSetValue(&cv_scr_height_w, wh);
++			}
++		}
++
+ 		CONS_Printf(M_GetText("Default resolution: %d x %d\n"), cv_scr_width.value, cv_scr_height.value);
+ 		CONS_Printf(M_GetText("Windowed resolution: %d x %d\n"), cv_scr_width_w.value, cv_scr_height_w.value);
+ 		CONS_Printf(M_GetText("Default bit depth: %d bits\n"), cv_scr_depth.value);
+-		if (cv_fullscreen.value)
+-			setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1; // see note above
+-		else
+-			setmodeneeded = VID_GetModeForSize(cv_scr_width_w.value, cv_scr_height_w.value) + 1; // see note above
++		
++		SCR_SetModeFromConfig();
+ 
+ 		if (setmodeneeded <= 0)
+ 			CONS_Alert(CONS_WARNING, "Invalid resolution given, defaulting to base resolution\n");
+@@ -315,6 +384,15 @@ void SCR_SetDefaultMode(void)
+ 	CV_SetValue(cv_fullscreen.value ? &cv_scr_height : &cv_scr_height_w, vid.height);
+ }
+ 
++// Set the mode number based on the resolution saved in the config
++void SCR_SetModeFromConfig(void)
++{
++	if (cv_fullscreen.value)
++		setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1; // see note above
++	else
++		setmodeneeded = VID_GetModeForSize(cv_scr_width_w.value, cv_scr_height_w.value) + 1; // see note above
++}
++
+ // Change fullscreen on/off according to cv_fullscreen
+ void SCR_ChangeFullscreen(void)
+ {
+@@ -327,15 +405,20 @@ void SCR_ChangeFullscreen(void)
+ 	if (graphics_started)
+ 	{
+ 		VID_PrepareModeList();
+-		if (cv_fullscreen.value)
+-			setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
+-		else
+-			setmodeneeded = VID_GetModeForSize(cv_scr_width_w.value, cv_scr_height_w.value) + 1;
+ 
+-		if (setmodeneeded <= 0) // hacky safeguard
++#ifdef NATIVESCREENRES
++		if (cv_nativeres.value)
++			SCR_SetModeFromConfig();
++		else
++#endif
+ 		{
+-			CONS_Alert(CONS_WARNING, "Invalid resolution given, defaulting to base resolution.\n");
+-			setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
++			SCR_SetModeFromConfig();
++
++			if (setmodeneeded <= 0) // hacky safeguard
++			{
++				CONS_Alert(CONS_WARNING, "Invalid resolution given, defaulting to base resolution.\n");
++				setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
++			}
+ 		}
+ 	}
+ 	return;
+@@ -356,13 +439,16 @@ void SCR_ChangeRenderer(void)
+ 		if (M_CheckParm("-nogl"))
+ 			CONS_Alert(CONS_ERROR, "OpenGL rendering was disabled!\n");
+ 		else
++		{
++			renderswitcherror = render_opengl;
+ 			CONS_Alert(CONS_ERROR, "OpenGL never loaded\n");
++		}
++
+ 		return;
+ 	}
+ 
+ 	if (rendermode == render_opengl && (vid.glstate == VID_GL_LIBRARY_LOADED)) // Clear these out before switching to software
+ 		HWR_ClearAllTextures();
+-
+ #endif
+ 
+ 	// Set the new render mode
+@@ -378,6 +464,160 @@ boolean SCR_IsAspectCorrect(INT32 width, INT32 height)
+ 	 );
+ }
+ 
++#ifdef NATIVESCREENRES
++void SCR_CheckNativeMode(void)
++{
++	INT32 w, h;
++
++	VID_GetNativeResolution(&w, &h);
++
++	if (w || h)
++		SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider(w, h));
++
++	if (cv_nativeresauto.value)
++		scr_resdiv = SCR_GetNativeResDivider(w, h);
++	else
++		scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
++}
++
++void SCR_ResetNativeResDivider(void)
++{
++	float resdiv = atof(cv_nativeresdiv.defaultvalue);
++	char f[9];
++
++	scr_resdiv = resdiv;
++
++	snprintf(f, sizeof(f), "%.6f", resdiv);
++	CV_StealthSet(&cv_nativeresdiv, cv_nativeresdiv.defaultvalue);
++}
++
++static void SCR_ToggleNativeRes(void)
++{
++	INT32 mode = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value);
++	if (mode == -1)
++		mode = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT);
++
++	setmodeneeded = mode + 1;
++	scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
++}
++
++static void SCR_NativeResDivChanged(void)
++{
++	CV_StealthSetValue(&cv_nativeresauto, 0);
++	CV_StealthSetValue(&cv_nativeres, 1);
++	SCR_ToggleNativeRes();
++}
++
++static void SCR_NativeResAutoChanged(void)
++{
++	if (!scr_startupmodeset)
++		return;
++
++	if (cv_nativeresauto.value)
++	{
++		INT32 w = 0, h = 0;
++		char f[16];
++
++		// Set for next resolution change
++		VID_GetNativeResolution(&w, &h);
++		scr_resdiv = SCR_GetNativeResDivider(w, h);
++
++		// Stealth change current resolution divider variable
++		snprintf(f, sizeof(f), "%.6f", scr_resdiv);
++		CV_StealthSet(&cv_nativeresdiv, f);
++	}
++	else
++		SCR_ResetNativeResDivider();
++
++	if (cv_nativeres.value)
++	{
++		SCR_SetModeFromConfig();
++
++		if (setmodeneeded <= 0)
++			setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
++	}
++}
++
++#define RESDIVFACTOR (1.0f / 16.0f)
++
++static INT32 SCR_CalcDup(INT32 width, INT32 height)
++{
++	INT32 dupx = max(1, width / BASEVIDWIDTH);
++	INT32 dupy = max(1, height / BASEVIDHEIGHT);
++
++	if (!cv_nativerescompare.value)
++		return (dupx >= dupy ? dupx : dupy);
++	else
++		return (dupx < dupy ? dupx : dupy);
++}
++
++float SCR_GetNativeResDivider(INT32 width, INT32 height)
++{
++	if (cv_nativeresauto.value)
++	{
++		float w = (float)width;
++		float h = (float)height;
++		float wsize, hsize;
++		float div = 1.0f;
++
++		while (true)
++		{
++			INT32 iw, ih;
++			INT32 dup, corner;
++
++			wsize = (w / div);
++			hsize = (h / div);
++
++			iw = (INT32)wsize;
++			ih = (INT32)hsize;
++
++			dup = SCR_CalcDup(iw, ih);
++			corner = (iw - (BASEVIDWIDTH * dup)) / 2;
++
++			if (corner < iw / 5)
++				break;
++
++			if (wsize <= BASEVIDWIDTH || hsize <= BASEVIDHEIGHT)
++				break;
++
++			div += 0.25f;
++		}
++
++		return min(div, FixedToFloat(nativeresdiv_cons_t[1].value));
++	}
++
++	return FixedToFloat(cv_nativeresdiv.value);
++}
++
++float SCR_GetMaxNativeResDivider(INT32 nw, INT32 nh)
++{
++	float w, h;
++	float div = 1.0f;
++
++	if (!nw || !nh)
++		VID_GetNativeResolution(&nw, &nh);
++
++	w = (float)nw;
++	h = (float)nh;
++
++	while (true)
++	{
++		w = ((float)nw / div);
++		h = ((float)nh / div);
++		if (w <= (INT32)BASEVIDWIDTH || h <= (INT32)BASEVIDHEIGHT)
++			return div;
++		div += RESDIVFACTOR;
++	}
++
++	return div;
++}
++
++void SCR_SetMaxNativeResDivider(float max)
++{
++	nativeresdiv_cons_t[1].value = FloatToFixed(max);
++}
++#endif
++
+ double averageFPS = 0.0f;
+ 
+ #define USE_FPS_SAMPLES
+@@ -479,7 +719,6 @@ void SCR_DisplayLocalPing(void)
+ 	}
+ }
+ 
+-
+ void SCR_ClosedCaptions(void)
+ {
+ 	UINT8 i;

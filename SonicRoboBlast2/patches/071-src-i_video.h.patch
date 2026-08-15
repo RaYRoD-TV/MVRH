@@ -1,0 +1,87 @@
+diff --git a/src/i_video.h b/src/i_video.h
+index f3bbc90b9..8895a6c89 100644
+--- a/src/i_video.h
++++ b/src/i_video.h
+@@ -69,6 +69,15 @@ INT32 VID_NumModes(void);
+ */
+ INT32 VID_GetModeForSize(INT32 w, INT32 h);
+ 
++// Desktop resolution of the primary display; returns false when the video
++// system can't say (dedicated, not yet started). The mode list carries the
++// native size (added at startup), so this is always a selectable mode.
++boolean VID_GetNativeSize(INT32 *w, INT32 *h);
++
++// The cozy windowed default: the biggest listed mode that leaves real
++// margins around a window on this desktop.
++boolean VID_GetWindowedDefault(INT32 *w, INT32 *h);
++
+ 
+ /**	\brief	The VID_SetMode function
+ 
+@@ -77,26 +86,29 @@ INT32 VID_GetModeForSize(INT32 w, INT32 h);
+ 	by setting the setmodeneeded to a value >0
+ 	setup a video mode, this is to be called from the menu
+ 
+-
+ 	\param	modenum	video mode to set to
+ 
+ 	\return	current video mode
+ */
+ INT32 VID_SetMode(INT32 modenum);
+ 
+-/**	\brief Checks the render state
+-	\return	true if the renderer changed
++/**	\brief Returns the device's native resolution
+ */
+-boolean VID_CheckRenderer(void);
++void VID_GetNativeResolution(INT32 *width, INT32 *height);
+ 
+-/**	\brief Load OpenGL mode
++/**	\brief Checks the render state
++	\return	1 if the renderer changed, 0 if it did not
+ */
+-void VID_StartupOpenGL(void);
++INT32 VID_CheckRenderer(void);
+ 
+-/**	\brief Checks if OpenGL loaded
++/**	\brief Checks if OpenGL successfully loaded
+ */
+ void VID_CheckGLLoaded(rendermode_t oldrender);
+ 
++/**	\brief Displays an error if OpenGL failed to load
++*/
++void VID_DisplayGLError(void);
++
+ /**	\brief	The VID_GetModeName function
+ 
+ 	\param	modenum	video mode number
+@@ -123,6 +135,10 @@ void I_FinishUpdate(void);
+ */
+ void I_UpdateNoVsync(void);
+ 
++/**	\brief Returns 1 if the app is on the background, and is not supposed to render.
++*/
++INT32 I_AppOnBackground(void);
++
+ /**	\brief	Wait for vertical retrace or pause a bit.
+ 
+ 	\param	count	max wait
+@@ -147,6 +163,18 @@ void I_BeginRead(void);
+ */
+ void I_EndRead(void);
+ 
++/**	\brief Show the splash screen
++*/
++void I_ShowSplashScreen(void);
++
++/**	\brief Hide the splash screen
++*/
++void I_HideSplashScreen(void);
++
++/**	\brief Report visual progress for some long operation
++*/
++void I_ReportProgress(int progress);
++
+ UINT32 I_GetRefreshRate(void);
+ 
+ #endif

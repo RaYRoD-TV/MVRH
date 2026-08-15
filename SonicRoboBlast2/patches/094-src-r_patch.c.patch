@@ -1,0 +1,14 @@
+diff --git a/src/r_patch.c b/src/r_patch.c
+index 19e66404f..6c9c186aa 100644
+--- a/src/r_patch.c
++++ b/src/r_patch.c
+@@ -163,6 +163,9 @@ static void Patch_FreeData(patch_t *patch)
+ 
+ void Patch_Free(patch_t *patch)
+ {
++	if (!patch)
++		return;
++
+ 	Patch_FreeData(patch);
+ 	Z_Free(patch);
+ }

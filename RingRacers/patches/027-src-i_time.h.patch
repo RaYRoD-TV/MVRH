@@ -1,0 +1,20 @@
+diff --git a/src/i_time.h b/src/i_time.h
+index 2459d4d38..3a68994d6 100644
+--- a/src/i_time.h
++++ b/src/i_time.h
+@@ -42,6 +42,15 @@ void I_InitializeTime(void);
+ void I_UpdateTime(void);
+ fixed_t I_GetTimeScale(void);
+ 
++/**	\brief  Re-sample the interpolation fraction from the live clock without
++            advancing game time: g_time.timefrac plus the real time elapsed
++            since the last I_UpdateTime, clamped to one tic (anything past
++            that belongs to a tic that hasn't been simulated yet). For
++            callers that block mid-frame (the VR compositor wait) and want
++            to interpolate at the moment the frame will actually display.
++*/
++fixed_t I_GetTimeFracNow(void);
++
+ /** \brief  Block for at minimum the duration specified. This function makes a
+             best effort not to oversleep, and will spinloop if sleeping would
+ 			take too long. However, callers should still check the current time

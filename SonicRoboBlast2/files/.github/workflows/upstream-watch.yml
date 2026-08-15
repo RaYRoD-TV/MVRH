@@ -1,0 +1,43 @@
+name: upstream-watch
+
+# Keeps the fork's promise: when Sonic Team Junior publishes a new SRB2
+# release, open an issue so the vr branch gets rebased onto it promptly.
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare upstream release with our base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api repos/STJr/SRB2/releases/latest --jq .tag_name)
+          base=$(cat .github/UPSTREAM_BASE)
+          echo "upstream: $latest / our base: $base"
+          if [ "$latest" = "$base" ]; then
+            echo "Up to date."
+            exit 0
+          fi
+          title="Upstream $latest is out -- rebase the vr branch"
+          count=$(gh issue list -R "$GITHUB_REPOSITORY" --search "\"$title\" in:title" --state all --json number --jq length)
+          if [ "$count" != "0" ]; then
+            echo "Issue already filed."
+            exit 0
+          fi
+          gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "$title" \
+            --body "Sonic Team Junior published [\`$latest\`](https://github.com/STJr/SRB2/releases). This fork is based on \`$base\`.
+
+          To update:
+          1. Run \`update_upstream.bat $latest\` (fetches upstream and rebases \`vr\` onto the new tag).
+          2. Resolve any conflicts -- the VR layer is isolated in \`src/vr/\` plus small hooks.
+          3. Update \`.github/UPSTREAM_BASE\` to \`$latest\`, build, test in the headset.
+          4. Run \`publish_release.bat <new version>\` -- CI builds and publishes the release automatically."

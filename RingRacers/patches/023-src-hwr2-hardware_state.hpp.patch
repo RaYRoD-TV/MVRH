@@ -1,0 +1,21 @@
+diff --git a/src/hwr2/hardware_state.hpp b/src/hwr2/hardware_state.hpp
+index 97fcf0806..8f09c44ab 100644
+--- a/src/hwr2/hardware_state.hpp
++++ b/src/hwr2/hardware_state.hpp
+@@ -43,9 +43,16 @@ struct HardwareState
+ 	std::unique_ptr<BlitRectPass> sharp_bilinear_blit_rect;
+ 	std::unique_ptr<BlitRectPass> crt_blit_rect;
+ 	std::unique_ptr<BlitRectPass> crtsharp_blit_rect;
++	std::unique_ptr<BlitRectPass> soft_blit_rect;
+ 	std::unique_ptr<ScreenshotPass> screen_capture;
+ 	std::unique_ptr<UpscaleBackbuffer> backbuffer;
+ 	std::unique_ptr<UpscaleBackbuffer> legacygl_backbuffer;
++	// Screen Effect copies for the two VR surfaces. They are kept apart
++	// because they want different formats - the panel is a solid frame, the
++	// HUD overlay must keep its alpha - and one shared target would rebuild
++	// itself every time the headset moved between them.
++	std::unique_ptr<UpscaleBackbuffer> vr_panel_backbuffer;
++	std::unique_ptr<UpscaleBackbuffer> vr_hud_backbuffer;
+ 	std::unique_ptr<ImguiRenderer> imgui_renderer;
+ 	WipeFrames wipe_frames;
+ };

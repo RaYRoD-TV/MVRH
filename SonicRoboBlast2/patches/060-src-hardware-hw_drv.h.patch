@@ -1,0 +1,20 @@
+diff --git a/src/hardware/hw_drv.h b/src/hardware/hw_drv.h
+index a5fdc00a4..f1314eaca 100644
+--- a/src/hardware/hw_drv.h
++++ b/src/hardware/hw_drv.h
+@@ -57,6 +57,7 @@ EXPORT void HWRAPI(DoScreenWipe) (int wipeStart, int wipeEnd, FSurfaceInfo *surf
+ EXPORT void HWRAPI(DrawScreenTexture) (int tex, FSurfaceInfo *surf, FBITFIELD polyflags);
+ EXPORT void HWRAPI(MakeScreenTexture) (int tex);
+ EXPORT void HWRAPI(DrawScreenFinalTexture) (int tex, int width, int height);
++EXPORT void HWRAPI(DrawVREyeEffect) (UINT32 tex, int width, int height);
+ 
+ #define SCREENVERTS 10
+ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
+@@ -115,6 +116,7 @@ struct hwdriver_s
+ 	DrawScreenTexture   pfnDrawScreenTexture;
+ 	MakeScreenTexture   pfnMakeScreenTexture;
+ 	DrawScreenFinalTexture  pfnDrawScreenFinalTexture;
++	DrawVREyeEffect         pfnDrawVREyeEffect;
+ 
+ 	InitShaders         pfnInitShaders;
+ 	LoadShader          pfnLoadShader;

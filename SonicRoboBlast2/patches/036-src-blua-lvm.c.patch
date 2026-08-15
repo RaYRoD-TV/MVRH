@@ -1,0 +1,16 @@
+diff --git a/src/blua/lvm.c b/src/blua/lvm.c
+index 627685b38..7f423d0dc 100644
+--- a/src/blua/lvm.c
++++ b/src/blua/lvm.c
+@@ -203,7 +203,11 @@ static int l_strcmp (const TString *ls, const TString *rs) {
+   const char *r = getstr(rs);
+   size_t lr = rs->tsv.len;
+   for (;;) {
++#ifdef LUA_NOLOCALE
++    int temp = strcmp(l, r);
++#else
+     int temp = strcoll(l, r);
++#endif
+     if (temp != 0) return temp;
+     else {  /* strings are equal up to a `\0' */
+       size_t len = strlen(l);  /* index of first `\0' in both strings */
