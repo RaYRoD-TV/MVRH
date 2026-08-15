@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/7965a487-edc8-42b6-9211-202f07b71e33
 
-**Download:** [latest release](https://github.com/RaYRoD-TV/MVRH/releases/latest) -- one file, drop it anywhere & run it.
+**Download:** [latest release](https://github.com/RaYRoD-TV/MVRH/releases/latest) - one file, drop it anywhere & run it.
 
 One small exe that installs my VR ports onto your own copies of the games. Pick a game, hit Play.. it grabs the official PC port, applies my VR patch & keeps everything updated on its own.
 
