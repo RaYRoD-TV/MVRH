@@ -12,7 +12,7 @@
       "name": "Mario Kart 64 VR",
       "group": "N64",
       "status": "available",
-      "version": "6",
+      "version": "7",
       "installDir": "mvrh/games/MarioKart64",
       "patchDir": "launcher/MarioKart64",
       "officialHome": "https://github.com/HarbourMasters/SpaghettiKart",
@@ -28,8 +28,9 @@
       "questData": [
         "$ROM"
       ],
-      "whatsNew": "The whole course is drawn in VR now. You could look through the gate at Bowser's Castle & see open sky where the tunnel should be, & scenery went missing whenever you looked somewhere the game camera wasn't.",
+      "whatsNew": "The Quest build runs at full speed now. It was delivering exactly half the headset's frames, which made the whole game feel like slow motion.",
       "changelog": [
+        "Patch 7 - The Quest build runs at full speed. The hidden flat screen behind the VR session was allowed to pace the game at its own slower rate, which locked delivery to exactly half the headset's frames & made everything feel like slow motion.",
         "Patch 6 - The whole course is drawn, not just the chunk you're standing in. Looking through the gate at Bowser's Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, & the stand-in mesh filling the rest has no interiors.",
         "Patch 6 - Scenery stops vanishing when you look somewhere the game camera isn't. The game was still trimming the world to the flat chase camera's view, which is narrower than what you can see in a headset.",
         "Patch 6 - Surfaces that pass close to your eyes stay solid on Quest instead of being cut away. The headset renderer was clipping them where the PC one held on to them.",
@@ -61,11 +62,11 @@
           "file": "mk64-reloaded-4k.o2r"
         }
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-6.zip",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-7.zip",
       "payloadSha256": "6536b2861c1aa106b0fe3ae37a8a79e74604add8cc946607ee6bb28dcc8b86d1",
       "payloadBytes": 4362259,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-6/MarioKart64-VR-Quest-6.apk",
-      "questApkSha256": "84dd162e833c42df138d03aa8e07d00cbd35b0ffb241b0d9d0e33a66e98a86a4",
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-7/MarioKart64-VR-Quest-7.apk",
+      "questApkSha256": "33a258ac61f9b1fb93e38ba1b6fe7fa46c9350ef97df62e2ec4bd347007a2cfa",
       "questApkBytes": 21000903
     },
     {
