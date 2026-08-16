@@ -12,7 +12,7 @@
       "name": "Mario Kart 64 VR",
       "group": "N64",
       "status": "available",
-      "version": "5",
+      "version": "6",
       "installDir": "mvrh/games/MarioKart64",
       "patchDir": "launcher/MarioKart64",
       "officialHome": "https://github.com/HarbourMasters/SpaghettiKart",
@@ -30,9 +30,9 @@
       ],
       "whatsNew": "The whole course is drawn in VR now. You could look through the gate at Bowser's Castle & see open sky where the tunnel should be, & scenery went missing whenever you looked somewhere the game camera wasn't.",
       "changelog": [
-        "Patch 5 - The whole course is drawn, not just the chunk you're standing in. Looking through the gate at Bowser's Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, & the stand-in mesh filling the rest has no interiors.",
-        "Patch 5 - Scenery stops vanishing when you look somewhere the game camera isn't. The game was still trimming the world to the flat chase camera's view, which is narrower than what you can see in a headset.",
-        "Patch 5 - Surfaces that pass close to your eyes stay solid on Quest instead of being cut away. The headset renderer was clipping them where the PC one held on to them.",
+        "Patch 6 - The whole course is drawn, not just the chunk you're standing in. Looking through the gate at Bowser's Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, & the stand-in mesh filling the rest has no interiors.",
+        "Patch 6 - Scenery stops vanishing when you look somewhere the game camera isn't. The game was still trimming the world to the flat chase camera's view, which is narrower than what you can see in a headset.",
+        "Patch 6 - Surfaces that pass close to your eyes stay solid on Quest instead of being cut away. The headset renderer was clipping them where the PC one held on to them.",
         "Patch 4 - Item boxes & kart sprites draw whole again. The whole-course view was leaving bad depth behind & everything drawn after it got clipped.",
         "Patch 4 - The Quest build starts first try when installed through the hub, instead of opening an Android permission screen & closing.",
         "Patch 3 - Track surfaces don't break into flat patches & smears in VR anymore. The course was drawing bits of itself twice in whole-course views.",
@@ -61,10 +61,10 @@
           "file": "mk64-reloaded-4k.o2r"
         }
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-5.zip",
-      "payloadSha256": "8b36e7322be893773e855ab793daa469594e3c8de7d7dc736f584fc5add9078c",
-      "payloadBytes": 4491999,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-5/MarioKart64-VR-Quest-5.apk",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-6.zip",
+      "payloadSha256": "6536b2861c1aa106b0fe3ae37a8a79e74604add8cc946607ee6bb28dcc8b86d1",
+      "payloadBytes": 4362259,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-6/MarioKart64-VR-Quest-6.apk",
       "questApkSha256": "84dd162e833c42df138d03aa8e07d00cbd35b0ffb241b0d9d0e33a66e98a86a4",
       "questApkBytes": 21000903
     },
