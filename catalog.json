@@ -252,7 +252,7 @@
    "name": "Diddy Kong Racing VR",
    "group": "N64",
    "status": "available",
-   "version": "2",
+   "version": "3",
    "installDir": "mvrh/games/DiddyKongRacing",
    "patchDir": "launcher/DiddyKongRacing",
    "officialHome": "https://github.com/akratch/goldenballoon",
@@ -263,8 +263,10 @@
    "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
    "romBytes": 12582912,
    "romFile": "dkr.us.v80.z64",
-   "whatsNew": "The finish line menu works properly in VR, things stop popping in at the edges of your view, looking behind in first person actually looks behind, & third person got its own camera height & distance.",
+   "whatsNew": "Your gamepad keeps working with the headset on, so D-pad up really does shift the view now, & picking your ROM starts the game instead of leaving you on a launcher you can't see.",
    "changelog": [
+    "Patch 3 - Your gamepad no longer goes dead while you're in the headset. Windows was throwing away every button press because the game's window isn't the focused one in VR, which is also why D-pad up wasn't shifting view modes.",
+    "Patch 3 - In VR, picking your ROM starts the game there & then. It used to hand you a launcher window afterwards & wait for a second press, on a monitor you aren't looking at.",
     "Patch 2 - The results screen after a race reads like the pause menu does in VR: a readable panel over the world, instead of the world shrinking into a box you couldn't use.",
     "Patch 2 - Scenery & effects stop popping in at the edge of your vision. The game now draws four times as far in VR, & sparkles & splashes are no longer left out of the wider view.",
     "Patch 2 - Looking behind in first person shows what's behind you. It was cancelling itself out & all you got was a wobble. Hold Y, or hold the left stick click.",
@@ -277,9 +279,9 @@
     "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once & remembers it."
    ],
    "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
-   "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-2.zip",
-   "payloadSha256": "f0f52ed7ebd688a3656ac39a38eae551dabd4647ac29b8fa3103953e7f947042",
-   "payloadBytes": 4322432
+   "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-3.zip",
+   "payloadSha256": "040f9ef312d9cdd7de54334aa25cc21b7e54a9372115d07f5fdf69e2f455bf29",
+   "payloadBytes": 4322495
   },
   {
    "id": "fzx",
