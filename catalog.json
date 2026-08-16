@@ -63,8 +63,8 @@
         }
       ],
       "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-7.zip",
-      "payloadSha256": "6536b2861c1aa106b0fe3ae37a8a79e74604add8cc946607ee6bb28dcc8b86d1",
-      "payloadBytes": 4362259,
+      "payloadSha256": "044124c50f0fda92d6ac5bcab7994fc83a4d028949537cd5e576defc5c0cb138",
+      "payloadBytes": 4492171,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-7/MarioKart64-VR-Quest-7.apk",
       "questApkSha256": "33a258ac61f9b1fb93e38ba1b6fe7fa46c9350ef97df62e2ec4bd347007a2cfa",
       "questApkBytes": 21000903
@@ -289,7 +289,7 @@
       "name": "F-Zero X VR",
       "group": "N64",
       "status": "available",
-      "version": "2",
+      "version": "3",
       "installDir": "mvrh/games/FZeroX",
       "patchDir": "launcher/FZeroX",
       "officialHome": "https://github.com/Zorkats/G-Diffuser",
@@ -297,8 +297,10 @@
       "officialZip": "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
       "exeName": "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
       "patchFile": "fzxvr.patch",
-      "whatsNew": "Pick your F-Zero X ROM once in the hub & the game sets itself up: no second file picker, no button to press, straight into the race.",
+      "whatsNew": "The game has sound. Music & engine noise play from the moment you boot, where every build before this one was completely silent. You also get four ways to watch: third person, first person, diorama & theater.",
       "changelog": [
+        "Patch 3 - Sound. Music & effects play now. Every earlier build ran silent, because nothing ever started the part of the audio engine that drives every note, & the instrument data was being read the way the console reads it rather than the way a PC does.",
+        "Patch 3 - Four ways to watch: third person, first person, diorama, & theater on your monitor. Click the right stick mid-race to cycle the three headset views; theater is picked from the VR menu.",
         "Patch 2 - Installing asks for your ROM here, & the game takes it from there. It used to ask you for the same file again in its own window.",
         "Patch 1 - First release. True stereo racing, world tilt, & a VR settings menu where every knob moves the world live as you drag it.",
         "Patch 1 - The whole track draws to the horizon at full detail. No pop-in, & no rivals showing through hills.",
@@ -311,9 +313,9 @@
       "launchArgs": [
         "--setup-auto"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-2.zip",
-      "payloadSha256": "d10599a4681a4cbbb9222aa4c7494cffb9417f43e5c8de38fbc61a81b292c5ec",
-      "payloadBytes": 4005811
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-3.zip",
+      "payloadSha256": "006b79ef24f169f9482621087df2d6c8281e2efa4a2acfa532b02ef8c1042895",
+      "payloadBytes": 4015143
     }
   ],
   "cableTool": {
