@@ -252,7 +252,7 @@
    "name": "Diddy Kong Racing VR",
    "group": "N64",
    "status": "available",
-   "version": "1",
+   "version": "2",
    "installDir": "mvrh/games/DiddyKongRacing",
    "patchDir": "launcher/DiddyKongRacing",
    "officialHome": "https://github.com/akratch/goldenballoon",
@@ -263,17 +263,23 @@
    "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
    "romBytes": 12582912,
    "romFile": "dkr.us.v80.z64",
-   "whatsNew": "First release through the hub: native OpenXR stereo at headset rate, four view modes, motion controllers, a VR menu inside the game's own pause menu & a cheats page.",
+   "whatsNew": "The finish line menu works properly in VR, things stop popping in at the edges of your view, looking behind in first person actually looks behind, & third person got its own camera height & distance.",
    "changelog": [
+    "Patch 2 - The results screen after a race reads like the pause menu does in VR: a readable panel over the world, instead of the world shrinking into a box you couldn't use.",
+    "Patch 2 - Scenery & effects stop popping in at the edge of your vision. The game now draws four times as far in VR, & sparkles & splashes are no longer left out of the wider view.",
+    "Patch 2 - Looking behind in first person shows what's behind you. It was cancelling itself out & all you got was a wobble. Hold Y, or hold the left stick click.",
+    "Patch 2 - D-pad up on a gamepad shifts view modes, & the desktop window now tells you which view the headset is in.",
+    "Patch 2 - Third person has its own camera height & camera slide in the VR menu, kept separate from the first person seat.",
+    "Patch 2 - Your kart is visible again in the finish line fly-around when you're in first person, & the cheats page help text fits on screen.",
     "Patch 1 - First release through the hub: per-eye stereo rendered at your headset's own rate, third person, first person, diorama & theater views, motion controllers with a fixed racing layout, & every VR option live-adjustable from the pause menu while the world stays in stereo around you.",
     "Patch 1 - First person hides your kart & steers like third person feels. Trees & props stay planted however you move your head.",
     "Patch 1 - A cheats page in the pause menu: unlock everything with one press, plus the classic magic codes as plain toggles.",
     "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once & remembers it."
    ],
    "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
-   "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-1.zip",
-   "payloadSha256": "52d1acafefe094d57debcb3044700e4bbec566dd63969860d62e508eab22604e",
-   "payloadBytes": 4320391
+   "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-2.zip",
+   "payloadSha256": "f0f52ed7ebd688a3656ac39a38eae551dabd4647ac29b8fa3103953e7f947042",
+   "payloadBytes": 4322432
   },
   {
    "id": "fzx",
