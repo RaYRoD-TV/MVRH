@@ -99,7 +99,7 @@
       "name": "Super Mario 64 VR",
       "group": "N64",
       "status": "available",
-      "version": "4",
+      "version": "5",
       "installDir": "mvrh/games/SuperMario64",
       "patchDir": "launcher/SuperMario64",
       "officialHome": "https://github.com/coop-deluxe/sm64coopdx",
@@ -107,8 +107,10 @@
       "officialZip": "sm64coopdx_Windows.zip",
       "exeName": "sm64coopdx.exe",
       "patchFile": "sm64vr.patch",
-      "whatsNew": "Coins & bombs stay visible whichever way you look, & first person follows your head right away with no recenter needed.",
+      "whatsNew": "The Quest build starts now, & trees stay where they should be. Your rom goes to the headset with the game, instead of the headset sitting there waiting for one nobody sent it.",
       "changelog": [
+        "Patch 5 - Super Mario 64 starts on Quest when you send it from the hub, instead of hanging forever on a black screen. Your rom now travels to the headset with the game.",
+        "Patch 5 - Trees & other flat scenery stopped disappearing & swinging about as you turn your head in the Quest build. They were being turned to face you the wrong way round, which put them edge-on until they vanished.",
         "Patch 4 - Coins, bombs & other flat objects stay visible whichever way you turn your head. They were facing the game camera instead of your eyes & vanished edge-on.",
         "Patch 4 - First person follows your head from the moment you switch to it. No more pressing recenter first.",
         "Patch 3 - First person no longer lets the right stick tilt the view up & down, whatever the Stick Look setting says. Turning stays on the stick, pitch stays on your head. Third person still follows the setting.",
@@ -120,15 +122,18 @@
       "romFile": "baserom.us.z64",
       "assetPack": "",
       "questActivity": "com.rayrod.sm64vr/.sm64coopdxActivity",
+      "questData": [
+        "$ROM"
+      ],
       "launchArgs": [
         "--skip-update-check"
       ],
       "launchNote": "This one's got its own updater. The hub starts it with that switched off so it can't swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-4.zip",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-5.zip",
       "payloadSha256": "83324c5bb654e9fdefc967aa5519fa851d8fc1155d24f0d5918cd3c906176630",
       "payloadBytes": 3685754,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest-4/SuperMario64-VR-Quest-4.apk",
-      "questApkSha256": "487dec59a173631f85e2f7e046a1f09faf72e89dadf0c70c293b0790c643315e",
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest-5/SuperMario64-VR-Quest-5.apk",
+      "questApkSha256": "68558c22ae023f2a65fc4055612919db3b3073c5d41fe5af1ccecd5e3d14d7b1",
       "questApkBytes": 99188240
     },
     {
