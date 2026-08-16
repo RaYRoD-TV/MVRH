@@ -1,4 +1,11 @@
 {
+  "announcement": {
+    "id": "dkr64-1",
+    "kicker": "NEW RELEASE",
+    "title": "Diddy Kong Racing VR is out",
+    "body": "The whole game runs inside the headset: per-eye stereo at your headset's own rate, third person, first person, diorama & theater views, motion controllers, & a VR menu inside the game's own pause menu. Bring your own ROM (US 1.1 or EU 1.1) & the hub handles the rest.",
+    "game": "dkr64"
+  },
   "games": [
     {
       "id": "mk64",
@@ -55,8 +62,8 @@
         }
       ],
       "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-5.zip",
-      "payloadSha256": "26bf8550ac9393acf541fa2b2d0f573e9bbddbdeec78032b782b073f964ef646",
-      "payloadBytes": 4362019,
+      "payloadSha256": "8b36e7322be893773e855ab793daa469594e3c8de7d7dc736f584fc5add9078c",
+      "payloadBytes": 4491999,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-5/MarioKart64-VR-Quest-5.apk",
       "questApkSha256": "84dd162e833c42df138d03aa8e07d00cbd35b0ffb241b0d9d0e33a66e98a86a4",
       "questApkBytes": 21000903
@@ -241,20 +248,55 @@
       "officialName": "Super Smash Bros."
     },
     {
-      "id": "fzerox",
-      "name": "F-Zero X VR",
-      "group": "N64",
-      "status": "coming soon",
-      "officialHome": "https://github.com/fzerox-decomp/fzerox",
-      "officialName": "F-Zero X"
-    },
-    {
-      "id": "dkracing",
+      "id": "dkr64",
       "name": "Diddy Kong Racing VR",
       "group": "N64",
-      "status": "coming soon",
-      "officialHome": "https://github.com/DKRDecomp/dkr",
-      "officialName": "Diddy Kong Racing"
+      "status": "available",
+      "version": "1",
+      "installDir": "mvrh/games/DiddyKongRacing",
+      "patchDir": "launcher/DiddyKongRacing",
+      "officialHome": "https://github.com/akratch/goldenballoon",
+      "officialName": "Golden Balloon",
+      "officialZip": "Golden-Balloon-1.2.0-windows-x64.zip",
+      "exeName": "GoldenBalloon/GoldenBalloon.exe",
+      "patchFile": "dkr64vr.patch",
+      "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
+      "romBytes": 12582912,
+      "romFile": "dkr.us.v80.z64",
+      "whatsNew": "First release through the hub: native OpenXR stereo at headset rate, four view modes, motion controllers, a VR menu inside the game's own pause menu & a cheats page.",
+      "changelog": [
+        "Patch 1 - First release through the hub: per-eye stereo rendered at your headset's own rate, third person, first person, diorama & theater views, motion controllers with a fixed racing layout, & every VR option live-adjustable from the pause menu while the world stays in stereo around you.",
+        "Patch 1 - First person hides your kart & steers like third person feels. Trees & props stay planted however you move your head.",
+        "Patch 1 - A cheats page in the pause menu: unlock everything with one press, plus the classic magic codes as plain toggles.",
+        "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once & remembers it."
+      ],
+      "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-1.zip",
+      "payloadSha256": "52d1acafefe094d57debcb3044700e4bbec566dd63969860d62e508eab22604e",
+      "payloadBytes": 4320391
+    },
+    {
+      "id": "fzx",
+      "name": "F-Zero X VR",
+      "group": "N64",
+      "status": "available",
+      "version": "1",
+      "installDir": "mvrh/games/FZeroX",
+      "patchDir": "launcher/FZeroX",
+      "officialHome": "https://github.com/Zorkats/G-Diffuser",
+      "officialName": "G-Diffuser",
+      "officialZip": "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
+      "exeName": "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
+      "patchFile": "fzxvr.patch",
+      "whatsNew": "F-Zero X arrives: true stereo at 900 km/h, the whole circuit drawn to the horizon, & a settings menu where every slider moves the world live.",
+      "changelog": [
+        "Patch 1 - First release. True stereo racing, world tilt, & a VR settings menu where every knob moves the world live as you drag it.",
+        "Patch 1 - The whole track draws to the horizon at full detail. No pop-in, & no rivals showing through hills.",
+        "Patch 1 - Race intros play on the theater screen & stereo kicks in at the countdown, so nothing reads crosseyed."
+      ],
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-1.zip",
+      "payloadSha256": "b962a0db026bcce3b9f80348380ef7db82d0fcf87ad11c50693ada2803d530c9",
+      "payloadBytes": 4005151
     }
   ],
   "cableTool": {
@@ -263,8 +305,8 @@
     "bytes": 8044989
   },
   "hub": {
-    "version": "1.0.7",
-    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.7/MultiverseVRHub.exe",
+    "version": "1.0.8",
+    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.8/MultiverseVRHub.exe",
     "sha256": "dcf6f1c435541adcd7c45bbe56e2b0469fe5cf61a5d6487f56cbcd7ad2d4067e",
     "bytes": 3447808,
     "page": "https://github.com/RaYRoD-TV/MVRH/releases/latest"
