@@ -6,7 +6,7 @@ https://github.com/user-attachments/assets/7965a487-edc8-42b6-9211-202f07b71e33
 
 One small exe that installs my VR ports onto your own copies of the games. Pick a game, hit Play.. it grabs the official PC port, applies my VR patch & keeps everything updated on its own.
 
-**On it now:** Mario Kart 64, Banjo-Kazooie, Super Mario 64, Dr. Robotnik's Ring Racers, Star Fox 64 & Sonic Robo Blast 2. Super Smash Bros., F-Zero X & Diddy Kong Racing are next.
+**On it now:** Mario Kart 64, Banjo-Kazooie, Super Mario 64, Dr. Robotnik's Ring Racers, Star Fox 64 & Sonic Robo Blast 2, Super Smash Bros., F-Zero X & Diddy Kong Racing.
 
 Standalone Quest versions are coming to each port.. so far Mario Kart 64 & Super Mario 64 are included.
 
