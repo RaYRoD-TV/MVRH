@@ -256,7 +256,7 @@
       "name": "Diddy Kong Racing VR",
       "group": "N64",
       "status": "available",
-      "version": "3",
+      "version": "4",
       "installDir": "mvrh/games/DiddyKongRacing",
       "patchDir": "launcher/DiddyKongRacing",
       "officialHome": "https://github.com/akratch/goldenballoon",
@@ -267,8 +267,16 @@
       "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
       "romBytes": 12582912,
       "romFile": "dkr.us.v80.z64",
-      "whatsNew": "Your gamepad keeps working with the headset on, so D-pad up really does shift the view now, & picking your ROM starts the game instead of leaving you on a launcher you can't see.",
+      "whatsNew": "The world holds still in the headset: no more tearing as you look around & no more stretched palm trees, story mode cutscenes skip with A, B or Start, & the desktop window stops taking frame time away from your eyes.",
       "changelog": [
+        "Patch 4 - Story mode cutscenes can be skipped. A, B or Start ends the scene the same way sitting through it would, so a second run never makes you watch the same one twice.",
+        "Patch 4 - VR starts even when an old copy of the game is still running. It used to lose the headset session to that leftover copy & drop you into a flat window with nothing on screen to say why.",
+        "Patch 4 - World geometry no longer tears in the headset as you move.",
+        "Patch 4 - Palm trees & other flora no longer stretch. Sprites are drawn the way the game authored them again.",
+        "Patch 4 - Sprites stay upright in the world instead of leaning over when you tilt your head.",
+        "Patch 4 - First person sits at eye level in the Tricky boss races. The camera was down on the road for those two.",
+        "Patch 4 - First person starts at the tuned seat: height 48, slid forward 16. Both rows are still yours to move in the VR menu.",
+        "Patch 4 - The desktop window no longer redraws at headset rate, so that time goes back to your eyes. Set MDKR_VR_MIRROR=off to switch the desktop view off completely.",
         "Patch 3 - Your gamepad no longer goes dead while you're in the headset. Windows was throwing away every button press because the game's window isn't the focused one in VR, which is also why D-pad up wasn't shifting view modes.",
         "Patch 3 - In VR, picking your ROM starts the game there & then. It used to hand you a launcher window afterwards & wait for a second press, on a monitor you aren't looking at.",
         "Patch 2 - The results screen after a race reads like the pause menu does in VR: a readable panel over the world, instead of the world shrinking into a box you couldn't use.",
@@ -283,16 +291,16 @@
         "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once & remembers it."
       ],
       "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-3.zip",
-      "payloadSha256": "040f9ef312d9cdd7de54334aa25cc21b7e54a9372115d07f5fdf69e2f455bf29",
-      "payloadBytes": 4322495
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-4.zip",
+      "payloadSha256": "6a13452a311dff9a10cd91cb773a9ec75069e28d7071c634a787abf18247fdde",
+      "payloadBytes": 4325954
     },
     {
       "id": "fzx",
       "name": "F-Zero X VR",
       "group": "N64",
       "status": "available",
-      "version": "3",
+      "version": "4",
       "installDir": "mvrh/games/FZeroX",
       "patchDir": "launcher/FZeroX",
       "officialHome": "https://github.com/Zorkats/G-Diffuser",
@@ -300,8 +308,15 @@
       "officialZip": "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
       "exeName": "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
       "patchFile": "fzxvr.patch",
-      "whatsNew": "The game has sound. Music & engine noise play from boot, where every build before ran silent. You also get four ways to watch: third person, first person, diorama & theater.",
+      "whatsNew": "Sound effects are back: engines, hits & menu blips, not just music. First person is a real cockpit view now, the race opening plays in VR, & every view mode keeps its own scale, distance & height.",
       "changelog": [
+        "Patch 4 - Sound effects play. Patch 3 brought the music back but left everything else silent, because the value carrying each effect's id was read from the wrong end of a word & always arrived as zero.",
+        "Patch 4 - First person is actually first person. The camera rides up to the cockpit instead of sitting behind you, & your own machine & its shadow stop being drawn so you can see out.",
+        "Patch 4 - The race opening plays in VR instead of dropping you onto a flat screen until the countdown. It runs at reduced depth so the close camera shots stay comfortable.",
+        "Patch 4 - Every view mode carries its own scale, distance & height, so a diorama you set on your desk & a cockpit you set behind the wheel stop overwriting each other.",
+        "Patch 4 - You can hide the race gauges, & they get out of the way on their own while the VR menu is open.",
+        "Patch 4 - HUD distance moves the HUD nearer & further instead of changing its depth, & race text is no longer stretched.",
+        "Patch 4 - The track sits level out of the box, & the VR menu text fits its panel with the arrow landing on the row it selects.",
         "Patch 3 - Sound. Music & effects play now. Every earlier build ran silent, because nothing ever started the part of the audio engine that drives every note, & the instrument data was being read the way the console reads it rather than the way a PC does.",
         "Patch 3 - Four ways to watch: third person, first person, diorama, & theater on your monitor. Click the right stick mid-race to cycle the three headset views; theater is picked from the VR menu.",
         "Patch 2 - Installing asks for your ROM here, & the game takes it from there. It used to ask you for the same file again in its own window.",
@@ -316,9 +331,9 @@
       "launchArgs": [
         "--setup-auto"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-3.zip",
-      "payloadSha256": "006b79ef24f169f9482621087df2d6c8281e2efa4a2acfa532b02ef8c1042895",
-      "payloadBytes": 4015143
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-4.zip",
+      "payloadSha256": "5f11fa7d7e6adc0b2ce2c5a57226da14d1fd15b35339b175bca2d8f7bb86f675",
+      "payloadBytes": 4016835
     }
   ],
   "cableTool": {
