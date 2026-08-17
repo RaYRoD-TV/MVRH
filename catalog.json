@@ -65,7 +65,7 @@
       "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-7.zip",
       "payloadSha256": "044124c50f0fda92d6ac5bcab7994fc83a4d028949537cd5e576defc5c0cb138",
       "payloadBytes": 4492171,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest-7/MarioKart64-VR-Quest-7.apk",
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest/MarioKart64-VR-Quest.apk",
       "questApkSha256": "33a258ac61f9b1fb93e38ba1b6fe7fa46c9350ef97df62e2ec4bd347007a2cfa",
       "questApkBytes": 21000903
     },
@@ -110,7 +110,7 @@
       "name": "Super Mario 64 VR",
       "group": "N64",
       "status": "available",
-      "version": "8",
+      "version": "9",
       "installDir": "mvrh/games/SuperMario64",
       "patchDir": "launcher/SuperMario64",
       "officialHome": "https://github.com/coop-deluxe/sm64coopdx",
@@ -118,8 +118,10 @@
       "officialZip": "sm64coopdx_Windows.zip",
       "exeName": "sm64coopdx.exe",
       "patchFile": "sm64vr.patch",
-      "whatsNew": "Trees & signs stay put when you turn your head, & the stray white shapes are gone.",
+      "whatsNew": "Coins, bob-ombs & trees stay solid & face you at any head angle, in play & on the pause screen.",
       "changelog": [
+        "Patch 9 - Coins, bob-ombs & trees stay solid & keep facing you no matter how far you turn your head. The turn now comes from the same math the headset view uses, so the two can never disagree; the old way over-rotated until things went edge-on & vanished.",
+        "Patch 9 - The pause screen stopped flattening & hiding those same objects. Facing them at your eyes belongs to the world view only, not the flat pause picture.",
         "Patch 8 - Trees & signs stay put when you turn your head, & the stray white shapes are gone for good. Patch 7 cleared the shapes but took the tree fix out with them.",
         "Patch 7 - Pulled some unfinished VR hands that slipped into patch 6. They showed up as big white shapes in front of you in first person.",
         "Patch 6 - Trees & other flat scenery stopped vanishing on PC. Aiming them at your eyes was turning them edge-on until they culled; the Quest build had already stopped doing that.",
@@ -143,11 +145,11 @@
         "--skip-update-check"
       ],
       "launchNote": "This one's got its own updater. The hub starts it with that switched off so it can't swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-8.zip",
-      "payloadSha256": "de30dfc249002781b1e1e248880397d1cdd16fa0684a622e514fb52b484527b1",
-      "payloadBytes": 3681328,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest-8/SuperMario64-VR-Quest-8.apk",
-      "questApkSha256": "68558c22ae023f2a65fc4055612919db3b3073c5d41fe5af1ccecd5e3d14d7b1",
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-9.zip",
+      "payloadSha256": "a066feeadb863d251211a41ade6f5634dcecea718fef670c2cdf553e37ff2f3c",
+      "payloadBytes": 3692433,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest/SuperMario64-VR-Quest.apk",
+      "questApkSha256": "8802a85984ce8910a5a96f9bf665d7af2a53dcb47618b127a58963e2f3734f49",
       "questApkBytes": 99188240
     },
     {
@@ -250,6 +252,14 @@
       "status": "coming soon",
       "officialHome": "https://github.com/fgsfdsfgs/smashbros64",
       "officialName": "Super Smash Bros."
+    },
+    {
+      "id": "goldeneye",
+      "name": "GoldenEye 007 VR",
+      "group": "N64",
+      "status": "coming soon",
+      "officialHome": "https://github.com/n64decomp/007",
+      "officialName": "GoldenEye 007"
     },
     {
       "id": "dkr64",
