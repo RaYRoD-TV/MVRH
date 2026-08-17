@@ -28,7 +28,7 @@
       "questData": [
         "$ROM"
       ],
-      "whatsNew": "The Quest build runs at full speed now. It was delivering exactly half the headset's frames, which made the whole game feel like slow motion.",
+      "whatsNew": "The Quest build runs at full speed. It was delivering half the headset's frames, which made everything feel like slow motion.",
       "changelog": [
         "Patch 7 - The Quest build runs at full speed. The hidden flat screen behind the VR session was allowed to pace the game at its own slower rate, which locked delivery to exactly half the headset's frames & made everything feel like slow motion.",
         "Patch 6 - The whole course is drawn, not just the chunk you're standing in. Looking through the gate at Bowser's Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, & the stand-in mesh filling the rest has no interiors.",
@@ -82,7 +82,7 @@
       "officialZip": "Lighthouse-Split-Rock-Delta-Win64.zip",
       "exeName": "Lighthouse.exe",
       "patchFile": "banjovr.patch",
-      "whatsNew": "Notes & jiggies don't turn invisible in VR when the game camera looks away from them.",
+      "whatsNew": "Notes & jiggies stop turning invisible in VR.",
       "changelog": [
         "Patch 2 - Notes & jiggies don't turn invisible in VR when the game camera looks away from them.",
         "Patch 2 - First release through the hub: per-eye VR via the Lighthouse port, first person, diorama, motion controllers."
@@ -118,18 +118,18 @@
       "officialZip": "sm64coopdx_Windows.zip",
       "exeName": "sm64coopdx.exe",
       "patchFile": "sm64vr.patch",
-      "whatsNew": "Trees & other flat scenery stopped vanishing as you turn your head in VR. They were being aimed at your eyes, which turned them edge-on until they disappeared.",
+      "whatsNew": "Trees & signs stay put when you turn your head, & the stray white shapes are gone.",
       "changelog": [
-        "Patch 8 - Trees & other flat scenery stopped vanishing & swinging about as you turn your head in PC VR. They were being aimed at your eyes, which turned them edge-on until they disappeared. The standalone Quest build was fixed this way already & now the PC build matches it.",
-        "Patch 7 - Takes out the big white shapes that showed up in front of you in first person in Patch 6. They were unfinished VR hands still being worked on & got into that build by mistake. Nothing else changed.",
-        "Patch 6 - Trees & other flat scenery stopped disappearing & swinging about as you turn your head in VR. They were being turned to face you the wrong way round, which put them edge-on until they vanished. The standalone Quest build already had this fix.",
-        "Patch 5 - Super Mario 64 starts on Quest when you send it from the hub, instead of hanging forever on a black screen. Your rom now travels to the headset with the game.",
-        "Patch 5 - Trees & other flat scenery stopped disappearing & swinging about as you turn your head in the Quest build. They were being turned to face you the wrong way round, which put them edge-on until they vanished.",
-        "Patch 4 - Coins, bombs & other flat objects stay visible whichever way you turn your head. They were facing the game camera instead of your eyes & vanished edge-on.",
-        "Patch 4 - First person follows your head from the moment you switch to it. No more pressing recenter first.",
-        "Patch 3 - First person no longer lets the right stick tilt the view up & down, whatever the Stick Look setting says. Turning stays on the stick, pitch stays on your head. Third person still follows the setting.",
-        "Patch 2 - Starts on every PC now. It was missing three runtime files & wouldn't launch on machines without them.",
-        "Patch 2 - First release through the hub: online co-op with full VR, per-eye stereo, a world-locked HUD."
+        "Patch 8 - Trees & signs stay put when you turn your head, & the stray white shapes are gone for good. Patch 7 cleared the shapes but took the tree fix out with them.",
+        "Patch 7 - Pulled some unfinished VR hands that slipped into patch 6. They showed up as big white shapes in front of you in first person.",
+        "Patch 6 - Trees & other flat scenery stopped vanishing on PC. Aiming them at your eyes was turning them edge-on until they culled; the Quest build had already stopped doing that.",
+        "Patch 5 - Mario 64 starts on Quest when you send it from the hub instead of sitting on a black screen. Your rom travels to the headset with it now.",
+        "Patch 5 - The same flat-scenery fix for the Quest build.",
+        "Patch 4 - Coins & bob-ombs turn to face your eyes rather than the game camera, so they stop vanishing edge-on.",
+        "Patch 4 - First person follows your head the moment you switch to it. No more recentering first.",
+        "Patch 3 - In first person the right stick only turns you; looking up & down stays with your head, whatever Stick Look says. Third person still follows the setting.",
+        "Patch 2 - Starts on every PC now. Three runtime files were missing & it would not launch without them.",
+        "Patch 2 - First release through the hub: online co-op in full VR, per-eye stereo, a world-locked HUD."
       ],
       "romName": "Super Mario 64",
       "romBytes": 8388608,
@@ -165,7 +165,7 @@
         "RINGRACERSWADDIR="
       ],
       "patchFile": "dkrvr.patch",
-      "whatsNew": "The VR shaders ship with the patch now. That clears the big black panel in the headset, the black mirror window, the blurry picture & a crash when you change Screen Effect.",
+      "whatsNew": "Shaders ship with the patch now: no black panel in the headset, no black mirror window, no blurry picture. Screen Effect no longer crashes the game.",
       "changelog": [
         "Patch 3 - The VR shaders ship with the patch now. Clears the big black panel floating in the headset, the black desktop mirror window & the overly blurry picture in VR.",
         "Patch 3 - Changing Screen Effect in Video Options doesn't crash the game anymore.",
@@ -300,7 +300,7 @@
       "officialZip": "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
       "exeName": "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
       "patchFile": "fzxvr.patch",
-      "whatsNew": "The game has sound. Music & engine noise play from the moment you boot, where every build before this one was completely silent. You also get four ways to watch: third person, first person, diorama & theater.",
+      "whatsNew": "The game has sound. Music & engine noise play from boot, where every build before ran silent. You also get four ways to watch: third person, first person, diorama & theater.",
       "changelog": [
         "Patch 3 - Sound. Music & effects play now. Every earlier build ran silent, because nothing ever started the part of the audio engine that drives every note, & the instrument data was being read the way the console reads it rather than the way a PC does.",
         "Patch 3 - Four ways to watch: third person, first person, diorama, & theater on your monitor. Click the right stick mid-race to cycle the three headset views; theater is picked from the VR menu.",
