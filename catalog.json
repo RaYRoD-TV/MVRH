@@ -266,7 +266,7 @@
       "name": "Diddy Kong Racing VR",
       "group": "N64",
       "status": "available",
-      "version": "4",
+      "version": "5",
       "installDir": "mvrh/games/DiddyKongRacing",
       "patchDir": "launcher/DiddyKongRacing",
       "officialHome": "https://github.com/akratch/goldenballoon",
@@ -277,8 +277,14 @@
       "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
       "romBytes": 12582912,
       "romFile": "dkr.us.v80.z64",
-      "whatsNew": "The world holds still in the headset: no more tearing as you look around & no more stretched palm trees, story mode cutscenes skip with A, B or Start, & the desktop window stops taking frame time away from your eyes.",
+      "whatsNew": "Trees, balloons & other props are the right size in the headset again & stop leaning when you look around, turning your head is smooth, & the desktop window now shows what you're seeing in the headset instead of the chase camera.",
       "changelog": [
+        "Patch 5 - Trees, balloons & other props are the right size again. They were being drawn at the size they'd be on a monitor, which comes out nearly twice as tall through a headset lens, so palms ran off into the sky.",
+        "Patch 5 - Props stop leaning with your head. A tree now leans the same way the banner poles & buildings beside it do, wherever you look.",
+        "Patch 5 - Turning your head is smooth. The world was timed on one clock & shown on another, so the motion arrived in uneven steps even at a full 120 frames a second. MDKR_VR_PREWAIT=0 puts the old timing back if you want to compare.",
+        "Patch 5 - The desktop window shows what you see in the headset, HUD & all, so anyone watching gets your view instead of the chase camera. MDKR_VR_MIRROR=flat brings the old window back, & MDKR_VR_MIRROR_HZ=60 updates it twice as often.",
+        "Patch 5 - First person starts at the seat I settled on: height 26, slid back 12. Saved settings still holding an old default move over on their own, & a seat you set yourself stays where you put it.",
+        "Patch 5 - Minimizing the game window no longer freezes the headset.",
         "Patch 4 - Story mode cutscenes can be skipped. A, B or Start ends the scene the same way sitting through it would, so a second run never makes you watch the same one twice.",
         "Patch 4 - VR starts even when an old copy of the game is still running. It used to lose the headset session to that leftover copy & drop you into a flat window with nothing on screen to say why.",
         "Patch 4 - World geometry no longer tears in the headset as you move.",
@@ -301,9 +307,9 @@
         "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once & remembers it."
       ],
       "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-4.zip",
-      "payloadSha256": "6a13452a311dff9a10cd91cb773a9ec75069e28d7071c634a787abf18247fdde",
-      "payloadBytes": 4325954
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-5.zip",
+      "payloadSha256": "7dd1fe397b9adcf82bf7d646c0d055632140e9cd0540395212b256ab8d44d3de",
+      "payloadBytes": 4332204
     },
     {
       "id": "fzx",
