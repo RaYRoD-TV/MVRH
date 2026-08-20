@@ -75,7 +75,7 @@
       "name": "Banjo-Kazooie VR",
       "group": "N64",
       "status": "available",
-      "version": "2",
+      "version": "3",
       "installDir": "mvrh/games/BanjoKazooie",
       "patchDir": "launcher/BanjoKazooie",
       "officialHome": "https://github.com/HarbourMasters/Lighthouse",
@@ -83,8 +83,11 @@
       "officialZip": "Lighthouse-Split-Rock-Delta-Win64.zip",
       "exeName": "Lighthouse.exe",
       "patchFile": "banjovr.patch",
-      "whatsNew": "Notes & jiggies stop turning invisible in VR.",
+      "whatsNew": "Texture flickering in Gobi's Valley & foliage areas is fixed.",
       "changelog": [
+        "Patch 3 - Texture flickering in Gobi's Valley & foliage areas is fixed.",
+        "Patch 3 - VR MENU & CHEATS sit in the game's own pause menu now: cheat toggles, a level warp & rumble on rolls & swipes.",
+        "Patch 3 - The game opens in first person, & the diorama comes up on tuned framing that no longer clips up close.",
         "Patch 2 - Notes & jiggies don't turn invisible in VR when the game camera looks away from them.",
         "Patch 2 - First release through the hub: per-eye VR via the Lighthouse port, first person, diorama, motion controllers."
       ],
@@ -102,9 +105,9 @@
         "%TEMP%",
         "OneDrive"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/BanjoKazooie-VR-2.zip",
-      "payloadSha256": "1c0a4948529d998bc1d107b470ef82ebca168ea192c632937d83567e707f0b03",
-      "payloadBytes": 4113797
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/BanjoKazooie-VR-3.zip",
+      "payloadSha256": "e929568a091c0165c4443b6e13da0803e04bce260a2070466e1ecdff62899170",
+      "payloadBytes": 4117888
     },
     {
       "id": "sm64",
