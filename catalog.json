@@ -12,7 +12,7 @@
       "name": "Mario Kart 64 VR",
       "group": "N64",
       "status": "available",
-      "version": "7",
+      "version": "8",
       "installDir": "mvrh/games/MarioKart64",
       "patchDir": "launcher/MarioKart64",
       "officialHome": "https://github.com/HarbourMasters/SpaghettiKart",
@@ -28,8 +28,10 @@
       "questData": [
         "$ROM"
       ],
-      "whatsNew": "The Quest build runs at full speed. It was delivering half the headset's frames, which made everything feel like slow motion.",
+      "whatsNew": "The Quest build really does run at full speed now, & on PC scenery no longer vanishes when you look around in VR.",
       "changelog": [
+        "Patch 8 - The Quest build runs at full speed on a fresh install. Patch 6 began drawing the whole lap at once so nothing is missing when you look around, & on Quest every section of that lap was drawn twice over, once per eye. It now draws the stretch of track around you instead, which keeps the view complete without the cost.",
+        "Patch 8 - On PC, scenery stops vanishing when you look around in VR. That fix went out with patch 7 for the headset build, but the PC download was never rebuilt with it, so it is only arriving now.",
         "Patch 7 - The Quest build runs at full speed. The hidden flat screen behind the VR session was allowed to pace the game at its own slower rate, which locked delivery to exactly half the headset's frames & made everything feel like slow motion.",
         "Patch 7 - Races hold that speed from the starting line. Patch 6's whole-course fix had also switched off the distance culling that keeps the Quest inside its frame budget, so every race began over budget & dragged. Only the view-direction culling stands down in VR now: scenery still never vanishes when you look around, & the frame rate holds.",
         "Patch 6 - The whole course is drawn, not just the chunk you're standing in. Looking through the gate at Bowser's Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, & the stand-in mesh filling the rest has no interiors.",
@@ -63,11 +65,11 @@
           "file": "mk64-reloaded-4k.o2r"
         }
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-7.zip",
-      "payloadSha256": "044124c50f0fda92d6ac5bcab7994fc83a4d028949537cd5e576defc5c0cb138",
-      "payloadBytes": 4492171,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-8.zip",
+      "payloadSha256": "9345aaccaee87b531ec35d28946b3d047dbdc9137b4fdbc7502eed41b2e1ca1b",
+      "payloadBytes": 4492363,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest/MarioKart64-VR-Quest.apk",
-      "questApkSha256": "c0072ccb7d9e46be91ed8d1195dea5d87509040cfd9f196e7c322274a324d9e9",
+      "questApkSha256": "73fdec71ead3f753ad628932b37b02fdefe4d262b8f6079b92a0d23e8ecb833a",
       "questApkBytes": 21000903
     },
     {
