@@ -153,8 +153,8 @@
       "payloadSha256": "a066feeadb863d251211a41ade6f5634dcecea718fef670c2cdf553e37ff2f3c",
       "payloadBytes": 3692433,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest/SuperMario64-VR-Quest.apk",
-      "questApkSha256": "8802a85984ce8910a5a96f9bf665d7af2a53dcb47618b127a58963e2f3734f49",
-      "questApkBytes": 99188240
+      "questApkSha256": "55a151059a8369aa42e670d22cdaac05e9a3ab72e0511d7c3d80bce17fcaa633",
+      "questApkBytes": 99204624
     },
     {
       "id": "dkr",
@@ -320,7 +320,7 @@
       "name": "F-Zero X VR",
       "group": "N64",
       "status": "available",
-      "version": "4",
+      "version": "5",
       "installDir": "mvrh/games/FZeroX",
       "patchDir": "launcher/FZeroX",
       "officialHome": "https://github.com/Zorkats/G-Diffuser",
@@ -328,8 +328,14 @@
       "officialZip": "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
       "exeName": "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
       "patchFile": "fzxvr.patch",
-      "whatsNew": "Sound effects are back: engines, hits & menu blips, not just music. First person is a real cockpit view now, the race opening plays in VR, & every view mode keeps its own scale, distance & height.",
+      "whatsNew": "Quit a Grand Prix & start another, the menus listen every time now. The spin attack whirls the view with your machine, the HUD floats up where a racing HUD belongs, & the VR menu got big readable pages plus a one-press reset. Put the headset on & the view centers itself.",
       "changelog": [
+        "Patch 5 - Quitting a Grand Prix no longer locks the menus. The course select came back alive but deaf on your second visit; every button lands now.",
+        "Patch 5 - The spin attack whirls the view with the machine, full turn for full turn. A SPIN CAM dial tones it down or turns it off if it costs you corners.",
+        "Patch 5 - The HUD sits up where a racing HUD belongs instead of hugging the track, & a HUD UP dial puts it exactly where you want it.",
+        "Patch 5 - The VR menu is split into big readable pages. HUD & CAMERA get their own screens instead of one crowded list, & every row keeps its plain-English line.",
+        "Patch 5 - RESET ALL puts every VR dial back to stock in one press. Your view mode stays.",
+        "Patch 5 - Put the headset on & the view centers itself once your head settles. Taking it off & back on re-centers too; the RECENTER row still works any time.",
         "Patch 4 - Sound effects play. Patch 3 brought the music back but left everything else silent, because the value carrying each effect's id was read from the wrong end of a word & always arrived as zero.",
         "Patch 4 - First person is actually first person. The camera rides up to the cockpit instead of sitting behind you, & your own machine & its shadow stop being drawn so you can see out.",
         "Patch 4 - The race opening plays in VR instead of dropping you onto a flat screen until the countdown. It runs at reduced depth so the close camera shots stay comfortable.",
@@ -351,9 +357,9 @@
       "launchArgs": [
         "--setup-auto"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-4.zip",
-      "payloadSha256": "5f11fa7d7e6adc0b2ce2c5a57226da14d1fd15b35339b175bca2d8f7bb86f675",
-      "payloadBytes": 4016835
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-5.zip",
+      "payloadSha256": "6784285592c7e489632a6b965f13d7577885719911172eb4e035d5da98551d8e",
+      "payloadBytes": 4028154
     }
   ],
   "cableTool": {
