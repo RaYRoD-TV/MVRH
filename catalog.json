@@ -28,8 +28,9 @@
       "questData": [
         "$ROM"
       ],
-      "whatsNew": "The Quest build really does run at full speed now, & on PC scenery no longer vanishes when you look around in VR.",
+      "whatsNew": "Mario Kart 64 now holds full speed on Quest 3 while looking straight down the track.",
       "changelog": [
+        "Patch 9 - Fixed the last Quest slowdown. Looking straight down the track used to replay seven course sections for both eyes on every interpolated frame, dropping a Quest 3 as low as 15/72. Quest now draws the gameplay section it is actually in. The same race measured 72/72 with zero stale frames, forward and sideways.",
         "Patch 8 - The Quest build runs at full speed on a fresh install. Patch 6 began drawing the whole lap at once so nothing is missing when you look around, & on Quest every section of that lap was drawn twice over, once per eye. It now draws the stretch of track around you instead, which keeps the view complete without the cost.",
         "Patch 8 - On PC, scenery stops vanishing when you look around in VR. That fix went out with patch 7 for the headset build, but the PC download was never rebuilt with it, so it is only arriving now.",
         "Patch 7 - The Quest build runs at full speed. The hidden flat screen behind the VR session was allowed to pace the game at its own slower rate, which locked delivery to exactly half the headset's frames & made everything feel like slow motion.",
@@ -69,7 +70,7 @@
       "payloadSha256": "9345aaccaee87b531ec35d28946b3d047dbdc9137b4fdbc7502eed41b2e1ca1b",
       "payloadBytes": 4492363,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest/MarioKart64-VR-Quest.apk",
-      "questApkSha256": "73fdec71ead3f753ad628932b37b02fdefe4d262b8f6079b92a0d23e8ecb833a",
+      "questApkSha256": "bbe692b2097233f84c512b619cdb8216c9b7ef4b0de683ee874e4d670bd7fc47",
       "questApkBytes": 21000903
     },
     {
