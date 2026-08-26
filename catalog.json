@@ -1,380 +1,431 @@
 {
-  "announcement": {
-    "id": "dkr64-1",
-    "kicker": "NEW RELEASE",
-    "title": "Diddy Kong Racing VR is out",
-    "body": "The whole game runs inside the headset: per-eye stereo at your headset's own rate, third person, first person, diorama & theater views, motion controllers, & a VR menu inside the game's own pause menu. Bring your own ROM (US 1.1 or EU 1.1) & the hub handles the rest.",
-    "game": "dkr64"
-  },
-  "games": [
-    {
-      "id": "mk64",
-      "name": "Mario Kart 64 VR",
-      "group": "N64",
-      "status": "available",
-      "version": "8",
-      "installDir": "mvrh/games/MarioKart64",
-      "patchDir": "launcher/MarioKart64",
-      "officialHome": "https://github.com/HarbourMasters/SpaghettiKart",
-      "officialName": "SpaghettiKart",
-      "officialZip": "spaghetti-windows.zip",
-      "exeName": "Spaghettify.exe",
-      "patchFile": "mk64vr.patch",
-      "romName": "Mario Kart 64",
-      "romBytes": 12582912,
-      "romFile": "baserom.us.z64",
-      "assetPack": "mk64.o2r",
-      "questActivity": "com.rayrod.spaghettikart/.SpaghettiKartActivity",
-      "questData": [
-        "$ROM"
-      ],
-      "whatsNew": "Mario Kart 64 now holds full speed on Quest 3 while looking straight down the track.",
-      "changelog": [
-        "Patch 9 - Fixed the last Quest slowdown. Looking straight down the track used to replay seven course sections for both eyes on every interpolated frame, dropping a Quest 3 as low as 15/72. Quest now draws the gameplay section it is actually in. The same race measured 72/72 with zero stale frames, forward and sideways.",
-        "Patch 8 - The Quest build runs at full speed on a fresh install. Patch 6 began drawing the whole lap at once so nothing is missing when you look around, & on Quest every section of that lap was drawn twice over, once per eye. It now draws the stretch of track around you instead, which keeps the view complete without the cost.",
-        "Patch 8 - On PC, scenery stops vanishing when you look around in VR. That fix went out with patch 7 for the headset build, but the PC download was never rebuilt with it, so it is only arriving now.",
-        "Patch 7 - The Quest build runs at full speed. The hidden flat screen behind the VR session was allowed to pace the game at its own slower rate, which locked delivery to exactly half the headset's frames & made everything feel like slow motion.",
-        "Patch 7 - Races hold that speed from the starting line. Patch 6's whole-course fix had also switched off the distance culling that keeps the Quest inside its frame budget, so every race began over budget & dragged. Only the view-direction culling stands down in VR now: scenery still never vanishes when you look around, & the frame rate holds.",
-        "Patch 6 - The whole course is drawn, not just the chunk you're standing in. Looking through the gate at Bowser's Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, & the stand-in mesh filling the rest has no interiors.",
-        "Patch 6 - Scenery stops vanishing when you look somewhere the game camera isn't. The game was still trimming the world to the flat chase camera's view, which is narrower than what you can see in a headset.",
-        "Patch 6 - Surfaces that pass close to your eyes stay solid on Quest instead of being cut away. The headset renderer was clipping them where the PC one held on to them.",
-        "Patch 4 - Item boxes & kart sprites draw whole again. The whole-course view was leaving bad depth behind & everything drawn after it got clipped.",
-        "Patch 4 - The Quest build starts first try when installed through the hub, instead of opening an Android permission screen & closing.",
-        "Patch 3 - Track surfaces don't break into flat patches & smears in VR anymore. The course was drawing bits of itself twice in whole-course views.",
-        "Patch 3 - The first person flip cam carries you through banana spins again instead of just leaning sideways.",
-        "Patch 2 - First release through the hub: full VR via SpaghettiKart, view modes, motion controllers."
-      ],
-      "addons": [
-        {
-          "id": "reloaded-hd",
-          "name": "MK64 Reloaded HD textures",
-          "note": "GhostlyDark's HD retexture, built for SpaghettiKart",
-          "url": "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-sk-hd.o2r",
-          "bytes": 444322816,
-          "sha256": "",
-          "into": "mods",
-          "file": "mk64-reloaded-hd.o2r"
-        },
-        {
-          "id": "reloaded-4k",
-          "name": "MK64 Reloaded 4K textures",
-          "note": "The same pack at 4K. Much bigger, & it wants a card that can take it.",
-          "url": "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-sk-4k.o2r",
-          "bytes": 1232797696,
-          "sha256": "",
-          "into": "mods",
-          "file": "mk64-reloaded-4k.o2r"
-        }
-      ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-8.zip",
-      "payloadSha256": "9345aaccaee87b531ec35d28946b3d047dbdc9137b4fdbc7502eed41b2e1ca1b",
-      "payloadBytes": 4492363,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest/MarioKart64-VR-Quest.apk",
-      "questApkSha256": "bbe692b2097233f84c512b619cdb8216c9b7ef4b0de683ee874e4d670bd7fc47",
-      "questApkBytes": 21000903
-    },
-    {
-      "id": "banjo",
-      "name": "Banjo-Kazooie VR",
-      "group": "N64",
-      "status": "available",
-      "version": "3",
-      "installDir": "mvrh/games/BanjoKazooie",
-      "patchDir": "launcher/BanjoKazooie",
-      "officialHome": "https://github.com/HarbourMasters/Lighthouse",
-      "officialName": "Lighthouse",
-      "officialZip": "Lighthouse-Split-Rock-Delta-Win64.zip",
-      "exeName": "Lighthouse.exe",
-      "patchFile": "banjovr.patch",
-      "whatsNew": "Texture flickering in Gobi's Valley & foliage areas is fixed.",
-      "changelog": [
-        "Patch 3 - Texture flickering in Gobi's Valley & foliage areas is fixed.",
-        "Patch 3 - VR MENU & CHEATS sit in the game's own pause menu now: cheat toggles, a level warp & rumble on rolls & swipes.",
-        "Patch 3 - The game opens in first person, & the diorama comes up on tuned framing that no longer clips up close.",
-        "Patch 2 - Notes & jiggies don't turn invisible in VR when the game camera looks away from them.",
-        "Patch 2 - First release through the hub: per-eye VR via the Lighthouse port, first person, diorama, motion controllers."
-      ],
-      "romName": "Banjo-Kazooie",
-      "romBytes": 16777216,
-      "romFile": "baserom.us.z64",
-      "assetPack": "bk.o2r",
-      "questActivity": "com.rayrod.lighthouse/.LighthouseActivity",
-      "questStatus": "coming soon",
-      "questData": [
-        "$ROM",
-        "lighthouse.o2r"
-      ],
-      "forbiddenPaths": [
-        "%TEMP%",
-        "OneDrive"
-      ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/BanjoKazooie-VR-3.zip",
-      "payloadSha256": "e929568a091c0165c4443b6e13da0803e04bce260a2070466e1ecdff62899170",
-      "payloadBytes": 4117888
-    },
-    {
-      "id": "sm64",
-      "name": "Super Mario 64 VR",
-      "group": "N64",
-      "status": "available",
-      "version": "9",
-      "installDir": "mvrh/games/SuperMario64",
-      "patchDir": "launcher/SuperMario64",
-      "officialHome": "https://github.com/coop-deluxe/sm64coopdx",
-      "officialName": "sm64coopdx",
-      "officialZip": "sm64coopdx_Windows.zip",
-      "exeName": "sm64coopdx.exe",
-      "patchFile": "sm64vr.patch",
-      "whatsNew": "Coins, bob-ombs & trees stay solid & face you at any head angle, in play & on the pause screen.",
-      "changelog": [
-        "Patch 9 - Coins, bob-ombs & trees stay solid & keep facing you no matter how far you turn your head. The turn now comes from the same math the headset view uses, so the two can never disagree; the old way over-rotated until things went edge-on & vanished.",
-        "Patch 9 - The pause screen stopped flattening & hiding those same objects. Facing them at your eyes belongs to the world view only, not the flat pause picture.",
-        "Patch 8 - Trees & signs stay put when you turn your head, & the stray white shapes are gone for good. Patch 7 cleared the shapes but took the tree fix out with them.",
-        "Patch 7 - Pulled some unfinished VR hands that slipped into patch 6. They showed up as big white shapes in front of you in first person.",
-        "Patch 6 - Trees & other flat scenery stopped vanishing on PC. Aiming them at your eyes was turning them edge-on until they culled; the Quest build had already stopped doing that.",
-        "Patch 5 - Mario 64 starts on Quest when you send it from the hub instead of sitting on a black screen. Your rom travels to the headset with it now.",
-        "Patch 5 - The same flat-scenery fix for the Quest build.",
-        "Patch 4 - Coins & bob-ombs turn to face your eyes rather than the game camera, so they stop vanishing edge-on.",
-        "Patch 4 - First person follows your head the moment you switch to it. No more recentering first.",
-        "Patch 3 - In first person the right stick only turns you; looking up & down stays with your head, whatever Stick Look says. Third person still follows the setting.",
-        "Patch 2 - Starts on every PC now. Three runtime files were missing & it would not launch without them.",
-        "Patch 2 - First release through the hub: online co-op in full VR, per-eye stereo, a world-locked HUD."
-      ],
-      "romName": "Super Mario 64",
-      "romBytes": 8388608,
-      "romFile": "baserom.us.z64",
-      "assetPack": "",
-      "questActivity": "com.rayrod.sm64vr/.sm64coopdxActivity",
-      "questData": [
-        "$ROM"
-      ],
-      "launchArgs": [
-        "--skip-update-check"
-      ],
-      "launchNote": "This one's got its own updater. The hub starts it with that switched off so it can't swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-9.zip",
-      "payloadSha256": "a066feeadb863d251211a41ade6f5634dcecea718fef670c2cdf553e37ff2f3c",
-      "payloadBytes": 3692433,
-      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest/SuperMario64-VR-Quest.apk",
-      "questApkSha256": "55a151059a8369aa42e670d22cdaac05e9a3ab72e0511d7c3d80bce17fcaa633",
-      "questApkBytes": 99204624
-    },
-    {
-      "id": "dkr",
-      "name": "Dr. Robotnik's Ring Racers VR",
-      "status": "available",
-      "version": "3",
-      "installDir": "mvrh/games/RingRacers",
-      "patchDir": "launcher/RingRacers",
-      "officialHome": "https://github.com/KartKrewDev/RingRacers",
-      "officialName": "Ring Racers",
-      "officialZip": "Dr.Robotnik.s-Ring-Racers-v2.4-Assets.zip",
-      "exeName": "ringracers.exe",
-      "launchEnv": [
-        "RINGRACERSWADDIR="
-      ],
-      "patchFile": "dkrvr.patch",
-      "whatsNew": "Shaders ship with the patch now: no black panel in the headset, no black mirror window, no blurry picture. Screen Effect no longer crashes the game.",
-      "changelog": [
-        "Patch 3 - The VR shaders ship with the patch now. Clears the big black panel floating in the headset, the black desktop mirror window & the overly blurry picture in VR.",
-        "Patch 3 - Changing Screen Effect in Video Options doesn't crash the game anymore.",
-        "Patch 2 - Fixed a crash at startup from a missing shader value.",
-        "Patch 2 - First release through the hub: native OpenXR, four view modes, controllers with rumble, comfort options."
-      ],
-      "questActivity": "tv.rayrod.ringracers/.RingRacersActivity",
-      "questStatus": "coming soon",
-      "questData": [
-        "bios.pk3",
-        "models.dat",
-        "data/",
-        "models/"
-      ],
-      "launchNote": "If it won't open at all, grab the Microsoft Visual C++ Redistributable for x64 & try again. Free download from Microsoft, most PCs already have it.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/RingRacers-VR-3.zip",
-      "payloadSha256": "adf7bba25c4352f370e935e2e3299f87a6dfc9c99cfec95b0195bf7dd40ca7bf",
-      "payloadBytes": 7062930
-    },
-    {
-      "id": "sf64",
-      "name": "Star Fox 64 VR",
-      "group": "N64",
-      "status": "available",
-      "version": "2",
-      "installDir": "mvrh/games/StarFox64",
-      "patchDir": "launcher/StarFox64",
-      "officialHome": "https://github.com/HarbourMasters/Starship",
-      "officialName": "Starship",
-      "officialZip": "Starship-Barnard-Alfa-Windows.zip",
-      "exeName": "Starship.exe",
-      "patchFile": "sf64vr.patch",
-      "romName": "Star Fox 64",
-      "romBytes": 12582912,
-      "romFile": "baserom.us.rev1.z64",
-      "assetPack": "sf64.o2r",
-      "questActivity": "com.rayrod.starship/.StarshipActivity",
-      "questStatus": "coming soon",
-      "questData": [
-        "$ROM",
-        "starship.o2r"
-      ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-2.zip",
-      "payloadSha256": "0801f65c01581adc1744193a5987ea5f4460960717130fccb027b185b79ee085",
-      "payloadBytes": 3795565
-    },
-    {
-      "id": "srb2",
-      "name": "Sonic Robo Blast 2 VR",
-      "status": "available",
-      "version": "2",
-      "installDir": "mvrh/games/SonicRoboBlast2",
-      "patchDir": "launcher/SonicRoboBlast2",
-      "officialHome": "https://github.com/STJr/SRB2",
-      "officialName": "Sonic Robo Blast 2",
-      "officialZip": "SRB2-v2215-Full.zip",
-      "exeName": "srb2win.exe",
-      "launchEnv": [
-        "SRB2WADDIR="
-      ],
-      "patchFile": "srb2vr.patch",
-      "questActivity": "com.rayrod.srb2vr/org.stjr.srb2.SRB2Game",
-      "questStatus": "coming soon",
-      "questData": [
-        "srb2.pk3",
-        "zones.pk3",
-        "characters.pk3",
-        "music.pk3",
-        "android.pk3",
-        "models.dat",
-        "models/"
-      ],
-      "launchNote": "Won't start? You're probably missing the Microsoft Visual C++ Redistributable for x64. Free from Microsoft, quick install, then give it another go.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SonicRoboBlast2-VR-2.zip",
-      "payloadSha256": "346c60c312f25cac5237c38dd3569bc9b6434e12ff989e6bddb661c2f08cb017",
-      "payloadBytes": 5294964
-    },
-    {
-      "id": "smash64",
-      "name": "Super Smash Bros. VR",
-      "group": "N64",
-      "status": "coming soon",
-      "officialHome": "https://github.com/fgsfdsfgs/smashbros64",
-      "officialName": "Super Smash Bros."
-    },
-    {
-      "id": "goldeneye",
-      "name": "GoldenEye 007 VR",
-      "group": "N64",
-      "status": "coming soon",
-      "officialHome": "https://github.com/n64decomp/007",
-      "officialName": "GoldenEye 007"
-    },
-    {
-      "id": "dkr64",
-      "name": "Diddy Kong Racing VR",
-      "group": "N64",
-      "status": "available",
-      "version": "5",
-      "installDir": "mvrh/games/DiddyKongRacing",
-      "patchDir": "launcher/DiddyKongRacing",
-      "officialHome": "https://github.com/akratch/goldenballoon",
-      "officialName": "Golden Balloon",
-      "officialZip": "Golden-Balloon-1.2.0-windows-x64.zip",
-      "exeName": "GoldenBalloon/GoldenBalloon.exe",
-      "patchFile": "dkr64vr.patch",
-      "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
-      "romBytes": 12582912,
-      "romFile": "dkr.us.v80.z64",
-      "whatsNew": "Trees, balloons & other props are the right size in the headset again & stop leaning when you look around, turning your head is smooth, & the desktop window now shows what you're seeing in the headset instead of the chase camera.",
-      "changelog": [
-        "Patch 5 - Trees, balloons & other props are the right size again. They were being drawn at the size they'd be on a monitor, which comes out nearly twice as tall through a headset lens, so palms ran off into the sky.",
-        "Patch 5 - Props stop leaning with your head. A tree now leans the same way the banner poles & buildings beside it do, wherever you look.",
-        "Patch 5 - Turning your head is smooth. The world was timed on one clock & shown on another, so the motion arrived in uneven steps even at a full 120 frames a second. MDKR_VR_PREWAIT=0 puts the old timing back if you want to compare.",
-        "Patch 5 - The desktop window shows what you see in the headset, HUD & all, so anyone watching gets your view instead of the chase camera. MDKR_VR_MIRROR=flat brings the old window back, & MDKR_VR_MIRROR_HZ=60 updates it twice as often.",
-        "Patch 5 - First person starts at the seat I settled on: height 26, slid back 12. Saved settings still holding an old default move over on their own, & a seat you set yourself stays where you put it.",
-        "Patch 5 - Minimizing the game window no longer freezes the headset.",
-        "Patch 4 - Story mode cutscenes can be skipped. A, B or Start ends the scene the same way sitting through it would, so a second run never makes you watch the same one twice.",
-        "Patch 4 - VR starts even when an old copy of the game is still running. It used to lose the headset session to that leftover copy & drop you into a flat window with nothing on screen to say why.",
-        "Patch 4 - World geometry no longer tears in the headset as you move.",
-        "Patch 4 - Palm trees & other flora no longer stretch. Sprites are drawn the way the game authored them again.",
-        "Patch 4 - Sprites stay upright in the world instead of leaning over when you tilt your head.",
-        "Patch 4 - First person sits at eye level in the Tricky boss races. The camera was down on the road for those two.",
-        "Patch 4 - First person starts at the tuned seat: height 48, slid forward 16. Both rows are still yours to move in the VR menu.",
-        "Patch 4 - The desktop window no longer redraws at headset rate, so that time goes back to your eyes. Set MDKR_VR_MIRROR=off to switch the desktop view off completely.",
-        "Patch 3 - Your gamepad no longer goes dead while you're in the headset. Windows was throwing away every button press because the game's window isn't the focused one in VR, which is also why D-pad up wasn't shifting view modes.",
-        "Patch 3 - In VR, picking your ROM starts the game there & then. It used to hand you a launcher window afterwards & wait for a second press, on a monitor you aren't looking at.",
-        "Patch 2 - The results screen after a race reads like the pause menu does in VR: a readable panel over the world, instead of the world shrinking into a box you couldn't use.",
-        "Patch 2 - Scenery & effects stop popping in at the edge of your vision. The game now draws four times as far in VR, & sparkles & splashes are no longer left out of the wider view.",
-        "Patch 2 - Looking behind in first person shows what's behind you. It was cancelling itself out & all you got was a wobble. Hold Y, or hold the left stick click.",
-        "Patch 2 - D-pad up on a gamepad shifts view modes, & the desktop window now tells you which view the headset is in.",
-        "Patch 2 - Third person has its own camera height & camera slide in the VR menu, kept separate from the first person seat.",
-        "Patch 2 - Your kart is visible again in the finish line fly-around when you're in first person, & the cheats page help text fits on screen.",
-        "Patch 1 - First release through the hub: per-eye stereo rendered at your headset's own rate, third person, first person, diorama & theater views, motion controllers with a fixed racing layout, & every VR option live-adjustable from the pause menu while the world stays in stereo around you.",
-        "Patch 1 - First person hides your kart & steers like third person feels. Trees & props stay planted however you move your head.",
-        "Patch 1 - A cheats page in the pause menu: unlock everything with one press, plus the classic magic codes as plain toggles.",
-        "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once & remembers it."
-      ],
-      "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-5.zip",
-      "payloadSha256": "7dd1fe397b9adcf82bf7d646c0d055632140e9cd0540395212b256ab8d44d3de",
-      "payloadBytes": 4332204
-    },
-    {
-      "id": "fzx",
-      "name": "F-Zero X VR",
-      "group": "N64",
-      "status": "available",
-      "version": "5",
-      "installDir": "mvrh/games/FZeroX",
-      "patchDir": "launcher/FZeroX",
-      "officialHome": "https://github.com/Zorkats/G-Diffuser",
-      "officialName": "G-Diffuser",
-      "officialZip": "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
-      "exeName": "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
-      "patchFile": "fzxvr.patch",
-      "whatsNew": "Quit a Grand Prix & start another, the menus listen every time now. The spin attack whirls the view with your machine, the HUD floats up where a racing HUD belongs, & the VR menu got big readable pages plus a one-press reset. Put the headset on & the view centers itself.",
-      "changelog": [
-        "Patch 5 - Quitting a Grand Prix no longer locks the menus. The course select came back alive but deaf on your second visit; every button lands now.",
-        "Patch 5 - The spin attack whirls the view with the machine, full turn for full turn. A SPIN CAM dial tones it down or turns it off if it costs you corners.",
-        "Patch 5 - The HUD sits up where a racing HUD belongs instead of hugging the track, & a HUD UP dial puts it exactly where you want it.",
-        "Patch 5 - The VR menu is split into big readable pages. HUD & CAMERA get their own screens instead of one crowded list, & every row keeps its plain-English line.",
-        "Patch 5 - RESET ALL puts every VR dial back to stock in one press. Your view mode stays.",
-        "Patch 5 - Put the headset on & the view centers itself once your head settles. Taking it off & back on re-centers too; the RECENTER row still works any time.",
-        "Patch 4 - Sound effects play. Patch 3 brought the music back but left everything else silent, because the value carrying each effect's id was read from the wrong end of a word & always arrived as zero.",
-        "Patch 4 - First person is actually first person. The camera rides up to the cockpit instead of sitting behind you, & your own machine & its shadow stop being drawn so you can see out.",
-        "Patch 4 - The race opening plays in VR instead of dropping you onto a flat screen until the countdown. It runs at reduced depth so the close camera shots stay comfortable.",
-        "Patch 4 - Every view mode carries its own scale, distance & height, so a diorama you set on your desk & a cockpit you set behind the wheel stop overwriting each other.",
-        "Patch 4 - You can hide the race gauges, & they get out of the way on their own while the VR menu is open.",
-        "Patch 4 - HUD distance moves the HUD nearer & further instead of changing its depth, & race text is no longer stretched.",
-        "Patch 4 - The track sits level out of the box, & the VR menu text fits its panel with the arrow landing on the row it selects.",
-        "Patch 3 - Sound. Music & effects play now. Every earlier build ran silent, because nothing ever started the part of the audio engine that drives every note, & the instrument data was being read the way the console reads it rather than the way a PC does.",
-        "Patch 3 - Four ways to watch: third person, first person, diorama, & theater on your monitor. Click the right stick mid-race to cycle the three headset views; theater is picked from the VR menu.",
-        "Patch 2 - Installing asks for your ROM here, & the game takes it from there. It used to ask you for the same file again in its own window.",
-        "Patch 1 - First release. True stereo racing, world tilt, & a VR settings menu where every knob moves the world live as you drag it.",
-        "Patch 1 - The whole track draws to the horizon at full detail. No pop-in, & no rivals showing through hills.",
-        "Patch 1 - Race intros play on the theater screen & stereo kicks in at the countdown, so nothing reads crosseyed."
-      ],
-      "romName": "F-Zero X (US)",
-      "romBytes": 16777216,
-      "romFile": "baserom.us.rev0.z64",
-      "romSha256": "2be0f861c30752bbdfa727753a454108bc973c27ad814744f191b1278c1f482d",
-      "launchArgs": [
-        "--setup-auto"
-      ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/FZeroX-VR-5.zip",
-      "payloadSha256": "6784285592c7e489632a6b965f13d7577885719911172eb4e035d5da98551d8e",
-      "payloadBytes": 4028154
-    }
-  ],
-  "cableTool": {
-    "url": "https://dl.google.com/android/repository/platform-tools-latest-windows.zip",
-    "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
-    "bytes": 8044989
-  },
-  "hub": {
-    "version": "1.0.13",
-    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.13/MultiverseVRHub.exe",
-    "sha256": "54759a68a57da8ee06b0cbcb82dfd2b9942266dc0bfea3f0fcefa479db5536ef",
-    "bytes": 3497472,
-    "page": "https://github.com/RaYRoD-TV/MVRH/releases/latest"
-  }
+    "announcement":  {
+                         "id":  "dkr64-1",
+                         "kicker":  "NEW RELEASE",
+                         "title":  "Diddy Kong Racing VR is out",
+                         "body":  "The whole game runs inside the headset: per-eye stereo at your headset\u0027s own rate, third person, first person, diorama \u0026 theater views, motion controllers, \u0026 a VR menu inside the game\u0027s own pause menu. Bring your own ROM (US 1.1 or EU 1.1) \u0026 the hub handles the rest.",
+                         "game":  "dkr64"
+                     },
+    "games":  [
+                  {
+                      "id":  "mk64",
+                      "name":  "Mario Kart 64 VR",
+                      "group":  "N64",
+                      "status":  "available",
+                      "version":  "8",
+                      "installDir":  "mvrh/games/MarioKart64",
+                      "patchDir":  "launcher/MarioKart64",
+                      "officialHome":  "https://github.com/HarbourMasters/SpaghettiKart",
+                      "officialName":  "SpaghettiKart",
+                      "officialZip":  "spaghetti-windows.zip",
+                      "exeName":  "Spaghettify.exe",
+                      "patchFile":  "mk64vr.patch",
+                      "romName":  "Mario Kart 64",
+                      "romBytes":  12582912,
+                      "romFile":  "baserom.us.z64",
+                      "assetPack":  "mk64.o2r",
+                      "questActivity":  "com.rayrod.spaghettikart/.SpaghettiKartActivity",
+                      "questData":  [
+                                        "$ROM"
+                                    ],
+                      "whatsNew":  "Mario Kart 64 now holds full speed on Quest 3 while looking straight down the track.",
+                      "changelog":  [
+                                        "Patch 9 - Fixed the last Quest slowdown. Looking straight down the track used to replay seven course sections for both eyes on every interpolated frame, dropping a Quest 3 as low as 15/72. Quest now draws the gameplay section it is actually in. The same race measured 72/72 with zero stale frames, forward and sideways.",
+                                        "Patch 8 - The Quest build runs at full speed on a fresh install. Patch 6 began drawing the whole lap at once so nothing is missing when you look around, \u0026 on Quest every section of that lap was drawn twice over, once per eye. It now draws the stretch of track around you instead, which keeps the view complete without the cost.",
+                                        "Patch 8 - On PC, scenery stops vanishing when you look around in VR. That fix went out with patch 7 for the headset build, but the PC download was never rebuilt with it, so it is only arriving now.",
+                                        "Patch 7 - The Quest build runs at full speed. The hidden flat screen behind the VR session was allowed to pace the game at its own slower rate, which locked delivery to exactly half the headset\u0027s frames \u0026 made everything feel like slow motion.",
+                                        "Patch 7 - Races hold that speed from the starting line. Patch 6\u0027s whole-course fix had also switched off the distance culling that keeps the Quest inside its frame budget, so every race began over budget \u0026 dragged. Only the view-direction culling stands down in VR now: scenery still never vanishes when you look around, \u0026 the frame rate holds.",
+                                        "Patch 6 - The whole course is drawn, not just the chunk you\u0027re standing in. Looking through the gate at Bowser\u0027s Castle showed open sky where the tunnel should be: only one piece of track was ever drawn, \u0026 the stand-in mesh filling the rest has no interiors.",
+                                        "Patch 6 - Scenery stops vanishing when you look somewhere the game camera isn\u0027t. The game was still trimming the world to the flat chase camera\u0027s view, which is narrower than what you can see in a headset.",
+                                        "Patch 6 - Surfaces that pass close to your eyes stay solid on Quest instead of being cut away. The headset renderer was clipping them where the PC one held on to them.",
+                                        "Patch 4 - Item boxes \u0026 kart sprites draw whole again. The whole-course view was leaving bad depth behind \u0026 everything drawn after it got clipped.",
+                                        "Patch 4 - The Quest build starts first try when installed through the hub, instead of opening an Android permission screen \u0026 closing.",
+                                        "Patch 3 - Track surfaces don\u0027t break into flat patches \u0026 smears in VR anymore. The course was drawing bits of itself twice in whole-course views.",
+                                        "Patch 3 - The first person flip cam carries you through banana spins again instead of just leaning sideways.",
+                                        "Patch 2 - First release through the hub: full VR via SpaghettiKart, view modes, motion controllers."
+                                    ],
+                      "addons":  [
+                                     {
+                                         "id":  "reloaded-hd",
+                                         "name":  "MK64 Reloaded HD textures",
+                                         "note":  "GhostlyDark\u0027s HD retexture, built for SpaghettiKart",
+                                         "url":  "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-sk-hd.o2r",
+                                         "bytes":  444322816,
+                                         "sha256":  "",
+                                         "into":  "mods",
+                                         "file":  "mk64-reloaded-hd.o2r"
+                                     },
+                                     {
+                                         "id":  "reloaded-4k",
+                                         "name":  "MK64 Reloaded 4K textures",
+                                         "note":  "The same pack at 4K. Much bigger, \u0026 it wants a card that can take it.",
+                                         "url":  "https://github.com/GhostlyDark/MK64-Reloaded/releases/download/v2026.04.03/mk64-reloaded-v2026.04.03-sk-4k.o2r",
+                                         "bytes":  1232797696,
+                                         "sha256":  "",
+                                         "into":  "mods",
+                                         "file":  "mk64-reloaded-4k.o2r"
+                                     }
+                                 ],
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-8.zip",
+                      "payloadSha256":  "1b35c1c171c4b388f891fc8bbfa346ab41cfa9297fdf66bd6344c6b99a0c8e12",
+                      "payloadBytes":  4362534,
+                      "questApkUrl":  "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest/MarioKart64-VR-Quest.apk",
+                      "questApkSha256":  "bbe692b2097233f84c512b619cdb8216c9b7ef4b0de683ee874e4d670bd7fc47",
+                      "questApkBytes":  21000903
+                  },
+                  {
+                      "id":  "banjo",
+                      "name":  "Banjo-Kazooie VR",
+                      "group":  "N64",
+                      "status":  "available",
+                      "version":  "3",
+                      "installDir":  "mvrh/games/BanjoKazooie",
+                      "patchDir":  "launcher/BanjoKazooie",
+                      "officialHome":  "https://github.com/HarbourMasters/Lighthouse",
+                      "officialName":  "Lighthouse",
+                      "officialZip":  "Lighthouse-Split-Rock-Delta-Win64.zip",
+                      "exeName":  "Lighthouse.exe",
+                      "patchFile":  "banjovr.patch",
+                      "whatsNew":  "Texture flickering in Gobi\u0027s Valley \u0026 foliage areas is fixed.",
+                      "changelog":  [
+                                        "Patch 3 - Texture flickering in Gobi\u0027s Valley \u0026 foliage areas is fixed.",
+                                        "Patch 3 - VR MENU \u0026 CHEATS sit in the game\u0027s own pause menu now: cheat toggles, a level warp \u0026 rumble on rolls \u0026 swipes.",
+                                        "Patch 3 - The game opens in first person, \u0026 the diorama comes up on tuned framing that no longer clips up close.",
+                                        "Patch 2 - Notes \u0026 jiggies don\u0027t turn invisible in VR when the game camera looks away from them.",
+                                        "Patch 2 - First release through the hub: per-eye VR via the Lighthouse port, first person, diorama, motion controllers."
+                                    ],
+                      "romName":  "Banjo-Kazooie",
+                      "romBytes":  16777216,
+                      "romFile":  "baserom.us.z64",
+                      "assetPack":  "bk.o2r",
+                      "questActivity":  "com.rayrod.lighthouse/.LighthouseActivity",
+                      "questStatus":  "coming soon",
+                      "questData":  [
+                                        "$ROM",
+                                        "lighthouse.o2r"
+                                    ],
+                      "forbiddenPaths":  [
+                                             "%TEMP%",
+                                             "OneDrive"
+                                         ],
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/BanjoKazooie-VR-3.zip",
+                      "payloadSha256":  "1a4a46fe22333ad314a9eb70868446d1f62b32db63953546a415fc423088c9a2",
+                      "payloadBytes":  3979916
+                  },
+                  {
+                      "id":  "sm64",
+                      "name":  "Super Mario 64 VR",
+                      "group":  "N64",
+                      "status":  "available",
+                      "version":  "9",
+                      "installDir":  "mvrh/games/SuperMario64",
+                      "patchDir":  "launcher/SuperMario64",
+                      "officialHome":  "https://github.com/coop-deluxe/sm64coopdx",
+                      "officialName":  "sm64coopdx",
+                      "officialZip":  "sm64coopdx_Windows.zip",
+                      "exeName":  "sm64coopdx.exe",
+                      "patchFile":  "sm64vr.patch",
+                      "whatsNew":  "Coins, bob-ombs \u0026 trees stay solid \u0026 face you at any head angle, in play \u0026 on the pause screen.",
+                      "changelog":  [
+                                        "Patch 9 - Coins, bob-ombs \u0026 trees stay solid \u0026 keep facing you no matter how far you turn your head. The turn now comes from the same math the headset view uses, so the two can never disagree; the old way over-rotated until things went edge-on \u0026 vanished.",
+                                        "Patch 9 - The pause screen stopped flattening \u0026 hiding those same objects. Facing them at your eyes belongs to the world view only, not the flat pause picture.",
+                                        "Patch 8 - Trees \u0026 signs stay put when you turn your head, \u0026 the stray white shapes are gone for good. Patch 7 cleared the shapes but took the tree fix out with them.",
+                                        "Patch 7 - Pulled some unfinished VR hands that slipped into patch 6. They showed up as big white shapes in front of you in first person.",
+                                        "Patch 6 - Trees \u0026 other flat scenery stopped vanishing on PC. Aiming them at your eyes was turning them edge-on until they culled; the Quest build had already stopped doing that.",
+                                        "Patch 5 - Mario 64 starts on Quest when you send it from the hub instead of sitting on a black screen. Your rom travels to the headset with it now.",
+                                        "Patch 5 - The same flat-scenery fix for the Quest build.",
+                                        "Patch 4 - Coins \u0026 bob-ombs turn to face your eyes rather than the game camera, so they stop vanishing edge-on.",
+                                        "Patch 4 - First person follows your head the moment you switch to it. No more recentering first.",
+                                        "Patch 3 - In first person the right stick only turns you; looking up \u0026 down stays with your head, whatever Stick Look says. Third person still follows the setting.",
+                                        "Patch 2 - Starts on every PC now. Three runtime files were missing \u0026 it would not launch without them.",
+                                        "Patch 2 - First release through the hub: online co-op in full VR, per-eye stereo, a world-locked HUD."
+                                    ],
+                      "romName":  "Super Mario 64",
+                      "romBytes":  8388608,
+                      "romFile":  "baserom.us.z64",
+                      "questApkUrl":  "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest/SuperMario64-VR-Quest.apk",
+                      "questApkSha256":  "55a151059a8369aa42e670d22cdaac05e9a3ab72e0511d7c3d80bce17fcaa633",
+                      "questApkBytes":  99204624,
+                      "assetPack":  "",
+                      "questActivity":  "com.rayrod.sm64vr/.sm64coopdxActivity",
+                      "questData":  [
+                                        "$ROM"
+                                    ],
+                      "questBackup":  [
+                                          "sm64_save_file.bin",
+                                          "sm64config.txt",
+                                          "vr_settings.txt"
+                                      ],
+                      "questMarkers":  [
+                                           ".mvrh_shader_warmup"
+                                       ],
+                      "questContent":  [
+                                           {
+                                               "id":  "mods",
+                                               "name":  "Mods",
+                                               "remote":  "mods",
+                                               "sources":  [
+                                                               "$GAME/mods",
+                                                               "$APPDATA/sm64coopdx/mods"
+                                                           ]
+                                           },
+                                           {
+                                               "id":  "dynos",
+                                               "name":  "DynOS packs",
+                                               "remote":  "dynos/packs",
+                                               "sources":  [
+                                                               "$GAME/dynos/packs",
+                                                               "$APPDATA/sm64coopdx/dynos/packs"
+                                                           ]
+                                           },
+                                           {
+                                               "id":  "palettes",
+                                               "name":  "Palettes",
+                                               "remote":  "palettes",
+                                               "sources":  [
+                                                               "$GAME/palettes",
+                                                               "$APPDATA/sm64coopdx/palettes"
+                                                           ]
+                                           }
+                                       ],
+                      "launchArgs":  [
+                                         "--skip-update-check"
+                                     ],
+                      "launchNote":  "This one\u0027s got its own updater. The hub starts it with that switched off so it can\u0027t swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-9.zip",
+                      "payloadSha256":  "bdaf2c1d1d971c0ad3fa75d9af0bbc10b3752a6469052461f93416af14f1a792",
+                      "payloadBytes":  3518375
+                  },
+                  {
+                      "id":  "dkr",
+                      "name":  "Dr. Robotnik\u0027s Ring Racers VR",
+                      "status":  "available",
+                      "version":  "3",
+                      "installDir":  "mvrh/games/RingRacers",
+                      "patchDir":  "launcher/RingRacers",
+                      "officialHome":  "https://github.com/KartKrewDev/RingRacers",
+                      "officialName":  "Ring Racers",
+                      "officialZip":  "Dr.Robotnik.s-Ring-Racers-v2.4-Assets.zip",
+                      "exeName":  "ringracers.exe",
+                      "launchEnv":  [
+                                        "RINGRACERSWADDIR="
+                                    ],
+                      "patchFile":  "dkrvr.patch",
+                      "whatsNew":  "Shaders ship with the patch now: no black panel in the headset, no black mirror window, no blurry picture. Screen Effect no longer crashes the game.",
+                      "changelog":  [
+                                        "Patch 3 - The VR shaders ship with the patch now. Clears the big black panel floating in the headset, the black desktop mirror window \u0026 the overly blurry picture in VR.",
+                                        "Patch 3 - Changing Screen Effect in Video Options doesn\u0027t crash the game anymore.",
+                                        "Patch 2 - Fixed a crash at startup from a missing shader value.",
+                                        "Patch 2 - First release through the hub: native OpenXR, four view modes, controllers with rumble, comfort options."
+                                    ],
+                      "questActivity":  "tv.rayrod.ringracers/.RingRacersActivity",
+                      "questStatus":  "coming soon",
+                      "questData":  [
+                                        "bios.pk3",
+                                        "models.dat",
+                                        "data/",
+                                        "models/"
+                                    ],
+                      "launchNote":  "If it won\u0027t open at all, grab the Microsoft Visual C++ Redistributable for x64 \u0026 try again. Free download from Microsoft, most PCs already have it.",
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/RingRacers-VR-3.zip",
+                      "payloadSha256":  "73d55f0b04202637b0df16d9da993e17b496923bf9ef79293f42158b6453e191",
+                      "payloadBytes":  6829311
+                  },
+                  {
+                      "id":  "sf64",
+                      "name":  "Star Fox 64 VR",
+                      "group":  "N64",
+                      "status":  "available",
+                      "version":  "2",
+                      "installDir":  "mvrh/games/StarFox64",
+                      "patchDir":  "launcher/StarFox64",
+                      "officialHome":  "https://github.com/HarbourMasters/Starship",
+                      "officialName":  "Starship",
+                      "officialZip":  "Starship-Barnard-Alfa-Windows.zip",
+                      "exeName":  "Starship.exe",
+                      "patchFile":  "sf64vr.patch",
+                      "romName":  "Star Fox 64",
+                      "romBytes":  12582912,
+                      "romFile":  "baserom.us.rev1.z64",
+                      "assetPack":  "sf64.o2r",
+                      "questActivity":  "com.rayrod.starship/.StarshipActivity",
+                      "questStatus":  "coming soon",
+                      "questData":  [
+                                        "$ROM",
+                                        "starship.o2r"
+                                    ],
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/StarFox64-VR-2.zip",
+                      "payloadSha256":  "e1fe47180643ebd1d87bde31ab1b960e09b4b3c13676f9df4d1030e4197ec523",
+                      "payloadBytes":  3667337
+                  },
+                  {
+                      "id":  "srb2",
+                      "name":  "Sonic Robo Blast 2 VR",
+                      "status":  "available",
+                      "version":  "2",
+                      "installDir":  "mvrh/games/SonicRoboBlast2",
+                      "patchDir":  "launcher/SonicRoboBlast2",
+                      "officialHome":  "https://github.com/STJr/SRB2",
+                      "officialName":  "Sonic Robo Blast 2",
+                      "officialZip":  "SRB2-v2215-Full.zip",
+                      "exeName":  "srb2win.exe",
+                      "launchEnv":  [
+                                        "SRB2WADDIR="
+                                    ],
+                      "patchFile":  "srb2vr.patch",
+                      "questActivity":  "com.rayrod.srb2vr/org.stjr.srb2.SRB2Game",
+                      "questStatus":  "coming soon",
+                      "questData":  [
+                                        "srb2.pk3",
+                                        "zones.pk3",
+                                        "characters.pk3",
+                                        "music.pk3",
+                                        "android.pk3",
+                                        "models.dat",
+                                        "models/"
+                                    ],
+                      "launchNote":  "Won\u0027t start? You\u0027re probably missing the Microsoft Visual C++ Redistributable for x64. Free from Microsoft, quick install, then give it another go.",
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/SonicRoboBlast2-VR-2.zip",
+                      "payloadSha256":  "d60aaf35d6a8d2b56b82ed30c63c2cf2b609555b51ab1dc496817b01df1fabfe",
+                      "payloadBytes":  5143142
+                  },
+                  {
+                      "id":  "smash64",
+                      "name":  "Super Smash Bros. VR",
+                      "group":  "N64",
+                      "status":  "coming soon",
+                      "officialHome":  "https://github.com/fgsfdsfgs/smashbros64",
+                      "officialName":  "Super Smash Bros."
+                  },
+                  {
+                      "id":  "goldeneye",
+                      "name":  "GoldenEye 007 VR",
+                      "group":  "N64",
+                      "status":  "coming soon",
+                      "officialHome":  "https://github.com/n64decomp/007",
+                      "officialName":  "GoldenEye 007"
+                  },
+                  {
+                      "id":  "dkr64",
+                      "name":  "Diddy Kong Racing VR",
+                      "group":  "N64",
+                      "status":  "available",
+                      "version":  "6",
+                      "installDir":  "mvrh/games/DiddyKongRacing",
+                      "patchDir":  "launcher/DiddyKongRacing",
+                      "officialHome":  "https://github.com/akratch/goldenballoon",
+                      "officialName":  "Golden Balloon",
+                      "officialZip":  "Golden-Balloon-1.2.0-windows-x64.zip",
+                      "exeName":  "GoldenBalloon/GoldenBalloon.exe",
+                      "patchFile":  "dkr64vr.patch",
+                      "romName":  "Diddy Kong Racing (US 1.1 or EU 1.1)",
+                      "romBytes":  12582912,
+                      "romFile":  "dkr.us.v80.z64",
+                      "questActivity":  "com.rayrod.goldenballoon/.GoldenBalloonActivity",
+                      "questData":  [
+                                        "$ROM"
+                                    ],
+                      "questBackup":  [
+                                          "save/eeprom.bin",
+                                          "save/vr_settings.cfg"
+                                      ],
+                      "whatsNew":  "Diddy Kong Racing plays on Quest on its own now. Send it from the hub \u0026 it runs on the headset with no PC \u0026 no cable.",
+                      "changelog":  [
+                                        "Patch 6 - Diddy Kong Racing runs standalone on Quest. Install it here, press Send to Quest, \u0026 it plays on the headset on its own: no PC, no cable, no streaming.",
+                                        "Patch 6 - Your rom travels to the headset with it, \u0026 your save \u0026 VR settings stay put between sessions instead of resetting every time you quit.",
+                                        "Patch 6 - The first-person seat sits a little higher. If you never moved that row yourself it moves with the update; if you did, your own value is left exactly as you set it.",
+                                        "Patch 5 - Trees, balloons \u0026 other props are the right size again. They were being drawn at the size they\u0027d be on a monitor, which comes out nearly twice as tall through a headset lens, so palms ran off into the sky.",
+                                        "Patch 5 - Props stop leaning with your head. A tree now leans the same way the banner poles \u0026 buildings beside it do, wherever you look.",
+                                        "Patch 5 - Turning your head is smooth. The world was timed on one clock \u0026 shown on another, so the motion arrived in uneven steps even at a full 120 frames a second. MDKR_VR_PREWAIT=0 puts the old timing back if you want to compare.",
+                                        "Patch 5 - The desktop window shows what you see in the headset, HUD \u0026 all, so anyone watching gets your view instead of the chase camera. MDKR_VR_MIRROR=flat brings the old window back, \u0026 MDKR_VR_MIRROR_HZ=60 updates it twice as often.",
+                                        "Patch 5 - First person starts at the seat I settled on: height 26, slid back 12. Saved settings still holding an old default move over on their own, \u0026 a seat you set yourself stays where you put it.",
+                                        "Patch 5 - Minimizing the game window no longer freezes the headset.",
+                                        "Patch 4 - Story mode cutscenes can be skipped. A, B or Start ends the scene the same way sitting through it would, so a second run never makes you watch the same one twice.",
+                                        "Patch 4 - VR starts even when an old copy of the game is still running. It used to lose the headset session to that leftover copy \u0026 drop you into a flat window with nothing on screen to say why.",
+                                        "Patch 4 - World geometry no longer tears in the headset as you move.",
+                                        "Patch 4 - Palm trees \u0026 other flora no longer stretch. Sprites are drawn the way the game authored them again.",
+                                        "Patch 4 - Sprites stay upright in the world instead of leaning over when you tilt your head.",
+                                        "Patch 4 - First person sits at eye level in the Tricky boss races. The camera was down on the road for those two.",
+                                        "Patch 4 - First person starts at the tuned seat: height 48, slid forward 16. Both rows are still yours to move in the VR menu.",
+                                        "Patch 4 - The desktop window no longer redraws at headset rate, so that time goes back to your eyes. Set MDKR_VR_MIRROR=off to switch the desktop view off completely.",
+                                        "Patch 3 - Your gamepad no longer goes dead while you\u0027re in the headset. Windows was throwing away every button press because the game\u0027s window isn\u0027t the focused one in VR, which is also why D-pad up wasn\u0027t shifting view modes.",
+                                        "Patch 3 - In VR, picking your ROM starts the game there \u0026 then. It used to hand you a launcher window afterwards \u0026 wait for a second press, on a monitor you aren\u0027t looking at.",
+                                        "Patch 2 - The results screen after a race reads like the pause menu does in VR: a readable panel over the world, instead of the world shrinking into a box you couldn\u0027t use.",
+                                        "Patch 2 - Scenery \u0026 effects stop popping in at the edge of your vision. The game now draws four times as far in VR, \u0026 sparkles \u0026 splashes are no longer left out of the wider view.",
+                                        "Patch 2 - Looking behind in first person shows what\u0027s behind you. It was cancelling itself out \u0026 all you got was a wobble. Hold Y, or hold the left stick click.",
+                                        "Patch 2 - D-pad up on a gamepad shifts view modes, \u0026 the desktop window now tells you which view the headset is in.",
+                                        "Patch 2 - Third person has its own camera height \u0026 camera slide in the VR menu, kept separate from the first person seat.",
+                                        "Patch 2 - Your kart is visible again in the finish line fly-around when you\u0027re in first person, \u0026 the cheats page help text fits on screen.",
+                                        "Patch 1 - First release through the hub: per-eye stereo rendered at your headset\u0027s own rate, third person, first person, diorama \u0026 theater views, motion controllers with a fixed racing layout, \u0026 every VR option live-adjustable from the pause menu while the world stays in stereo around you.",
+                                        "Patch 1 - First person hides your kart \u0026 steers like third person feels. Trees \u0026 props stay planted however you move your head.",
+                                        "Patch 1 - A cheats page in the pause menu: unlock everything with one press, plus the classic magic codes as plain toggles.",
+                                        "Patch 1 - Your VR settings are remembered between sessions. Bring your own ROM (US 1.1 or EU 1.1); the game asks once \u0026 remembers it."
+                                    ],
+                      "launchNote":  "First launch opens the game\u0027s own ROM picker once. Pick your Diddy Kong Racing ROM \u0026 it remembers it from then on, headset or not.",
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-6.zip",
+                      "payloadSha256":  "0ef3787ff2962fc908922b14afff3b964fe4ca0a8b3cde3ac8fa4d62c4b8afe9",
+                      "payloadBytes":  4145692,
+                      "questApkUrl":  "https://github.com/RaYRoD-TV/MVRH/releases/download/dkr64-quest/DiddyKongRacing-VR-Quest.apk",
+                      "questApkSha256":  "d08e61cc53626cca72cea4e99d1ea576c4db8ff4f47f7e3c968fe84997577cd0",
+                      "questApkBytes":  2412759
+                  },
+                  {
+                      "id":  "fzx",
+                      "name":  "F-Zero X VR",
+                      "group":  "N64",
+                      "status":  "available",
+                      "version":  "5",
+                      "installDir":  "mvrh/games/FZeroX",
+                      "patchDir":  "launcher/FZeroX",
+                      "officialHome":  "https://github.com/Zorkats/G-Diffuser",
+                      "officialName":  "G-Diffuser",
+                      "officialZip":  "G-Diffuser-v1.0.2-rc2-windows-x64.zip",
+                      "exeName":  "G-Diffuser-v1.0.2-rc2-windows-x64/G-Diffuser.exe",
+                      "patchFile":  "fzxvr.patch",
+                      "whatsNew":  "Quit a Grand Prix \u0026 start another, the menus listen every time now. The spin attack whirls the view with your machine, the HUD floats up where a racing HUD belongs, \u0026 the VR menu got big readable pages plus a one-press reset. Put the headset on \u0026 the view centers itself.",
+                      "changelog":  [
+                                        "Patch 5 - Quitting a Grand Prix no longer locks the menus. The course select came back alive but deaf on your second visit; every button lands now.",
+                                        "Patch 5 - The spin attack whirls the view with the machine, full turn for full turn. A SPIN CAM dial tones it down or turns it off if it costs you corners.",
+                                        "Patch 5 - The HUD sits up where a racing HUD belongs instead of hugging the track, \u0026 a HUD UP dial puts it exactly where you want it.",
+                                        "Patch 5 - The VR menu is split into big readable pages. HUD \u0026 CAMERA get their own screens instead of one crowded list, \u0026 every row keeps its plain-English line.",
+                                        "Patch 5 - RESET ALL puts every VR dial back to stock in one press. Your view mode stays.",
+                                        "Patch 5 - Put the headset on \u0026 the view centers itself once your head settles. Taking it off \u0026 back on re-centers too; the RECENTER row still works any time.",
+                                        "Patch 4 - Sound effects play. Patch 3 brought the music back but left everything else silent, because the value carrying each effect\u0027s id was read from the wrong end of a word \u0026 always arrived as zero.",
+                                        "Patch 4 - First person is actually first person. The camera rides up to the cockpit instead of sitting behind you, \u0026 your own machine \u0026 its shadow stop being drawn so you can see out.",
+                                        "Patch 4 - The race opening plays in VR instead of dropping you onto a flat screen until the countdown. It runs at reduced depth so the close camera shots stay comfortable.",
+                                        "Patch 4 - Every view mode carries its own scale, distance \u0026 height, so a diorama you set on your desk \u0026 a cockpit you set behind the wheel stop overwriting each other.",
+                                        "Patch 4 - You can hide the race gauges, \u0026 they get out of the way on their own while the VR menu is open.",
+                                        "Patch 4 - HUD distance moves the HUD nearer \u0026 further instead of changing its depth, \u0026 race text is no longer stretched.",
+                                        "Patch 4 - The track sits level out of the box, \u0026 the VR menu text fits its panel with the arrow landing on the row it selects.",
+                                        "Patch 3 - Sound. Music \u0026 effects play now. Every earlier build ran silent, because nothing ever started the part of the audio engine that drives every note, \u0026 the instrument data was being read the way the console reads it rather than the way a PC does.",
+                                        "Patch 3 - Four ways to watch: third person, first person, diorama, \u0026 theater on your monitor. Click the right stick mid-race to cycle the three headset views; theater is picked from the VR menu.",
+                                        "Patch 2 - Installing asks for your ROM here, \u0026 the game takes it from there. It used to ask you for the same file again in its own window.",
+                                        "Patch 1 - First release. True stereo racing, world tilt, \u0026 a VR settings menu where every knob moves the world live as you drag it.",
+                                        "Patch 1 - The whole track draws to the horizon at full detail. No pop-in, \u0026 no rivals showing through hills.",
+                                        "Patch 1 - Race intros play on the theater screen \u0026 stereo kicks in at the countdown, so nothing reads crosseyed."
+                                    ],
+                      "romName":  "F-Zero X (US)",
+                      "romBytes":  16777216,
+                      "romFile":  "baserom.us.rev0.z64",
+                      "romSha256":  "2be0f861c30752bbdfa727753a454108bc973c27ad814744f191b1278c1f482d",
+                      "launchArgs":  [
+                                         "--setup-auto"
+                                     ],
+                      "payloadUrl":  "https://rayrod-tv.github.io/MVRH/FZeroX-VR-5.zip",
+                      "payloadSha256":  "ff6f4467e4007724a30f9e0a7ac8bbff17c45c7f1b3b9d2f497a4fc26c702b40",
+                      "payloadBytes":  3896127
+                  }
+              ],
+    "cableTool":  {
+                      "url":  "https://dl.google.com/android/repository/platform-tools-latest-windows.zip",
+                      "sha256":  "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+                      "bytes":  8044989
+                  },
+    "hub":  {
+                "version":  "1.0.13",
+                "url":  "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.13/MultiverseVRHub.exe",
+                "sha256":  "54759a68a57da8ee06b0cbcb82dfd2b9942266dc0bfea3f0fcefa479db5536ef",
+                "bytes":  3497472,
+                "page":  "https://github.com/RaYRoD-TV/MVRH/releases/latest"
+            }
 }
