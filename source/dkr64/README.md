@@ -44,7 +44,7 @@ Stage them before making a commit or exporting a complete diff.
 - Commit: `106bad37244a2f8829bab21c655d25ff4b4dcdbf`
 
 The source files here are an overlay on that base. The setup command assembles
-the full checkout without requiring the earlier single-file source patch.
+the complete checkout.
 
 ## Build on Windows
 
@@ -71,9 +71,8 @@ The Android source is carried forward from the earlier Quest port. The 1.7.0
 Android build and headset behavior have not been qualified. The existing
 [Quest notes](files/android/QUEST_PORT.md) describe that boundary.
 
-Source publication does not replace the game downloads in the hub. The
-[earlier source patch](../../patches/dkr64-v1.7.0-vr.patch) remains a snapshot
-of the same preview; use this directory for browsing and further work.
+Use this directory for browsing and further work. Game downloads are managed
+through the hub.
 
 ## Source terms
 
