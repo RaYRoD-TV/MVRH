@@ -11,9 +11,12 @@ Start with the [VR layer](files/platform/vr),
 
 ## Get a complete working checkout
 
-Install Python 3.9 or later and Git. From this repository, run:
+Install Python 3.9 or later and Git. Clone the `dkr-source` branch, then run
+the setup command:
 
 ```powershell
+git clone --branch dkr-source --single-branch https://github.com/RaYRoD-TV/MVRH.git MVRH-DKR-source
+cd MVRH-DKR-source
 python source/dkr64/prepare-source.py C:/src/dkr-vr
 ```
 
