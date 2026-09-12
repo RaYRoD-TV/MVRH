@@ -1,0 +1,541 @@
+#!/usr/bin/env python3
+"""A pack's textures replace the ROM's, and the settings switch applies while you play.
+
+Why this exists
+---------------
+`Content.PacksEnabled` is declared `MDKR_VIDEO_SCOPE_LIVE`, which is a promise
+to the player: tick the "Custom content" box and the picture changes, no
+relaunch. For a long time nothing kept that promise. The key was read exactly
+once, by `platform_content_packs_init()` at boot, and no publisher ever carried
+it anywhere afterwards -- so the settings checkbox took effect on the NEXT
+launch while `Tab`, which pulls the identical lever
+(`mdkr_mod_texture_set_enabled`), changed the picture instantly. Two controls,
+one lever, two different answers, and the slow one was the one that looked
+authoritative.
+
+`mdkr_video_config_publish()` now carries the key to that lever, and this gate
+is what makes the promise checkable rather than argued. It is also the only
+thing standing between a future refactor and a checkbox that silently does
+nothing again, which is a defect no crash, no log line and no unit test would
+ever surface.
+
+WHY BOTH DIRECTIONS ARE LIVE, WHICH WAS NOT OBVIOUS. If the pack scan were
+skipped when the setting starts at 0, off->on would have nothing to switch on
+and would have had to stay restart-required. It is not skipped:
+`platform_content_packs_init()` scans `mods/`, applies `Content.PackDisabled`,
+and binds the decoded-texture store unconditionally -- the setting only decides
+whether the store ANSWERS. Arm 3 below is the observation that proves it, not
+an inference from reading the source.
+
+WHAT THIS CANNOT DRIVE, STATED PLAINLY. `Tab` is an SDL keyboard event, and a
+headless run has no keyboard; the input-script fixture format carries
+controller values only. So there is no `Tab` arm here. Tab and the setting call
+the same one-line lever, and the rule between them -- an explicit settings
+change wins and sets the lever to whatever the setting says, ending any
+momentary comparison -- is a property of the publication point, documented
+there and asserted by the ROM-free `video_config_runtime` unit test in both
+directions. What is NOT claimed anywhere is that this file tests the keypress.
+
+The route
+---------
+Boot with no input script, 380 frames, 320x240, GL. Textures first bind at
+frame 9 and the title screen's set at frame 90, so the whole measurement sits
+inside the cheapest part of the game to reach. Four runs:
+
+    corpus     no pack, MDKR_MOD_TEXTURE_DUMP -- writes <digest>.png for every
+               texture the route binds. This is the pack author's own process
+               (tools/mod_texture_dump.py, docs/MODDING.md) and the pack below
+               is built from its output, so the digest contract is exercised
+               end to end rather than pinned to a constant that could rot.
+    baseline   no pack at all
+    pack       every dumped digest overridden with solid magenta
+    live       the same pack, plus two runtime settings changes
+
+Nothing ROM-derived is written into the repository: every run has its own
+throwaway working directory, which is also where `mods/` and the dumped corpus
+live.
+
+The pack overrides EVERY digest the corpus run found, with one 256x256
+quadrant PNG this file encodes itself: a magenta top-left quarter on green.
+Overriding everything rather than one hand-picked texture is what lets the
+frames below be compared as whole-image hashes: the question "did any pack
+pixel survive" then has a yes/no answer at every frame, instead of depending
+on whether one chosen texture happened to be on screen. The size and the two
+colours are both deliberate. The replacement is LARGER than every logical
+tile the route binds, which is the direction real upscale packs take and the
+direction where broken addressing shows a corner instead of wrapping (issue
+#34); and a two-colour image is what makes addressing witnessable at all --
+this gate's earlier solid-magenta form could not tell "the whole image" from
+"any corner of it", which is exactly how the defect shipped past it.
+
+The live arm's schedule, and why the frames are where they are
+--------------------------------------------------------------
+    MDKR_TEST_SETTINGS_TOGGLE=Content.PacksEnabled=0@150,Content.PacksEnabled=1@320
+
+That is the existing headless seam for the live-settings path
+(platform_sdl_min.c), and it fires `mdkr_video_config_runtime_set()` -- the
+exact call the settings panel makes. Not a rewritten ini and a relaunch, which
+would prove only that the boot path still reads the file.
+
+Frames are sampled at 120, 240 and 360 (MDKR_DUMP_FROM=120, MDKR_DUMP_EVERY=120)
+-- one in each of the three states, each at least 30 frames clear of a
+transition. Measured on the reference run (US v80), the change lands on the
+frame the toggle names, with no smearing in either direction: frames 91..149
+carry pack pixels, 150..319 are byte-identical to the no-pack baseline, and
+320 onward carry pack pixels again.
+
+What is asserted
+----------------
+ 1. REACHABILITY, AND NOTHING VACUOUS. Every run exits 0 with no runtime
+    diagnostic; the corpus run dumps textures; the pack and live runs report
+    the pack active and the baseline run reports no pack at all; both scheduled
+    settings changes are logged as applied (a key pinned by the environment
+    would resolve LOCKED here and every assertion below would be measuring
+    nothing).
+
+ 2. A PACK CHANGES THE PICTURE. At all three sampled frames the pack run's
+    image differs from the baseline's. This is what makes assertion 3 mean
+    something: "identical to the baseline" is only evidence if the pack arm
+    is not.
+
+ 3. THE SETTINGS CHANGE APPLIES LIVE, AND OFF MEANS THE ROM'S OWN TEXELS.
+    Frame 120, before the first change, is byte-identical to the pack run.
+    Frame 240, after Content.PacksEnabled=0 was set THROUGH THE SETTINGS
+    ROUTE, is byte-identical to the NO-PACK BASELINE.
+
+    Byte-identical is the whole assertion. A merely "different" frame would
+    also be produced by a store that stopped answering while the texture cache
+    kept serving the pack pixels it had already uploaded; only an exact match
+    with the baseline proves the cache retired those entries and re-uploaded
+    the ROM's texels, which is what `override_generation` exists to do.
+
+ 4. AND IT COMES BACK. Frame 360, after Content.PacksEnabled=1 was set at
+    runtime, is byte-identical to the pack run again -- so the registry really
+    was scanned despite the switch having been off, and the flip costs a cache
+    generation rather than a rescan. This is the arm that would have had to
+    become "the panel says restart-required" had the scan been conditional.
+
+ 5. IT IS PRESENTATION ONLY. The `[SIMHASH]` v3 stream is byte-identical across
+    all three arms, all 380 rows. Content.PacksEnabled is content class
+    (`mdkr_video_key_is_content`, folded into `mdkr_video_key_is_player_comfort`)
+    and toggling it mid-run must not move one bit of authoritative state.
+
+Self-validation -- this check is proven to be able to fail
+-----------------------------------------------------------
+POSITIVE CONTROL (run by hand, not by this file): comment out the two receiver
+calls in `mdkr_video_config_publish()` (platform/video_config_runtime.c), which
+restores the exact defect this gate exists for -- the key is still declared
+LIVE, the setter still returns LIVE, the log still says applied=1, and nothing
+happens. Rebuild and re-run. The check exits 1 at assertion 3:
+
+    check_mod_texture_override: FAIL - frame 240: Content.PacksEnabled=0 was
+    applied at runtime, but the frame is not the no-pack baseline (live
+    <hash> vs baseline <hash>); it is still the pack's image
+
+Assertion 4 fails on the same build for the mirrored reason. Assertions 1, 2
+and 5 keep passing, honestly: the pack is still installed and still applied, and
+a setting that does nothing moves no state either.
+
+Always muted + headless (`MDKR_AUDIO=0` and `--headless-frames`), per
+tests/README.md. `MDKR_AUDIO=off` would be a silent no-op -- only the digit `0`
+disables. Exit 0 = pass.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import struct
+import subprocess
+import sys
+import tempfile
+import zlib
+import zipfile
+from pathlib import Path
+
+from harness_utils import DEFAULT_BUILD_DIR, resolve_binary
+
+# ---- the route -------------------------------------------------------------
+FRAMES = 380
+WINDOW = "320x240"
+
+# Sampled frames, one per state. MDKR_DUMP_FROM/MDKR_DUMP_EVERY can only express
+# an arithmetic progression, so the three are evenly spaced and the toggle ticks
+# below are placed between them rather than the other way round.
+DUMP_FROM = 120
+DUMP_EVERY = 120
+FRAME_PACK_ON = 120       # before the first change
+FRAME_PACK_OFF = 240      # after Content.PacksEnabled=0
+FRAME_PACK_BACK = 360     # after Content.PacksEnabled=1
+SAMPLED = (FRAME_PACK_ON, FRAME_PACK_OFF, FRAME_PACK_BACK)
+
+# Toggle ticks sit clear of sampled frames so each image represents one state.
+TICK_OFF = 150
+TICK_ON = 320
+
+PACK_INI = b"[pack]\nname=Texture Test\npriority=100\n"
+PACK_RGBA = (255, 0, 255, 255)     # magenta: nothing the ROM draws looks like it
+PACK_RGBA_ALT = (0, 255, 0, 255)   # green: the other three quadrants
+# Larger than any logical tile the route binds. The direction matters: a
+# replacement SMALLER than the tile makes broken addressing overshoot and
+# wrap -- which still splashes pack pixels everywhere and is invisible to a
+# solid-colour image. Issue #34's real packs are LARGER than the tile, where
+# broken addressing samples only the image's top-left corner. A 256x256
+# quadrant (magenta corner, green elsewhere) makes the two outcomes
+# unmistakable: correct logical addressing shows every tile the whole
+# quadrant, green-dominant three to one; corner addressing shows magenta.
+PACK_SIZE = 256
+
+BAD_MARKERS = ("[FATAL]", "[CRASH]", "AddressSanitizer",
+               "UndefinedBehaviorSanitizer", "runtime error:")
+
+
+class CheckError(RuntimeError):
+    pass
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise CheckError(message)
+
+
+# ==========================================================================
+# the pack this check authors for itself
+# ==========================================================================
+def quadrant_png(size: int) -> bytes:
+    """An RGBA8 PNG, magenta top-left quarter on green, standard library only.
+
+    No ROM bytes reach this function. The override pixels are constants this
+    file names, which is the only reason "the frame is showing the pack" can be
+    distinguished from "the frame is showing something else that also changed".
+    Two colours rather than one because a solid image cannot witness texture
+    ADDRESSING: every sub-window of solid magenta is solid magenta, which is
+    exactly how the corner-sampling defect behind issue #34 stayed invisible
+    to this gate's earlier form.
+    """
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return (struct.pack(">I", len(data)) + tag + data +
+                struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF))
+
+    half = size // 2
+    corner = bytes(PACK_RGBA)
+    field = bytes(PACK_RGBA_ALT)
+    top = b"\x00" + corner * half + field * (size - half)
+    bottom = b"\x00" + field * size
+    raw = top * half + bottom * (size - half)
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 9))
+            + chunk(b"IEND", b""))
+
+
+def install_pack(run_dir: Path, digests: list[str], container: str = "folder",
+                 pack_format: str = "digest") -> None:
+    """Writes `mods/TexturePack/textures/<digest>.png` for every digest given."""
+    blob = quadrant_png(PACK_SIZE)
+    if container == "zip":
+        (run_dir / "mods").mkdir(parents=True)
+        with zipfile.ZipFile(run_dir / "mods" / "TexturePack.zip", "w",
+                             compression=zipfile.ZIP_DEFLATED) as pack:
+            if pack_format == "digest":
+                pack.writestr("pack.ini", PACK_INI)
+            for digest in digests:
+                pack.writestr(f"textures/{digest}.png", blob)
+        return
+    textures = run_dir / "mods" / "TexturePack" / "textures"
+    textures.mkdir(parents=True)
+    if pack_format == "digest":
+        (run_dir / "mods" / "TexturePack" / "pack.ini").write_bytes(PACK_INI)
+    for digest in digests:
+        (textures / f"{digest}.png").write_bytes(blob)
+
+
+# ==========================================================================
+# capture
+# ==========================================================================
+def classify_pack_pixels(ppm: bytes) -> tuple[int, int]:
+    """(magenta-family, green-family) pixel counts in a binary P6 frame.
+
+    Magenta-family: red and blue each clearly above green. Green-family:
+    green clearly above red plus blue. The margins keep ROM-authored greys,
+    fades and text out of both families; only the pack's own two colours,
+    however the combiner scaled them, land in either.
+    """
+    fields: list[bytes] = []
+    offset = 0
+    while len(fields) < 4:
+        while offset < len(ppm) and ppm[offset:offset + 1].isspace():
+            offset += 1
+        if ppm[offset:offset + 1] == b"#":
+            while offset < len(ppm) and ppm[offset] != 0x0A:
+                offset += 1
+            continue
+        start = offset
+        while offset < len(ppm) and not ppm[offset:offset + 1].isspace():
+            offset += 1
+        fields.append(ppm[start:offset])
+    require(fields[0] == b"P6", "frame dump is not binary P6")
+    offset += 1
+    magenta = green = 0
+    for index in range(offset, len(ppm) - 2, 3):
+        r, g, b = ppm[index], ppm[index + 1], ppm[index + 2]
+        if g > 64 and g > (r + b):
+            green += 1
+        elif r > 64 and b > 64 and r > 2 * g and b > 2 * g:
+            magenta += 1
+    return magenta, green
+
+
+class Arm:
+    def __init__(self, label: str, packed: bool, toggles: str = "",
+                 corpus: bool = False):
+        self.label = label
+        self.packed = packed
+        self.toggles = toggles
+        self.corpus = corpus
+        self.frames: dict[int, str] = {}
+        # frame -> (magenta-family, green-family) pixel counts; packed arms
+        # only. Classified by hue relation rather than exact value because the
+        # combiner multiplies texels by shade/prim colour: scaling preserves
+        # which channels dominate, exact values it does not.
+        self.pack_pixels: dict[int, tuple[int, int]] = {}
+        self.rows: list[str] = []
+        self.mods: list[str] = []
+        self.applied: list[tuple[str, str, int]] = []
+
+
+def run_arm(binary: Path, rom: Path, root: Path, arm: Arm, digests: list[str],
+            timeout: int, verbose: bool, pack_format: str = "digest",
+            container: str = "folder") -> None:
+    """One headless run. NEVER without --headless-frames; MDKR_AUDIO=0 on top."""
+    run_dir = root / arm.label
+    (run_dir / "save").mkdir(parents=True)
+    frame_dir = run_dir / "frames"
+    frame_dir.mkdir()
+    corpus_dir = run_dir / "corpus"
+    if arm.packed:
+        install_pack(run_dir, digests, container, pack_format)
+
+    # A clean environment. In particular no MDKR_CONTENT_PACKS: that is
+    # Content.PacksEnabled's env name, and an inherited one would pin the key
+    # above RUNTIME rank, so the live arm's changes would resolve LOCKED and
+    # this whole file would pass by measuring nothing.
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(("MDKR", "GE007_"))}
+    env.update(
+        LC_ALL="C",
+        MDKR_AUDIO="0",
+        MDKR_RENDERER="gl",
+        MDKR64_HIDDEN="1",
+        MDKR_SAVE_DIR=str(run_dir / "save"),
+        # The runtime setter PERSISTS. Without a private path the live arm would
+        # rewrite the developer's real settings file.
+        MDKR_VIDEO_CONFIG_PATH=str(run_dir / "mdkr64.ini"),
+        MDKR_STATE_HASH="3",
+        MDKR_DUMP_FROM=str(DUMP_FROM),
+        MDKR_DUMP_EVERY=str(DUMP_EVERY),
+    )
+    if arm.corpus:
+        corpus_dir.mkdir()
+        env["MDKR_MOD_TEXTURE_DUMP"] = str(corpus_dir)
+    if arm.toggles:
+        env["MDKR_TEST_SETTINGS_TOGGLE"] = arm.toggles
+
+    command = [str(binary), "--headless-frames", str(FRAMES),
+               "--rom", str(rom), "--window-size", WINDOW,
+               "--dump-frames", str(frame_dir)]
+    if verbose:
+        print(f"$ ({arm.label}) MDKR_TEST_SETTINGS_TOGGLE={arm.toggles} "
+              + " ".join(command), flush=True)
+    process = subprocess.run(
+        command, cwd=str(run_dir), env=env, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        timeout=timeout, check=False)
+    # Buffered hash rows on stdout must not swallow stderr markers mid-line.
+    output = process.stdout + "\n" + process.stderr
+    require(process.returncode == 0,
+            f"{arm.label}: engine exited {process.returncode}\n{output[-4000:]}")
+    for marker in BAD_MARKERS:
+        require(marker not in output,
+                f"{arm.label}: runtime diagnostic {marker!r}\n{output[-4000:]}")
+
+    for line in output.splitlines():
+        if line.startswith("[SIMHASH]"):
+            arm.rows.append(line)
+        elif "[MODS]" in line:
+            arm.mods.append(line)
+        elif line.startswith("[SETTINGS-TOGGLE]"):
+            fields = dict(part.split("=", 1) for part in line.split()
+                          if "=" in part)
+            arm.applied.append((fields.get("key", "?"),
+                                fields.get("value", "?"),
+                                int(fields.get("applied", "0"))))
+
+    for frame in SAMPLED:
+        path = frame_dir / f"frame_{frame:04d}.ppm"
+        require(path.is_file(),
+                f"{arm.label}: the route never dumped frame {frame}")
+        blob = path.read_bytes()
+        arm.frames[frame] = hashlib.sha256(blob).hexdigest()
+        if arm.packed:
+            arm.pack_pixels[frame] = classify_pack_pixels(blob)
+
+    if arm.corpus and pack_format == "rice":
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "ricepack"))
+        from rice_crc import rice_hires_crc
+        skipped = 0
+        for record in sorted(corpus_dir.glob("*.txt")):
+            fields = dict(line.split("=", 1) for line in record.read_text().splitlines()
+                          if "=" in line)
+            texels = record.with_suffix(".texels")
+            if not texels.is_file():
+                skipped += 1
+                continue
+            try:
+                crc = rice_hires_crc(texels.read_bytes(), int(fields["source_width"]),
+                                     int(fields["source_height"]), int(fields["siz"]),
+                                     int(fields["source_line_bytes"]), swap32=True)
+            except ValueError:
+                skipped += 1
+                continue
+            digests.append(f"Texture Test#{crc:08X}#{fields['fmt']}#{fields['siz']}_all")
+        require(digests, "the corpus produced no usable Rice identities")
+        print(f"   Rice fixtures: {len(digests)} identities; {skipped} unsupported spans")
+    elif arm.corpus:
+        digests.extend(sorted(entry.stem
+                              for entry in corpus_dir.glob("*.png")))
+
+
+# ==========================================================================
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--build", default=DEFAULT_BUILD_DIR,
+                        help="native build directory or mdkr64 executable")
+    parser.add_argument("--rom", default="baserom.us.v80.z64")
+    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--pack-format", choices=("digest", "rice"), default="digest")
+    parser.add_argument("--pack-container", choices=("folder", "zip"), default="folder")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args = parser.parse_args()
+
+    binary = Path(resolve_binary(args.build)).resolve()
+    rom = Path(args.rom).expanduser().resolve()
+    require(binary.is_file(), f"build executable not found: {binary}")
+    require(rom.is_file(), f"ROM not found: {rom}")
+
+    toggles = (f"Content.PacksEnabled=0@{TICK_OFF},"
+               f"Content.PacksEnabled=1@{TICK_ON}")
+    corpus = Arm("corpus", packed=False, corpus=True)
+    baseline = Arm("baseline", packed=False)
+    pack = Arm("pack", packed=True)
+    live = Arm("live", packed=True, toggles=toggles)
+    digests: list[str] = []
+
+    print("1. four headless runs; the pack is built from the corpus the first "
+          "one dumps")
+    with tempfile.TemporaryDirectory(prefix="mdkr_mod_texture_") as tmp:
+        root = Path(tmp)
+        run_arm(binary, rom, root, corpus, digests, args.timeout, args.verbose,
+                args.pack_format, args.pack_container)
+        require(digests,
+                "the corpus run dumped no textures, so there is nothing to "
+                "override and every assertion below would be vacuous")
+        for arm in (baseline, pack, live):
+            run_arm(binary, rom, root, arm, digests, args.timeout,
+                    args.verbose, args.pack_format, args.pack_container)
+
+    require(not baseline.mods,
+            "the baseline run found content packs; its mods/ is not empty\n"
+            + "\n".join(baseline.mods))
+    for arm in (pack, live):
+        require(any("1 pack(s) active" in line for line in arm.mods),
+                f"{arm.label}: the pack was not discovered as active\n"
+                + "\n".join(arm.mods))
+    require(not pack.applied,
+            "the pack run changed a setting at runtime; it is supposed to be "
+            "the unchanging comparison")
+    expected = [("Content.PacksEnabled", "0", 1), ("Content.PacksEnabled", "1", 1)]
+    require(live.applied == expected,
+            "the live run's scheduled settings changes did not both apply "
+            f"(a locked key applies nothing): {live.applied}")
+    print(f"   ok  {len(digests)} texture(s) overridden; pack active in 2 runs; "
+          "both settings changes applied")
+
+    print("2. a pack changes the picture at every sampled frame")
+    for frame in SAMPLED:
+        require(pack.frames[frame] != baseline.frames[frame],
+                f"frame {frame}: the pack run is byte-identical to the no-pack "
+                "baseline, so this frame draws none of the overridden textures "
+                "and proves nothing below")
+    print("   ok  frames " + ", ".join(str(f) for f in SAMPLED)
+          + " all differ from the baseline")
+
+    print("3. Content.PacksEnabled=0 at runtime restores the ROM's own texels")
+    require(live.frames[FRAME_PACK_ON] == pack.frames[FRAME_PACK_ON],
+            f"frame {FRAME_PACK_ON}: before any settings change the live run "
+            "should be showing the pack, but it does not match the pack run "
+            f"(live {live.frames[FRAME_PACK_ON][:16]} vs pack "
+            f"{pack.frames[FRAME_PACK_ON][:16]})")
+    require(live.frames[FRAME_PACK_OFF] == baseline.frames[FRAME_PACK_OFF],
+            f"frame {FRAME_PACK_OFF}: Content.PacksEnabled=0 was applied at "
+            "runtime, but the frame is not the no-pack baseline (live "
+            f"{live.frames[FRAME_PACK_OFF][:16]} vs baseline "
+            f"{baseline.frames[FRAME_PACK_OFF][:16]}); it is still the pack's "
+            "image")
+    print(f"   ok  frame {FRAME_PACK_ON} == the pack run; frame "
+          f"{FRAME_PACK_OFF} == the no-pack baseline, byte for byte")
+
+    print("4. and Content.PacksEnabled=1 brings it back without a relaunch")
+    require(live.frames[FRAME_PACK_BACK] == pack.frames[FRAME_PACK_BACK],
+            f"frame {FRAME_PACK_BACK}: Content.PacksEnabled=1 was applied at "
+            "runtime, but the pack's textures did not come back (live "
+            f"{live.frames[FRAME_PACK_BACK][:16]} vs pack "
+            f"{pack.frames[FRAME_PACK_BACK][:16]})")
+    print(f"   ok  frame {FRAME_PACK_BACK} == the pack run again; the registry "
+          "survived the switch being off")
+
+    print("5. the WHOLE override image is addressed, not one corner of it")
+    # The quadrant is three parts green to one part magenta, and the
+    # replacement is larger than every logical tile the route binds. Correct
+    # logical addressing therefore shows green-dominant pack pixels at every
+    # packed frame; the issue-#34 defect -- normalising authored texel
+    # coordinates by the replacement's own size -- samples only the image's
+    # magenta corner and cannot produce a green majority.
+    for arm, frames in ((pack, SAMPLED),
+                        (live, (FRAME_PACK_ON, FRAME_PACK_BACK))):
+        for frame in frames:
+            magenta, green_count = arm.pack_pixels[frame]
+            require(magenta + green_count >= 100,
+                    f"{arm.label} frame {frame}: only {magenta + green_count} "
+                    "pack-family pixels on screen; the sampled route no longer "
+                    "shows enough overridden texture to judge addressing")
+            require(green_count > magenta,
+                    f"{arm.label} frame {frame}: magenta corner dominates "
+                    f"({magenta} magenta vs {green_count} green): the override "
+                    "is being addressed by its own physical size, not the "
+                    "tile's logical size (issue #34)")
+    print("   ok  green-dominant pack pixels at every packed frame; the "
+          "replacement's full image is being addressed")
+
+    print("6. presentation only: no authoritative state moved")
+    require(len(baseline.rows) == FRAMES,
+            f"expected {FRAMES} [SIMHASH] rows, got {len(baseline.rows)} - the "
+            "v3 stream is not being emitted")
+    for arm in (pack, live):
+        require(arm.rows == baseline.rows,
+                f"{arm.label}: the [SIMHASH] v3 stream differs from the "
+                "baseline's - content packs are NOT presentation-only")
+    print(f"   ok  {len(baseline.rows)} [SIMHASH] rows identical across all "
+          "three arms")
+
+    print("check_mod_texture_override: PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (CheckError, OSError, subprocess.TimeoutExpired) as error:
+        print(f"check_mod_texture_override: FAIL - {error}", file=sys.stderr)
+        raise SystemExit(1)

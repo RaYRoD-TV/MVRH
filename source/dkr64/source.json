@@ -1,0 +1,106 @@
+{
+  "upstream": "https://github.com/akratch/goldenballoon.git",
+  "tag": "v1.7.0",
+  "commit": "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
+  "dependencies": [
+    {
+      "name": "OpenXR SDK 1.1.60",
+      "url": "https://github.com/KhronosGroup/OpenXR-SDK/archive/refs/tags/release-1.1.60.tar.gz",
+      "sha256": "a55afd26df6cb41ea8217e8375e3d4ffabdef047141f22ffe725d1c3adb1c43b",
+      "files": [
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr.h",
+          "path": "android/openxr/include/openxr/openxr.h",
+          "sha256": "038db3beabfa65743770f46e56f36e5bad1f67cd6a23e7f91ad69ffbc37a406d"
+        },
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr_loader_negotiation.h",
+          "path": "android/openxr/include/openxr/openxr_loader_negotiation.h",
+          "sha256": "7644950c7ca7fbeff2498c945b808836ec1d146630f823c7a18843bc1b2ce97b"
+        },
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr_platform.h",
+          "path": "android/openxr/include/openxr/openxr_platform.h",
+          "sha256": "f17e6d752e0065ede9f2a4c8932155acff96462306a2468a67a6ad77484641d8"
+        },
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr_platform_defines.h",
+          "path": "android/openxr/include/openxr/openxr_platform_defines.h",
+          "sha256": "a458ba5777415f2de518fdcdcc87fcf8651ba0468c9f69a101378672aad80946"
+        },
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr_reflection.h",
+          "path": "android/openxr/include/openxr/openxr_reflection.h",
+          "sha256": "0b784995be7b596e51d8f7e88dc1c216cdc324cfdee8dfc2180a6e51382b7cce"
+        },
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr_reflection_parent_structs.h",
+          "path": "android/openxr/include/openxr/openxr_reflection_parent_structs.h",
+          "sha256": "0fc37c8feb48c64679de3589c48e920ae1f13f577f3c57b9c39dea17ac06f391"
+        },
+        {
+          "member": "OpenXR-SDK-release-1.1.60/include/openxr/openxr_reflection_structs.h",
+          "path": "android/openxr/include/openxr/openxr_reflection_structs.h",
+          "sha256": "cb99a4bd6953ebd38ad89db57d2bc0e122a212183beffeded8d70e5f9aca4797"
+        }
+      ]
+    },
+    {
+      "name": "SDL 2.32.10 Android support",
+      "url": "https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.32.10.tar.gz",
+      "sha256": "03f9d7c191a837525c9cda6406af2f2e48be02b5e7eb03d949cc9f1e9ca41c8b",
+      "files": [
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/HIDDevice.java",
+          "path": "android/app/src/main/java/org/libsdl/app/HIDDevice.java",
+          "sha256": "e9d8b4edbf3821e366836c30c3f4746d915a5a765938181edae854b12cd975e9"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java",
+          "path": "android/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java",
+          "sha256": "78a07450afa0d7078496a219a32b4bce5c00671317bc228333e9bff5e3da500d"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java",
+          "path": "android/app/src/main/java/org/libsdl/app/HIDDeviceManager.java",
+          "sha256": "7f16fa997af31b70dabf136f5d6430f8f00437bfb0a6bc2457e9046e2fe34325"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java",
+          "path": "android/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java",
+          "sha256": "1c2cdd25da7592c5a66f67701af909e0cb2ec65ff10f38c2e5193959bcf5b7de"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/SDL.java",
+          "path": "android/app/src/main/java/org/libsdl/app/SDL.java",
+          "sha256": "4a5172717ed6613439e241341324554a4af399f54188ded7567584bc0e30d9cb"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java",
+          "path": "android/app/src/main/java/org/libsdl/app/SDLActivity.java",
+          "sha256": "12224e9eb8e659dde6831ab260fb3eeefed74fca72baeef1182402d74cb37fd5"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java",
+          "path": "android/app/src/main/java/org/libsdl/app/SDLAudioManager.java",
+          "sha256": "27db11b8436dc4b8393241120ce9107b081203a27fa39c36efd42a4a7ec9af9d"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java",
+          "path": "android/app/src/main/java/org/libsdl/app/SDLControllerManager.java",
+          "sha256": "5f86e8a667797fb365a1bb5ac19f7c4fd5057b46277d7b6cfd545c6c6be11248"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java",
+          "path": "android/app/src/main/java/org/libsdl/app/SDLSurface.java",
+          "sha256": "5b46e26e8ba888110f8908ef0def60c412ba6e8351c5d322f9b9406644cdb161"
+        },
+        {
+          "member": "SDL-release-2.32.10/android-project/gradle/wrapper/gradle-wrapper.jar",
+          "path": "android/gradle/wrapper/gradle-wrapper.jar",
+          "sha256": "2c23278a62dc9f96ab11bee897d9f53e6479d6419135e4560ce822a6431df5e5"
+        }
+      ]
+    }
+  ]
+}

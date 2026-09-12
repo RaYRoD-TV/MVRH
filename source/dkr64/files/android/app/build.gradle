@@ -1,0 +1,85 @@
+apply plugin: 'com.android.application'
+
+// The native libraries (libmain.so, libSDL2.so, libopenxr_loader.so) are built OUTSIDE gradle
+// by the CMake/NDK build (build_native.ps1) and staged into src/main/jniLibs/arm64-v8a by
+// stage_native.ps1. Gradle only packages what it finds there.
+
+android {
+    namespace 'com.rayrod.goldenballoon'
+    compileSdkVersion 33
+
+    defaultConfig {
+        applicationId 'com.rayrod.goldenballoon'
+        minSdkVersion 26
+        targetSdkVersion 33
+        versionCode 1
+        versionName '0.1'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    // TWO SHELLS AROUND THE SAME BINARY.
+    //   immersive - the real thing: takes over the headset, and HorizonOS will not start it
+    //               while the Touch controllers are off.
+    //   panel     - the identical native code in the 2D shell. It installs alongside (.panel
+    //               suffix) and launches with the controllers off and the headset on a desk,
+    //               which is the only way to answer "does it boot and render at all" without
+    //               a headset on a face. Flat boot is checked here; the XR session and stereo
+    //               can only be judged in the immersive one.
+    flavorDimensions 'shell'
+    productFlavors {
+        immersive { dimension 'shell' }
+        panel {
+            dimension 'shell'
+            applicationIdSuffix '.panel'
+            versionNameSuffix '-panel'
+        }
+    }
+
+    // Release signing. Credentials live in keystore.properties beside the root build.gradle and
+    // are NEVER committed - see keystore.properties.example. If that file is absent the release
+    // build falls back to debug signing and says so out loud, so a public build cannot be shipped
+    // debug-signed by accident in silence. A keystore.properties still holding CHANGE_ME counts
+    // as NOT configured.
+    ext.releaseSigningReady = {
+        def f = rootProject.file('keystore.properties')
+        if (!f.exists()) { return false }
+        def p = new Properties(); f.withInputStream { p.load(it) }
+        def store = p['storePassword'], key = p['keyPassword']
+        return store && key && store != 'CHANGE_ME' && key != 'CHANGE_ME' &&
+               rootProject.file(p['storeFile'] ?: '').exists()
+    }
+    signingConfigs {
+        release {
+            if (releaseSigningReady()) {
+                def props = new Properties()
+                rootProject.file('keystore.properties').withInputStream { props.load(it) }
+                storeFile rootProject.file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (releaseSigningReady()) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn('keystore.properties missing or unconfigured - release will be DEBUG-SIGNED.')
+                logger.warn('Copy keystore.properties.example beside build.gradle and fill it in to sign for real.')
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    // The loader and SDL are plain .so files staged in, not built here. Legacy packaging keeps
+    // them uncompressed and page-aligned, which is what the dynamic linker wants on device.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+}
