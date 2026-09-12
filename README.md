@@ -14,6 +14,4 @@ No games, ROMs or game assets are included or downloaded from here. The hub fetc
 
 The hub is a free app. Each port has its own repo: [Mario Kart 64](https://github.com/RaYRoD-TV/MarioKart64-VR), [Super Mario 64](https://github.com/RaYRoD-TV/sm64coopdx-vr), [Banjo-Kazooie](https://github.com/RaYRoD-TV/BanjoKazooie-VR), [Star Fox 64](https://github.com/RaYRoD-TV/StarFox64-VR), [Ring Racers](https://github.com/RaYRoD-TV/RingRacers-VR), [Sonic Robo Blast 2](https://github.com/RaYRoD-TV/SRB2-VR).
 
-**Source:** [Diddy Kong Racing VR](source/dkr64) - readable source changes, the exact upstream base, and a command to prepare a complete checkout.
-
 More about my work: https://rayrodtv.com

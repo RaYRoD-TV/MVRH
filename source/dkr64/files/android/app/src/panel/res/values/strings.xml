@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- The panel flavour has to be tellable apart in the headset library. Both flavours install at
-     once and they are the same game; the difference is that this one is deliberately a flat 2D
-     window so it can be launched from a desk with the controllers off. Sharing a label with the
-     real build means picking the wrong one and reporting "it is not in VR", which is exactly what
-     this one is built to be. -->
-<resources>
-    <string name="app_name">DKR VR (flat desk test)</string>
-</resources>
