@@ -183,5 +183,35 @@
     "sha256": "f104376a106c645f70a98625a7edbf47bf3f9c8e1b2690398028ce2d59be4ac9",
     "bytes": 4423168,
     "page": "https://github.com/RaYRoD-TV/MVRH/releases/latest"
-  }
+  },
+  "held": [
+    {
+      "id": "sf64",
+      "name": "Star Fox 64 (Starship) – VR patch",
+      "nintendo": true,
+      "group": "N64",
+      "status": "available",
+      "version": "2",
+      "installDir": "mvrh/games/StarFox64",
+      "patchDir": "launcher/StarFox64",
+      "officialHome": "https://github.com/HarbourMasters/Starship",
+      "officialName": "Starship",
+      "officialZip": "Starship-Barnard-Alfa-Windows.zip",
+      "exeName": "Starship.exe",
+      "patchFile": "sf64vr.patch",
+      "romName": "Star Fox 64",
+      "romBytes": 12582912,
+      "romFile": "baserom.us.rev1.z64",
+      "assetPack": "sf64.o2r",
+      "questActivity": "com.rayrod.starship/.StarshipActivity",
+      "questStatus": "coming soon",
+      "questData": [
+        "$ROM",
+        "starship.o2r"
+      ],
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-2.zip",
+      "payloadSha256": "e1fe47180643ebd1d87bde31ab1b960e09b4b3c13676f9df4d1030e4197ec523",
+      "payloadBytes": 3667337
+    }
+  ]
 }
