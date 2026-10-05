@@ -273,7 +273,10 @@
       ],
       "payloadUrl": "https://rayrod-tv.github.io/MVRH/MarioKart64-VR-8.zip",
       "payloadSha256": "1b35c1c171c4b388f891fc8bbfa346ab41cfa9297fdf66bd6344c6b99a0c8e12",
-      "payloadBytes": 4362534
+      "payloadBytes": 4362534,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mk64-quest/MarioKart64-VR-Quest.apk",
+      "questApkSha256": "bbe692b2097233f84c512b619cdb8216c9b7ef4b0de683ee874e4d670bd7fc47",
+      "questApkBytes": 21000903
     },
     {
       "id": "sm64",
@@ -375,7 +378,10 @@
       "launchNote": "This one's got its own updater. The hub starts it with that switched off so it can't swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
       "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-9.zip",
       "payloadSha256": "bdaf2c1d1d971c0ad3fa75d9af0bbc10b3752a6469052461f93416af14f1a792",
-      "payloadBytes": 3518375
+      "payloadBytes": 3518375,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest/SuperMario64-VR-Quest.apk",
+      "questApkSha256": "55a151059a8369aa42e670d22cdaac05e9a3ab72e0511d7c3d80bce17fcaa633",
+      "questApkBytes": 99204624
     },
     {
       "id": "fzx",
@@ -484,7 +490,10 @@
       "launchNote": "First launch opens the game's own ROM picker once. Pick your Diddy Kong Racing ROM & it remembers it from then on, headset or not.",
       "payloadUrl": "https://rayrod-tv.github.io/MVRH/DiddyKongRacing-VR-6.zip",
       "payloadSha256": "0ef3787ff2962fc908922b14afff3b964fe4ca0a8b3cde3ac8fa4d62c4b8afe9",
-      "payloadBytes": 4145692
+      "payloadBytes": 4145692,
+      "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/dkr64-quest/DiddyKongRacing-VR-Quest.apk",
+      "questApkSha256": "d08e61cc53626cca72cea4e99d1ea576c4db8ff4f47f7e3c968fe84997577cd0",
+      "questApkBytes": 2412759
     },
     {
       "id": "smash64",
