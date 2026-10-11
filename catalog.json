@@ -509,7 +509,7 @@
       "name": "Wave Race 64 VR",
       "nintendo": true,
       "group": "N64",
-      "version": "1",
+      "version": "2",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -517,8 +517,10 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "First test build. Ride the water in real stereo with the race HUD floating in front of you. Click the right stick to swap between first person, third person & a diorama where the whole race sits on a round table of water you lean over.",
+      "whatsNew": "The diorama has a sea now. The water reaches past every island to the horizon instead of stopping in a patch round you, and the whole course sits at 1:100 so you see all of it.",
       "changelog": [
+        "Patch 2 - The diorama has a sea. The game only builds water round your rider, so the rest of the course floated over nothing; a wide copy of the same water now runs out to the horizon under it.",
+        "Patch 2 - The diorama shows the course at 1:100 as meant. A hidden cap had held it at 1:50, a quarter of the course.",
         "Patch 1 - Real stereo racing. The water, the course & the rivals are built around you at your own height, & the sky sits at infinity so it never slides as you ride.",
         "Patch 1 - Click the right stick to cycle first person, third person & diorama. In the diorama the race sits on a round table of water in a dark room, with the rivals & buoys all round it.",
         "Patch 1 - The race HUD & the menus ride a plane in front of you instead of being pasted on the world.",
@@ -537,9 +539,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-1.zip",
-      "payloadSha256": "ee411b0ab3a32f3a01ee2211505cea21886acb176a2b122166be6f535fbf90ed",
-      "payloadBytes": 4288470,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-2.zip",
+      "payloadSha256": "1b0d771f212f980b8045dd582204be98e7b7b9c8f5438b080cdc7e0257fb5c89",
+      "payloadBytes": 4288536,
       "status": "experimental"
     },
     {
