@@ -509,7 +509,7 @@
       "name": "Wave Race 64 VR",
       "nintendo": true,
       "group": "N64",
-      "version": "5",
+      "version": "6",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -517,8 +517,10 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "Start works on every VR controller. The left hand's top button (Y, B on Index, triangle on PSVR2) pauses the game, the button below it is B, and a gamepad's right trigger accelerates.",
+      "whatsNew": "The diorama opens bigger and nearer: 1 to 8, one metre away, so the riders are easy to follow. The size row is called MODEL SCALE now (the game's letters have no Z).",
       "changelog": [
+        "Patch 6 - The diorama opens at 1 to 8 and one metre away, the size picked in the headset, so the riders are easy to follow. A saved size still on the old 1 to 100 moves to the new one.",
+        "Patch 6 - The size row reads MODEL SCALE. The game's letters have no Z, so MODEL SIZE showed as MODEL SIE.",
         "Patch 5 - Start works on every VR controller. It sat only on the left menu button, which Index-style controllers (PSVR2 through SteamVR) do not have and Virtual Desktop keeps for itself; now the left hand's top button pauses on all of them.",
         "Patch 5 - Every button does something: the left hand's lower button is B, and on a gamepad both B and X are B and the right trigger accelerates.",
         "Patch 4 - Your own gamepad works in VR. The headset's controllers used to replace any pad plugged in, so an Xbox or PlayStation pad did nothing; now both drive the game at once.",
@@ -545,9 +547,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-5.zip",
-      "payloadSha256": "ab48bf5314422a77b31f31a437e735edab454ac005631fc432ec1b56bdd2079d",
-      "payloadBytes": 4299594,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-6.zip",
+      "payloadSha256": "bee220f30c3e1a4afc7f32f07c5daab03fc8187b7a4fbe8db41903cabf323c15",
+      "payloadBytes": 4300082,
       "status": "experimental"
     },
     {
