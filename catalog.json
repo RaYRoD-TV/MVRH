@@ -601,7 +601,27 @@
       "name": "F-Zero GX VR",
       "nintendo": true,
       "group": "GAMECUBE",
-      "status": "coming soon"
+      "version": "1",
+      "installDir": "mvrh/games/FZeroGX",
+      "patchDir": "launcher/FZeroGX",
+      "officialHome": "https://github.com/patchzyy/Wiicompiled",
+      "officialName": "WiiCompiled (source)",
+      "officialZip": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4.zip",
+      "exeName": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4/F-Zero GX VR.exe",
+      "patchFile": "fzgxvr.patch",
+      "whatsNew": "First test build. You sit in a fully modelled Falcon cockpit with your hands on the sticks, with first person, third person and diorama views and a VR menu inside the game's own pause menu. Known problems: machines can crash into each other at the start of a race, and the boost has no glow yet.",
+      "changelog": [
+        "Version 1 - The 3D cockpit: Captain Falcon sits in a fully modelled Falcon cockpit, his hands on the sticks, the race HUD on the canopy glass and live screens for speed, energy, boost, G and radar.",
+        "Version 1 - First person, third person and diorama views, and a VR menu inside the game's own pause menu where every setting moves the world live.",
+        "Version 1 - It sets itself up from your own USA disc on the first run: it downloads its build tools, then translates and compiles the game on your PC. Nothing from the game is included.",
+        "Version 1 - Known problem: the computer-controlled machines can crash into each other and fly off at the start of a race.",
+        "Version 1 - Known problem: the machine has no glow on the boost pad or while boosting yet."
+      ],
+      "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GFZE01) and builds the game on your PC. It downloads about 1.5 GB of tools, needs about 12 GB of free space and takes a while. After that it starts straight away.",
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-1.zip",
+      "payloadSha256": "913169cce8a7670398e0b695052d20c46300ec1ebcf04cb2e91d00b997727bd2",
+      "payloadBytes": 58934906,
+      "status": "experimental"
     },
     {
       "id": "kirbyairride",
