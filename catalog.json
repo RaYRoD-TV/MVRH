@@ -509,7 +509,7 @@
       "name": "Wave Race 64 VR",
       "nintendo": true,
       "group": "N64",
-      "version": "2",
+      "version": "3",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -517,8 +517,11 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "The diorama has a sea now. The water reaches past every island to the horizon instead of stopping in a patch round you, and the whole course sits at 1:100 so you see all of it.",
+      "whatsNew": "The diorama is clear to the far shore. The game's fog and its far edge were measured as if the model were kilometres away; now every island, stand & building draws in full colour. Size, distance & height of the model are on the VR page.",
       "changelog": [
+        "Patch 3 - The diorama runs smooth. Drawing the whole course made the game compare 288 look-alike water pieces with each other every frame, which left frames late 14 times a second; now each is checked against its neighbours and the table keeps up with your head.",
+        "Patch 3 - No more fog over the diorama. The game measured the model's distance as if it were life size, so most of the course was fogged or cut off. Every island, stand & building now draws in full colour.",
+        "Patch 3 - The VR page has Diorama rows: MODEL SIZE, DISTANCE & MODEL HEIGHT, each moving the model live behind the page. The riding rows step aside while you are on the table.",
         "Patch 2 - The diorama has a sea. The game only builds water round your rider, so the rest of the course floated over nothing; a wide copy of the same water now runs out to the horizon under it.",
         "Patch 2 - The diorama shows the course at 1:100 as meant. A hidden cap had held it at 1:50, a quarter of the course.",
         "Patch 1 - Real stereo racing. The water, the course & the rivals are built around you at your own height, & the sky sits at infinity so it never slides as you ride.",
@@ -539,9 +542,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-2.zip",
-      "payloadSha256": "1b0d771f212f980b8045dd582204be98e7b7b9c8f5438b080cdc7e0257fb5c89",
-      "payloadBytes": 4288536,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-3.zip",
+      "payloadSha256": "e42314cfb46833109375d8a717f513db6c5600b15ecff610e38a74c68e2fc4ec",
+      "payloadBytes": 4298197,
       "status": "experimental"
     },
     {
