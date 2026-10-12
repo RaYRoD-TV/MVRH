@@ -509,7 +509,7 @@
       "name": "Wave Race 64 VR",
       "nintendo": true,
       "group": "N64",
-      "version": "3",
+      "version": "4",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -517,8 +517,9 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "The diorama is clear to the far shore. The game's fog and its far edge were measured as if the model were kilometres away; now every island, stand & building draws in full colour. Size, distance & height of the model are on the VR page.",
+      "whatsNew": "Your own gamepad works in VR. An Xbox or PlayStation pad plugged in beside the headset now drives the jet ski together with the motion controllers, instead of being ignored.",
       "changelog": [
+        "Patch 4 - Your own gamepad works in VR. The headset's controllers used to replace any pad plugged in, so an Xbox or PlayStation pad did nothing; now both drive the game at once.",
         "Patch 3 - The diorama runs smooth. Drawing the whole course made the game compare 288 look-alike water pieces with each other every frame, which left frames late 14 times a second; now each is checked against its neighbours and the table keeps up with your head.",
         "Patch 3 - No more fog over the diorama. The game measured the model's distance as if it were life size, so most of the course was fogged or cut off. Every island, stand & building now draws in full colour.",
         "Patch 3 - The VR page has Diorama rows: MODEL SIZE, DISTANCE & MODEL HEIGHT, each moving the model live behind the page. The riding rows step aside while you are on the table.",
@@ -542,9 +543,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-3.zip",
-      "payloadSha256": "e42314cfb46833109375d8a717f513db6c5600b15ecff610e38a74c68e2fc4ec",
-      "payloadBytes": 4298197,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-4.zip",
+      "payloadSha256": "4829e75869131c89f3772e30ba6e50f9213bf16f14523d9b05a9fda54cdc3d98",
+      "payloadBytes": 4298321,
       "status": "experimental"
     },
     {
