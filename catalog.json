@@ -509,7 +509,7 @@
       "name": "Wave Race 64 VR",
       "nintendo": true,
       "group": "N64",
-      "version": "4",
+      "version": "5",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -517,8 +517,10 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "Your own gamepad works in VR. An Xbox or PlayStation pad plugged in beside the headset now drives the jet ski together with the motion controllers, instead of being ignored.",
+      "whatsNew": "Start works on every VR controller. The left hand's top button (Y, B on Index, triangle on PSVR2) pauses the game, the button below it is B, and a gamepad's right trigger accelerates.",
       "changelog": [
+        "Patch 5 - Start works on every VR controller. It sat only on the left menu button, which Index-style controllers (PSVR2 through SteamVR) do not have and Virtual Desktop keeps for itself; now the left hand's top button pauses on all of them.",
+        "Patch 5 - Every button does something: the left hand's lower button is B, and on a gamepad both B and X are B and the right trigger accelerates.",
         "Patch 4 - Your own gamepad works in VR. The headset's controllers used to replace any pad plugged in, so an Xbox or PlayStation pad did nothing; now both drive the game at once.",
         "Patch 3 - The diorama runs smooth. Drawing the whole course made the game compare 288 look-alike water pieces with each other every frame, which left frames late 14 times a second; now each is checked against its neighbours and the table keeps up with your head.",
         "Patch 3 - No more fog over the diorama. The game measured the model's distance as if it were life size, so most of the course was fogged or cut off. Every island, stand & building now draws in full colour.",
@@ -543,9 +545,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-4.zip",
-      "payloadSha256": "4829e75869131c89f3772e30ba6e50f9213bf16f14523d9b05a9fda54cdc3d98",
-      "payloadBytes": 4298321,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-5.zip",
+      "payloadSha256": "ab48bf5314422a77b31f31a437e735edab454ac005631fc432ec1b56bdd2079d",
+      "payloadBytes": 4299594,
       "status": "experimental"
     },
     {
