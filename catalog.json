@@ -627,7 +627,7 @@
       "name": "F-Zero GX VR",
       "nintendo": true,
       "group": "GAMECUBE",
-      "version": "2",
+      "version": "3",
       "installDir": "mvrh/games/FZeroGX",
       "patchDir": "launcher/FZeroGX",
       "officialHome": "https://github.com/patchzyy/Wiicompiled",
@@ -635,8 +635,12 @@
       "officialZip": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4.zip",
       "exeName": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4/F-Zero GX VR.exe",
       "patchFile": "fzgxvr.patch",
-      "whatsNew": "The game now lives in its own folder with your other MVRH games, not in AppData, and the build leaves nothing behind. You sit in a fully modelled Falcon cockpit with your hands on the sticks, with first person, third person and diorama views and a VR menu inside the game's own pause menu. Known problems: machines can crash into each other at the start of a race, and the boost has no glow yet.",
+      "whatsNew": "Updates are small and quick now, and setup is about twice as fast. You sit in a fully modelled Falcon cockpit with your hands on the sticks, with first person, third person and diorama views and a VR menu inside the game's own pause menu. Known problems: machines can crash into each other at the start of a race, the boost has no glow yet, and story mode can stop with a missing function error.",
       "changelog": [
+        "Version 3 - Updates are small. The cockpit art is fetched once, not with every update, so an update downloads a few MB instead of about 60 MB, and your disc is not asked for again because its files are kept in the game folder.",
+        "Version 3 - Setup is faster: it asks for your disc first, downloads the build tools several at a time while it works, and translates the menu modules in parallel. On my test PC the first setup took about half as long as before.",
+        "Version 3 - After an update only what changed is built again, about half a minute for a small change on my test PC. The build folder (about 3 GB, at the top of the drive) stays so that this works; run F-Zero GX VR.exe with --free-space to get the space back. The game and your saves are not touched.",
+        "Version 3 - Known problem: story mode can stop with a missing function error.",
         "Version 2 - The game lives in the game folder beside the launcher, inside the folder MVRH keeps this game in, like every other MVRH game. Your disc's files and your saves are there too. Before, all of it sat in your AppData folder.",
         "Version 2 - The build runs in a short temporary folder at the top of the drive and is deleted when the game is ready, so only the game and your disc's files stay (about 1.6 GB, down from about 12 GB). Removing the game in MVRH removes your saves too: copy UserData\\memcard_a.raw first to keep them.",
         "Version 2 - If you set up version 1 already, the next run moves your game into the new folder and cleans up the old one.",
@@ -646,10 +650,10 @@
         "Version 1 - Known problem: the computer-controlled machines can crash into each other and fly off at the start of a race.",
         "Version 1 - Known problem: the machine has no glow on the boost pad or while boosting yet."
       ],
-      "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GFZE01) and builds the game on your PC. It downloads about 1.5 GB of tools, needs about 12 GB of free space and takes a while. After that it starts straight away.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-2.zip",
-      "payloadSha256": "a7b2c736d40e315db834d505138b7b9fdd0213f07c88a0d825b6b069e1a1d6cd",
-      "payloadBytes": 58938012,
+      "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GFZE01) first and then builds the game on your PC by itself. It downloads about 700 MB of tools, needs about 8 GB of free space while it works and takes several minutes. After that it starts straight away, and an update only builds what changed.",
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-3.zip",
+      "payloadSha256": "86aec6c7d2f59a427ccaf30cdd790127c0c46ffd20c9c499caac0b01f6d8e82c",
+      "payloadBytes": 707648,
       "status": "experimental"
     },
     {
