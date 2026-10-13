@@ -627,7 +627,7 @@
       "name": "F-Zero GX VR",
       "nintendo": true,
       "group": "GAMECUBE",
-      "version": "3",
+      "version": "4",
       "installDir": "mvrh/games/FZeroGX",
       "patchDir": "launcher/FZeroGX",
       "officialHome": "https://github.com/patchzyy/Wiicompiled",
@@ -635,8 +635,13 @@
       "officialZip": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4.zip",
       "exeName": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4/F-Zero GX VR.exe",
       "patchFile": "fzgxvr.patch",
-      "whatsNew": "Updates are small and quick now, and setup is about twice as fast. You sit in a fully modelled Falcon cockpit with your hands on the sticks, with first person, third person and diorama views and a VR menu inside the game's own pause menu. Known problems: machines can crash into each other at the start of a race, the boost has no glow yet, and story mode can stop with a missing function error.",
+      "whatsNew": "Story mode no longer stops with a missing function error. Gamepads use the GameCube's own button layout. PSVR 2 and other hands with no menu button can start the game and pause a race. A new Unlock everything cheat opens every cup, machine and story chapter. The first update to this version builds the game again from scratch, then updates are small again. Known problems: machines can crash into each other at the start of a race, and the boost has no glow yet.",
       "changelog": [
+        "Version 4 - Story mode no longer stops with a missing function error. One of its movie scenes loads its player into a spot of memory the game had no code for; the game now has code for both spots.",
+        "Version 4 - Gamepads use the GameCube's own layout: A under your thumb, B to its left, X to its right, Y above. A pad you already set up keeps its buttons, and the old default moves over by itself.",
+        "Version 4 - Hands with no menu button (PSVR 2 under SteamVR, Valve Index, Quest under Virtual Desktop) can get past the title screen: any face button or trigger presses Start there. In a race, hold X and Y together for half a second to pause.",
+        "Version 4 - New cheat, Unlock everything: it opens every cup, class, machine and story chapter while it is on. Pause a race and open the Cheats page to switch it on, in the headset and on the desk.",
+        "Version 4 - The first update to this version translates the game again, so it takes a few minutes and not half a minute. The download is still small.",
         "Version 3 - Updates are small. The cockpit art is fetched once, not with every update, so an update downloads a few MB instead of about 60 MB, and your disc is not asked for again because its files are kept in the game folder.",
         "Version 3 - Setup is faster: it asks for your disc first, downloads the build tools several at a time while it works, and translates the menu modules in parallel. On my test PC the first setup took about half as long as before.",
         "Version 3 - After an update only what changed is built again, about half a minute for a small change on my test PC. The build folder (about 3 GB, at the top of the drive) stays so that this works; run F-Zero GX VR.exe with --free-space to get the space back. The game and your saves are not touched.",
@@ -651,9 +656,9 @@
         "Version 1 - Known problem: the machine has no glow on the boost pad or while boosting yet."
       ],
       "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GFZE01) first and then builds the game on your PC by itself. It downloads about 700 MB of tools, needs about 8 GB of free space while it works and takes several minutes. After that it starts straight away, and an update only builds what changed.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-3.zip",
-      "payloadSha256": "86aec6c7d2f59a427ccaf30cdd790127c0c46ffd20c9c499caac0b01f6d8e82c",
-      "payloadBytes": 707648,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-4.zip",
+      "payloadSha256": "b8a217d249848457e9e2e66ef27d0278027877a13031d3848ae8a015c8706556",
+      "payloadBytes": 725092,
       "status": "experimental"
     },
     {
