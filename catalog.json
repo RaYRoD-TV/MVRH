@@ -3,6 +3,8 @@
     {
       "id": "banjo",
       "name": "Banjo-Kazooie VR",
+      "title": "Banjo-Kazooie",
+      "port": "Lighthouse",
       "group": "N64",
       "status": "available",
       "version": "3",
@@ -42,6 +44,8 @@
     {
       "id": "dkr",
       "name": "Dr. Robotnik's Ring Racers VR",
+      "title": "Dr. Robotnik's Ring Racers",
+      "port": "Ring Racers",
       "status": "available",
       "version": "3",
       "installDir": "mvrh/games/RingRacers",
@@ -78,6 +82,7 @@
     {
       "id": "srb2",
       "name": "Sonic Robo Blast 2 VR",
+      "title": "Sonic Robo Blast 2",
       "status": "available",
       "version": "2",
       "installDir": "mvrh/games/SonicRoboBlast2",
@@ -110,6 +115,8 @@
     {
       "id": "goldeneye",
       "name": "GoldenEye 007 VR",
+      "title": "GoldenEye 007",
+      "port": "GoldenEye 007 PC Port",
       "group": "N64",
       "status": "coming soon",
       "officialHome": "https://github.com/n64decomp/007",
@@ -118,54 +125,64 @@
     {
       "id": "bomberman64",
       "name": "Bomberman 64 VR",
+      "title": "Bomberman 64",
       "group": "N64",
       "status": "coming soon"
     },
     {
       "id": "bombermanhero",
       "name": "Bomberman Hero VR",
+      "title": "Bomberman Hero",
       "group": "N64",
       "status": "coming soon"
     },
     {
       "id": "bomberman64sa",
       "name": "Bomberman 64: The Second Attack VR",
+      "title": "Bomberman 64: The Second Attack",
       "group": "N64",
       "status": "coming soon"
     },
     {
       "id": "goemon",
       "name": "Mystical Ninja Starring Goemon VR",
+      "title": "Mystical Ninja Starring Goemon",
       "group": "N64",
       "status": "coming soon"
     },
     {
       "id": "ctr",
       "name": "Crash Team Racing VR",
+      "title": "Crash Team Racing",
       "group": "PS1",
       "status": "coming soon"
     },
     {
       "id": "sonicheroes",
       "name": "Sonic Heroes VR",
+      "title": "Sonic Heroes",
       "group": "GAMECUBE",
       "status": "coming soon"
     },
     {
       "id": "jetgrindradio",
       "name": "Jet Grind Radio VR",
+      "title": "Jet Grind Radio",
       "group": "DREAMCAST",
       "status": "coming soon"
     },
     {
       "id": "hulkud",
       "name": "The Incredible Hulk: Ultimate Destruction VR",
+      "title": "The Incredible Hulk: Ultimate Destruction",
       "group": "GAMECUBE",
       "status": "coming soon"
     },
     {
       "id": "sonicworld",
       "name": "Sonic World VR",
+      "title": "Sonic World",
+      "port": "Sonic World Release 9",
       "group": "PC",
       "status": "coming soon",
       "officialHome": "https://github.com/oakwoodwolf/Sonic-World-Release-9",
@@ -178,16 +195,18 @@
     "bytes": 8044989
   },
   "hub": {
-    "version": "1.0.23",
-    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.23/MultiverseVRHub.exe",
-    "sha256": "f45989e543298a9c540b826d30a97414f347498880c83f2b25851f22c19decd8",
-    "bytes": 4420608,
+    "version": "1.0.24",
+    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.24/MultiverseVRHub.exe",
+    "sha256": "0401ca29c42bfc19a973e1253d4de55be005228013fe5eb5b702230ca4f53587",
+    "bytes": 4443136,
     "page": "https://github.com/RaYRoD-TV/MVRH/releases/latest"
   },
   "held": [
     {
       "id": "sf64",
       "name": "Star Fox 64 (Starship) – VR patch",
+      "title": "Star Fox 64",
+      "port": "Starship",
       "nintendo": true,
       "group": "N64",
       "status": "available",
@@ -216,6 +235,8 @@
     {
       "id": "mk64",
       "name": "Mario Kart 64 (SpaghettiKart) – VR patch",
+      "title": "Mario Kart 64",
+      "port": "SpaghettiKart",
       "nintendo": true,
       "group": "N64",
       "status": "available",
@@ -281,6 +302,8 @@
     {
       "id": "sm64",
       "name": "Super Mario 64 (sm64coopdx) – VR patch",
+      "title": "Super Mario 64",
+      "port": "sm64coopdx",
       "nintendo": true,
       "group": "N64",
       "status": "available",
@@ -386,6 +409,8 @@
     {
       "id": "fzx",
       "name": "F-Zero X (G-Diffuser) – VR patch",
+      "title": "F-Zero X",
+      "port": "G-Diffuser",
       "nintendo": true,
       "group": "N64",
       "status": "available",
@@ -433,6 +458,8 @@
     {
       "id": "dkr64",
       "name": "Diddy Kong Racing (Golden Balloon) – VR patch",
+      "title": "Diddy Kong Racing",
+      "port": "Golden Balloon",
       "nintendo": true,
       "group": "N64",
       "status": "available",
@@ -498,6 +525,8 @@
     {
       "id": "smash64",
       "name": "Super Smash Bros. VR",
+      "title": "Super Smash Bros.",
+      "port": "BattleShip",
       "nintendo": true,
       "group": "N64",
       "version": "1",
@@ -533,6 +562,8 @@
     {
       "id": "waverace",
       "name": "Wave Race 64 VR",
+      "title": "Wave Race 64",
+      "port": "Wave Race 64 Recompiled",
       "nintendo": true,
       "group": "N64",
       "version": "6",
@@ -581,6 +612,8 @@
     {
       "id": "dk64",
       "name": "Donkey Kong 64 VR",
+      "title": "Donkey Kong 64",
+      "port": "Donkey Kong 64 Recompiled",
       "nintendo": true,
       "group": "N64",
       "status": "coming soon",
@@ -590,6 +623,7 @@
     {
       "id": "mkwii",
       "name": "Mario Kart Wii VR",
+      "title": "Mario Kart Wii",
       "nintendo": true,
       "group": "WII",
       "status": "coming soon"
@@ -597,6 +631,7 @@
     {
       "id": "mkdd",
       "name": "Mario Kart: Double Dash!! VR",
+      "title": "Mario Kart: Double Dash!!",
       "nintendo": true,
       "group": "GAMECUBE",
       "status": "coming soon"
@@ -604,6 +639,7 @@
     {
       "id": "melee",
       "name": "Super Smash Bros. Melee VR",
+      "title": "Super Smash Bros. Melee",
       "nintendo": true,
       "group": "GAMECUBE",
       "status": "coming soon"
@@ -611,6 +647,7 @@
     {
       "id": "brawl",
       "name": "Super Smash Bros. Brawl VR",
+      "title": "Super Smash Bros. Brawl",
       "nintendo": true,
       "group": "WII",
       "status": "coming soon"
@@ -618,6 +655,8 @@
     {
       "id": "mksc",
       "name": "Mario Kart: Super Circuit (Recomp) – VR patch",
+      "title": "Mario Kart: Super Circuit",
+      "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
       "status": "coming soon"
@@ -625,6 +664,8 @@
     {
       "id": "fzgx",
       "name": "F-Zero GX VR",
+      "title": "F-Zero GX",
+      "port": "WiiCompiled",
       "nintendo": true,
       "group": "GAMECUBE",
       "version": "4",
@@ -664,6 +705,7 @@
     {
       "id": "kirbyairride",
       "name": "Kirby Air Ride VR",
+      "title": "Kirby Air Ride",
       "nintendo": true,
       "group": "GAMECUBE",
       "status": "coming soon"
@@ -671,6 +713,7 @@
     {
       "id": "sunshine",
       "name": "Super Mario Sunshine VR",
+      "title": "Super Mario Sunshine",
       "nintendo": true,
       "group": "GAMECUBE",
       "status": "coming soon"
@@ -678,6 +721,7 @@
     {
       "id": "luigismansion",
       "name": "Luigi's Mansion VR",
+      "title": "Luigi's Mansion",
       "nintendo": true,
       "group": "GAMECUBE",
       "status": "coming soon"
@@ -685,6 +729,7 @@
     {
       "id": "ttyd",
       "name": "Paper Mario: The Thousand-Year Door VR",
+      "title": "Paper Mario: The Thousand-Year Door",
       "nintendo": true,
       "group": "GAMECUBE",
       "status": "coming soon"
