@@ -675,7 +675,7 @@
       "port": "WiiCompiled",
       "nintendo": true,
       "group": "GAMECUBE",
-      "version": "4",
+      "version": "5",
       "installDir": "mvrh/games/FZeroGX",
       "patchDir": "launcher/FZeroGX",
       "officialHome": "https://github.com/patchzyy/Wiicompiled",
@@ -685,6 +685,7 @@
       "patchFile": "fzgxvr.patch",
       "whatsNew": "Story mode no longer stops with an error, gamepads use the GameCube layout, and a new cheat unlocks everything.",
       "changelog": [
+        "Version 5 - Setup now works when the hub is in a folder with a space in its name, like Multiverse Hub.",
         "Version 4 - Story mode no longer stops with a missing function error.",
         "Version 4 - Gamepads now use the GameCube's own button layout.",
         "Version 4 - PSVR 2 and other hands with no menu button can now start the game and pause.",
@@ -704,9 +705,9 @@
         "Version 1 - Known problem: the machine has no glow on the boost pad or while boosting yet."
       ],
       "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GFZE01) first and then builds the game on your PC by itself. It downloads about 700 MB of tools, needs about 8 GB of free space while it works and takes several minutes. After that it starts straight away, and an update only builds what changed.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-4.zip",
-      "payloadSha256": "b8a217d249848457e9e2e66ef27d0278027877a13031d3848ae8a015c8706556",
-      "payloadBytes": 725092,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-5.zip",
+      "payloadSha256": "162d71fb52a77b1fb4a41625326084bf971df51564e0658be8f98e7355a46751",
+      "payloadBytes": 725204,
       "status": "experimental"
     },
     {
