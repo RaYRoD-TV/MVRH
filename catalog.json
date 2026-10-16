@@ -486,8 +486,10 @@
         "save/eeprom.bin",
         "save/vr_settings.cfg"
       ],
-      "whatsNew": "Diddy Kong Racing now runs on Quest by itself: send it from the hub, with no PC and no cable.",
+      "whatsNew": "Quest fixes: the sky shows on every track, and a ROM the game cannot use is named instead of the game sticking on loading.",
       "changelog": [
+        "Quest - The sky shows on every race track instead of a brown or night wash.",
+        "Quest - A ROM the game cannot use is named on your PC and in the headset, instead of the game sticking on loading.",
         "Patch 7 - Smoother on PC: late frames no longer stutter.",
         "Patch 6 - Press Send to Quest and the game runs on the headset alone: no PC, no cable.",
         "Patch 6 - Your save and VR settings now stay put between sessions instead of resetting.",
