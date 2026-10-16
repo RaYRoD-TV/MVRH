@@ -662,12 +662,46 @@
     },
     {
       "id": "mksc",
-      "name": "Mario Kart: Super Circuit (Recomp) – VR patch",
+      "name": "Mario Kart: Super Circuit VR",
       "title": "Mario Kart: Super Circuit",
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "status": "coming soon"
+      "version": "1",
+      "installDir": "mvrh/games/SuperCircuit",
+      "patchDir": "launcher/SuperCircuit",
+      "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
+      "officialName": "Mario Kart: Super Circuit Recomp",
+      "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
+      "exeName": "MarioKartSuperCircuitRecomp.exe",
+      "patchFile": "mkscvr.patch",
+      "whatsNew": "First early test build: Mario Kart Super Circuit rebuilt as a 3D world you drive through in a headset, from your own cartridge.",
+      "changelog": [
+        "Version 1 - The whole game is rebuilt in 3D from your own cartridge, so you sit in the kart and look around.",
+        "Version 1 - Views: a chase camera, first person, a diorama on your table and a theater screen.",
+        "Version 1 - First person has a cockpit with a wheel your hands can hold.",
+        "Version 1 - The kart steers and drives with Mario Kart 64's own steering and physics.",
+        "Version 1 - Pause, then the right trigger opens the VR menu and the left trigger opens the cheats.",
+        "Version 1 - Hits, items, falls and jumps buzz your hands and sound from where they happen.",
+        "Version 1 - Needs no BIOS file.",
+        "Version 1 - Known problem: tried on a desktop rig, not in a full headset round, so expect rough edges.",
+        "Version 1 - Known problem: the steering feel, the handheld menus and the flat shells are still rough."
+      ],
+      "romName": "Mario Kart: Super Circuit (USA)",
+      "romBytes": 4194304,
+      "romFile": "mario_kart_super_circuit_usa.gba",
+      "romSha256": "aadc8b9f3c947ff6f610b6c8d7fddaaa9bea98b4bd43576df84f26c457ae1f90",
+      "launchArgs": [
+        "--no-launcher",
+        "--bios-hle",
+        "--rom",
+        "mario_kart_super_circuit_usa.gba"
+      ],
+      "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, pause, then pull the right trigger for the VR menu.",
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-1.zip",
+      "payloadSha256": "b77cc60c176b1e6a6f4a71a2b9de7b7559b2f12ed5127332dba5a0bc6b51bece",
+      "payloadBytes": 15622900,
+      "status": "experimental"
     },
     {
       "id": "fzgx",
