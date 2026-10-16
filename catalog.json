@@ -474,6 +474,10 @@
       "romName": "Diddy Kong Racing (US 1.1 or EU 1.1)",
       "romBytes": 12582912,
       "romFile": "dkr.us.v80.z64",
+      "romSha256s": [
+        "7de1a8fb2a9558cfc3d9ad4497df698c1e89cf7095ac1531557df2af40ba8bcf",
+        "584d59412b3a8c675f5569516a0406128028929e31544490a4dbc3ab16a038b9"
+      ],
       "questActivity": "com.rayrod.goldenballoon/.GoldenBalloonActivity",
       "questData": [
         "$ROM"
@@ -520,8 +524,8 @@
       "payloadSha256": "d64d294beeda28f5397de746116447610d64bbde143fda85fe062751aedf5e48",
       "payloadBytes": 4336169,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/dkr64-quest/DiddyKongRacing-VR-Quest.apk",
-      "questApkSha256": "d08e61cc53626cca72cea4e99d1ea576c4db8ff4f47f7e3c968fe84997577cd0",
-      "questApkBytes": 2412759
+      "questApkSha256": "016c43858b2bb86b45928163d31cbc8745fa4bf5641fb54e14abcdb79a66203d",
+      "questApkBytes": 3586239
     },
     {
       "id": "smash64",
