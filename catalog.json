@@ -524,8 +524,8 @@
       "payloadSha256": "d64d294beeda28f5397de746116447610d64bbde143fda85fe062751aedf5e48",
       "payloadBytes": 4336169,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/dkr64-quest/DiddyKongRacing-VR-Quest.apk",
-      "questApkSha256": "016c43858b2bb86b45928163d31cbc8745fa4bf5641fb54e14abcdb79a66203d",
-      "questApkBytes": 3586239
+      "questApkSha256": "a267296d2eded2c10f1f3c6ff102664a96fb52f1f128b9fd5e40d79c5ecf302d",
+      "questApkBytes": 3586391
     },
     {
       "id": "smash64",
