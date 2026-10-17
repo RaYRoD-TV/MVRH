@@ -673,7 +673,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "2",
+      "version": "3",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -681,8 +681,10 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "Gamepad fix: the triggers no longer fast forward and rewind the race, the left stick works in the menus, and pausing is quiet.",
+      "whatsNew": "A fix for the black screen some players saw when a race started. If the 3D world cannot draw on your PC, the race now shows the game's own picture instead of going dark.",
       "changelog": [
+        "Version 3 - A fix for the black screen some players saw as a race started, with the sound still playing.",
+        "Version 3 - If the 3D world cannot draw on your PC or headset, the race carries on with the game's own picture instead of going black.",
         "Version 2 - Gamepad: the two triggers no longer fast forward and rewind the race, so hop and item work.",
         "Version 2 - Gamepad: the left stick moves through the menus like the d-pad.",
         "Version 2 - Pausing a race is quiet now, with only the music left.",
@@ -710,9 +712,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, pause, then pull the right trigger for the VR menu.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-2.zip",
-      "payloadSha256": "fb8ded24ae5af2f6f6b64ff144ed691f932af66b763c0285e607315c96c1422b",
-      "payloadBytes": 15677365,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-3.zip",
+      "payloadSha256": "f9bee0cd574396ecabcbb863f71e6454954204d3c2ed8f2ddbf25f7bcea6a8e3",
+      "payloadBytes": 15338082,
       "status": "experimental"
     },
     {
