@@ -678,7 +678,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "9",
+      "version": "10",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -686,8 +686,14 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "Calm orbiting shells with a soft passing sound, steady trees, a photo hint in the pause and the fitted karts in the studio after an update: tuned on the desktop rig, not tried in a headset yet.",
+      "whatsNew": "The world has a calm sound of its own on every course: wind, leaves, birds, gulls, crickets, lava, rain and water, each with its own switch on the new WORLD SOUND page: tuned on the desktop rig, not heard in a headset yet.",
       "changelog": [
+        "Version 10 - Every course has a calm sound of its own, quiet under the game's music: gusts of the course's own wind round your head, even on the grid, and leaves and grass rustling near trees.",
+        "Version 10 - Birds sing from the real trees by day in fair weather and fly off when you honk; gulls call over a beach's sea, and crickets sing at dusk and at night.",
+        "Version 10 - Lava glugs and pops where it lies, rain sounds wherever it falls, and the sea, lakes and rivers are softer, without the hiss.",
+        "Version 10 - Each Cheep-Cheep splash is heard where it lands, with the cartridge's own splash sound.",
+        "Version 10 - A new WORLD SOUND page in the VR menu: one level for the whole world's sound (50 percent) and a switch each for water, lava, wind and leaves, birds and rain. The pause stays silent.",
+        "Version 10 - Known problem: tuned on the desktop rig and SteamVR's test headset, not heard in a real headset yet.",
         "Version 9 - The three shells circling your kart are calm now: a soft rush of air as each one passes, every 0.8 seconds, from where the shell is, and no more buzz in your hands.",
         "Version 9 - In first person the shell ring sits out past the nose and tail, low over the road, with smaller shells, and the game's own big shells no longer pass in front of the wheel.",
         "Version 9 - Trees and cacti no longer swell and thin as you move around them.",
@@ -753,9 +759,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-9.zip",
-      "payloadSha256": "095499c2e1a15073b56021ae653c28c6a3e05ddb693db7f422bdcc108c48ab47",
-      "payloadBytes": 16026280,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-10.zip",
+      "payloadSha256": "6880cbadb9958ba69252e5791e04c52132df609b133bc0f677ec0289454ce5e0",
+      "payloadBytes": 16044222,
       "status": "experimental"
     },
     {
