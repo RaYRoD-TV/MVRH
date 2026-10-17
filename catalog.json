@@ -678,7 +678,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "7",
+      "version": "8",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -686,8 +686,13 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "A plunge into water or lava keeps the game's own timing and your seat stays in the kart, and the natural hazards got another pass (still Off by default): tuned on the desktop rig, not tried in a headset yet.",
+      "whatsNew": "Real karts built to the cartridge's own kart pictures, a rebuilt shell cannon and a real Bob-omb in your hand and on the road: tuned on the desktop rig, not tried in a headset yet.",
       "changelog": [
+        "Version 8 - Every kart's body is now fitted to the cartridge's own kart pictures, and the driver leans toward a high camera, so the chase view, the tabletop view and a look from above no longer smear the driver into stripes.",
+        "Version 8 - Kart pictures stay sharp when you see them at a slant.",
+        "Version 8 - The shell gun is one clean shell cannon, and the flat item picture no longer floats beside it or the hammer.",
+        "Version 8 - The Bob-omb is a real round bomb with eyes, feet, a fuse and a turning wind-up key, on the road and in your hand.",
+        "Version 8 - Known problem: tuned on the desktop rig and SteamVR's test headset, not tried in a real headset yet.",
         "Version 7 - A kart that goes off into water or lava keeps the game's own timing all the way down, so the lava no longer ends before the kart touches it.",
         "Version 7 - Your seat stays in the kart's tub as it falls, instead of drifting ahead of it.",
         "Version 7 - Natural hazards got another pass: a tornado can catch you, quakes crack the ground around you, and each is placed by how far you have driven. The NATURAL HAZARDS row is still Off by default.",
@@ -742,9 +747,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-7.zip",
-      "payloadSha256": "ca41a01c1ce4fb4cdc09ee1c443cfb9ef1a50fb635094d7436207e26b5bf407c",
-      "payloadBytes": 16014002,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-8.zip",
+      "payloadSha256": "a49e75eb4c6440885f7aed45e362fb555dda019f6db641a5f5cb51ea901cbd2f",
+      "payloadBytes": 16023592,
       "status": "experimental"
     },
     {
