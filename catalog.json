@@ -673,7 +673,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "3",
+      "version": "4",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -681,8 +681,9 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "A fix for the black screen some players saw when a race started. If the 3D world cannot draw on your PC, the race now shows the game's own picture instead of going dark.",
+      "whatsNew": "A fix for the headset going black, with the sound still playing, at or soon after the start of a race (found with SteamVR).",
       "changelog": [
+        "Version 4 - A fix for the headset going black, with the sound still playing, at or soon after the start of a race (found with SteamVR).",
         "Version 3 - A fix for the black screen some players saw as a race started, with the sound still playing.",
         "Version 3 - If the 3D world cannot draw on your PC or headset, the race carries on with the game's own picture instead of going black.",
         "Version 2 - Gamepad: the two triggers no longer fast forward and rewind the race, so hop and item work.",
@@ -712,9 +713,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, pause, then pull the right trigger for the VR menu.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-3.zip",
-      "payloadSha256": "f9bee0cd574396ecabcbb863f71e6454954204d3c2ed8f2ddbf25f7bcea6a8e3",
-      "payloadBytes": 15338082,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-4.zip",
+      "payloadSha256": "292791bf40d5714b838c7ed522d69e37cf22cf48bbcd9766288469b43e541509",
+      "payloadBytes": 15338258,
       "status": "experimental"
     },
     {
