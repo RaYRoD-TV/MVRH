@@ -678,7 +678,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "15",
+      "version": "16",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -686,8 +686,13 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "The Bob-omb is rebuilt as a real Bob-omb, and when you throw it, it walks down the road.",
+      "whatsNew": "The game is meant to stop freezing when no headset is awake, and SAVE REPORT makes one file for bug reports.",
       "changelog": [
+        "Version 16 - New SAVE REPORT row in RESET AND QUIT, or F11: one file on your Desktop.",
+        "Version 16 - The game is meant to stop freezing every few seconds with no headset awake.",
+        "Version 16 - A hitch of half a second or more is now noted in the game's log.",
+        "Version 16 - Known problem: the freeze fix is not yet confirmed by a player.",
+        "Version 16 - Known problem: with SteamVR and no headset awake, it takes 7 seconds to open.",
         "Version 15 - The Bob-omb is a real Bob-omb now, with a glossy navy body and a blue collar.",
         "Version 15 - It has a ringed white fuse, a gold wind-up key and orange boots.",
         "Version 15 - Thrown, it walks down the road facing where it goes.",
@@ -827,9 +832,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-15.zip",
-      "payloadSha256": "e5859718d31c289839dd916b374d123f158afd066f3cc358c5be5eb83808af20",
-      "payloadBytes": 16199900,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-16.zip",
+      "payloadSha256": "546c8c79da92a2f04a03d4b1b75e28bda6ae3237f7fa6b5066eb4cefc837e05e",
+      "payloadBytes": 16445358,
       "status": "experimental"
     },
     {
