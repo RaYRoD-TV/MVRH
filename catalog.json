@@ -678,7 +678,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "17",
+      "version": "18",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -686,8 +686,13 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "The PC window no longer shakes with small head movements; a big turn still follows at once.",
+      "whatsNew": "Automatic gas now lets go at the flag, so the results and the next race come.",
       "changelog": [
+        "Version 18 - Automatic gas now lets go at the flag, so the results and the next race come.",
+        "Version 18 - A replay from the finish hands the game back its buttons when it ends.",
+        "Version 18 - Every step after the flag is now noted in the game's log.",
+        "Version 18 - SAVE REPORT now names your patch, and its note on the PC window is smaller.",
+        "Version 18 - Known problem: the cup fix is not yet confirmed by a player.",
         "Version 17 - The PC window no longer shakes with small head movements; big turns follow.",
         "Version 17 - Known problem: the steadier PC window is not yet seen on a headset stream.",
         "Version 16 - New SAVE REPORT row in RESET AND QUIT, or F11: one file on your Desktop.",
@@ -834,9 +839,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-17.zip",
-      "payloadSha256": "4c741e73e8e298745f2fdf3612462bb5ad3ae042799cff4c1e8f3a09f3163a7a",
-      "payloadBytes": 16447963,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-18.zip",
+      "payloadSha256": "38905d1e9eaccf273b4b332a5d2e384c27e74ae5fab6dbb9505c386879abd8a8",
+      "payloadBytes": 16455224,
       "status": "experimental"
     },
     {
