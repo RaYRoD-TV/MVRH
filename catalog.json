@@ -678,7 +678,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "16",
+      "version": "17",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -686,8 +686,10 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "The game is meant to stop freezing when no headset is awake, and SAVE REPORT makes one file for bug reports.",
+      "whatsNew": "The PC window no longer shakes with small head movements; a big turn still follows at once.",
       "changelog": [
+        "Version 17 - The PC window no longer shakes with small head movements; big turns follow.",
+        "Version 17 - Known problem: the steadier PC window is not yet seen on a headset stream.",
         "Version 16 - New SAVE REPORT row in RESET AND QUIT, or F11: one file on your Desktop.",
         "Version 16 - The game is meant to stop freezing every few seconds with no headset awake.",
         "Version 16 - A hitch of half a second or more is now noted in the game's log.",
@@ -832,9 +834,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-16.zip",
-      "payloadSha256": "546c8c79da92a2f04a03d4b1b75e28bda6ae3237f7fa6b5066eb4cefc837e05e",
-      "payloadBytes": 16445358,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-17.zip",
+      "payloadSha256": "4c741e73e8e298745f2fdf3612462bb5ad3ae042799cff4c1e8f3a09f3163a7a",
+      "payloadBytes": 16447963,
       "status": "experimental"
     },
     {
