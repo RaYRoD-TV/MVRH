@@ -678,7 +678,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "20",
+      "version": "21",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -686,8 +686,12 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "The item you see is the item you use, and a quick race loads the course you picked.",
+      "whatsNew": "Natural hazards come early and about once a lap, and a quake starts ahead of you.",
       "changelog": [
+        "Version 21 - The first natural hazard now comes 10 to 18 seconds after the green light.",
+        "Version 21 - Hazards then start about once a lap; before, a race held one at most.",
+        "Version 21 - An earthquake's centre now stands ahead of you on the racing line.",
+        "Version 21 - Known problem: Full hazards' pace and feel in a headset are not yet seen.",
         "Version 20 - The item shown in your hand and window now matches the item you use.",
         "Version 20 - A QUICK RACE to a later course in a cup now loads that course.",
         "Version 20 - With EXTRA COURSES on, the list names the Super Nintendo course that loads.",
@@ -854,9 +858,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-20.zip",
-      "payloadSha256": "a6fee1c5ea2f18626586f7020cb00caa3f0fbdb8a6307e7d96c2400dddad795a",
-      "payloadBytes": 16484620,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-21.zip",
+      "payloadSha256": "850ec75d2eb8f0f52f12dafacc8ccdaea9d0a626707b595543f709b1ac8182f8",
+      "payloadBytes": 16485464,
       "status": "experimental"
     },
     {
