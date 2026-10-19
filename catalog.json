@@ -593,7 +593,7 @@
       "port": "Wave Race 64 Recompiled",
       "nintendo": true,
       "group": "N64",
-      "version": "6",
+      "version": "7",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -601,8 +601,12 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "The diorama opens bigger and nearer (1 to 8, one meter away), and the size row is now MODEL SCALE.",
+      "whatsNew": "A gamepad stick steers smoothly both ways again, so turning left works, plus haptics modes, a turning diorama table and a new ocean look.",
       "changelog": [
+        "Patch 7 - A gamepad stick now steers smoothly both ways, and a second controller resting off centre can no longer beat it, so turning left works.",
+        "Patch 7 - Haptics Mode in the VR settings: Off, Events only or Full.",
+        "Patch 7 - The diorama can turn like a table: Table Turn Off, Slow or Normal.",
+        "Patch 7 - The VR page has a Water setting, with a new ocean look and the game's own water as choices.",
         "Patch 6 - The diorama opens at 1 to 8 and one meter away, so riders are easy to follow.",
         "Patch 6 - The size row now reads MODEL SCALE, since the game's letters have no Z.",
         "Patch 5 - The left hand's top button now pauses on all VR controllers, Index-style too.",
@@ -631,9 +635,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-6.zip",
-      "payloadSha256": "bee220f30c3e1a4afc7f32f07c5daab03fc8187b7a4fbe8db41903cabf323c15",
-      "payloadBytes": 4300082,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-7.zip",
+      "payloadSha256": "9889ee231fef5067a453ac2e33f2ee1fc2699e68e83860cf617d7ada89089316",
+      "payloadBytes": 4659601,
       "status": "experimental"
     },
     {
