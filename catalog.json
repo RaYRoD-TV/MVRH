@@ -210,9 +210,14 @@
       "nintendo": true,
       "group": "N64",
       "status": "available",
-      "version": "3",
-      "whatsNew": "The black screen with only the settings bar is fixed, and settings saved out of range can no longer blank the view.",
+      "version": "4",
+      "whatsNew": "To Map and To Title no longer mark the mission cleared, the sky uses each level's own colours with full stars in space, and the VR menu is easier to read and use.",
       "changelog": [
+        "Patch 4 - To Map and To Title no longer mark the mission you left as cleared.",
+        "Patch 4 - The sky now uses each level's own colours with no added clouds, and space levels have the game's full density of stars.",
+        "Patch 4 - The chosen row in the VR menu is a bright bar, the D-pad works in it, and Resume, To Map and To Title sit at the top.",
+        "Patch 4 - The pause screen now says F1 opens the game's own settings.",
+        "Patch 4 - Fortuna's countdown no longer runs over the bombs and lives in VR.",
         "Patch 3 - Fixes the black screen with only the settings bar: it now always starts closed in VR, and a bar saved open is cleared.",
         "Patch 3 - The settings bar now shows over the game picture on the title, menus and map, never over plain black.",
         "Patch 3 - A setting saved or typed outside its range is pulled back, so a zero or huge value can no longer blank the view.",
@@ -236,9 +241,9 @@
         "$ROM",
         "starship.o2r"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-3.zip",
-      "payloadSha256": "24b510dc8b8a7318f065f3ea6f6ddcbd6a7db20a857c71f99ef51162e0c5dccb",
-      "payloadBytes": 3842298
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-4.zip",
+      "payloadSha256": "f919b24100dc1943ece23d1b4a90166c54119a68d6d4f6da6cebb9e3e1cc79ac",
+      "payloadBytes": 3842925
     },
     {
       "id": "mk64",
