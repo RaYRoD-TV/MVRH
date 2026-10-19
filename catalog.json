@@ -690,7 +690,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "29",
+      "version": "30",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -698,8 +698,13 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "In first person, scraping a wall no longer puts your view inside it.",
+      "whatsNew": "Ramps keep your boost speed, and Lakitu sets you down on the road.",
       "changelog": [
+        "Version 30 - Ramps keep your boost speed, so jumps carry as far as in the original.",
+        "Version 30 - Lakitu sets you down on the road, no longer under the map.",
+        "Version 30 - After a fall into the void you see Lakitu carry you back.",
+        "Version 30 - A boost no longer leaves a fake item box beside the kart.",
+        "Version 30 - Known problem: ramps are checked on Boo Lake only, other courses not yet.",
         "Version 29 - In first person, scraping a wall no longer puts your view inside it.",
         "Version 29 - Pressed to a wall, you see the road ahead, not the inside of the wall.",
         "Version 29 - Backdrop, In the world: the scenery's foot now meets the floor, no pale band.",
@@ -937,9 +942,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-29.zip",
-      "payloadSha256": "5ee3f9d105d9009fa736889c6a8287fe875499d31f1f00f8f0f186b5fc9a81f3",
-      "payloadBytes": 16545212,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-30.zip",
+      "payloadSha256": "cc15445a5162ebd11239a299621499048b061037acc8ed713b0b9c84d4dfe5da",
+      "payloadBytes": 16545737,
       "status": "experimental"
     },
     {
