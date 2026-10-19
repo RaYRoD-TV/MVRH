@@ -210,7 +210,15 @@
       "nintendo": true,
       "group": "N64",
       "status": "available",
-      "version": "2",
+      "version": "3",
+      "whatsNew": "The black screen with only the settings bar is fixed, and settings saved out of range can no longer blank the view.",
+      "changelog": [
+        "Patch 3 - Fixes the black screen with only the settings bar: it now always starts closed in VR, and a bar saved open is cleared.",
+        "Patch 3 - The settings bar now shows over the game picture on the title, menus and map, never over plain black.",
+        "Patch 3 - A setting saved or typed outside its range is pulled back, so a zero or huge value can no longer blank the view.",
+        "Patch 3 - The all-range mini map marks stay inside the frame in every view.",
+        "Patch 3 - The backdrops in Area 6, the Andross brain fight, Venom and Fortuna stay put in the world and follow rolls."
+      ],
       "installDir": "mvrh/games/StarFox64",
       "patchDir": "launcher/StarFox64",
       "officialHome": "https://github.com/HarbourMasters/Starship",
@@ -228,9 +236,9 @@
         "$ROM",
         "starship.o2r"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-2.zip",
-      "payloadSha256": "e1fe47180643ebd1d87bde31ab1b960e09b4b3c13676f9df4d1030e4197ec523",
-      "payloadBytes": 3667337
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-3.zip",
+      "payloadSha256": "24b510dc8b8a7318f065f3ea6f6ddcbd6a7db20a857c71f99ef51162e0c5dccb",
+      "payloadBytes": 3842298
     },
     {
       "id": "mk64",
