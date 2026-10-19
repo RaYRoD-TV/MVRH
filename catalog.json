@@ -598,7 +598,7 @@
       "port": "Wave Race 64 Recompiled",
       "nintendo": true,
       "group": "N64",
-      "version": "7",
+      "version": "8",
       "installDir": "mvrh/games/WaveRace",
       "patchDir": "launcher/WaveRace",
       "officialHome": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
@@ -606,8 +606,10 @@
       "officialZip": "WaveRace64Recomp-0.4.0-windows-x64.zip",
       "exeName": "WaveRace64Recomp.exe",
       "patchFile": "waveracevr.patch",
-      "whatsNew": "A gamepad stick steers smoothly both ways again, so turning left works, plus haptics modes, a turning diorama table and a new ocean look.",
+      "whatsNew": "Table Turn has a Fast setting for tight corners and U-turns, and the chosen menu row is easy to see.",
       "changelog": [
+        "Patch 8 - Table Turn has a Fast setting for tight corners and U-turns.",
+        "Patch 8 - The chosen row in the VR menu is a bright bar that reads over the water.",
         "Patch 7 - A gamepad stick now steers smoothly both ways, and a second controller resting off centre can no longer beat it, so turning left works.",
         "Patch 7 - Haptics Mode in the VR settings: Off, Events only or Full.",
         "Patch 7 - The diorama can turn like a table: Table Turn Off, Slow or Normal.",
@@ -640,9 +642,9 @@
       "launchArgs": [
         "baserom.us.rev1.z64"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-7.zip",
-      "payloadSha256": "9889ee231fef5067a453ac2e33f2ee1fc2699e68e83860cf617d7ada89089316",
-      "payloadBytes": 4659601,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/WaveRace-VR-8.zip",
+      "payloadSha256": "bb2f40c86d83fe22f7f458a810c0fa507558a180e95f5d228673eb4020737b09",
+      "payloadBytes": 4661027,
       "status": "experimental"
     },
     {
