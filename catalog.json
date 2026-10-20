@@ -977,7 +977,7 @@
       "port": "WiiCompiled",
       "nintendo": true,
       "group": "GAMECUBE",
-      "version": "5",
+      "version": "6",
       "installDir": "mvrh/games/FZeroGX",
       "patchDir": "launcher/FZeroGX",
       "officialHome": "https://github.com/patchzyy/Wiicompiled",
@@ -985,8 +985,11 @@
       "officialZip": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4.zip",
       "exeName": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4/F-Zero GX VR.exe",
       "patchFile": "fzgxvr.patch",
-      "whatsNew": "Story mode no longer stops with an error, gamepads use the GameCube layout, and a new cheat unlocks everything.",
+      "whatsNew": "VR no longer starts in slow motion, boost is on the top left bumper too, and VR settings no longer end a race.",
       "changelog": [
+        "Version 6 - VR no longer starts in slow motion. The picture size is now learned and kept.",
+        "Version 6 - Boost is now also on the top left bumper (L1 or LB), easier on the thumb.",
+        "Version 6 - Closing the VR Settings or Cheats menu during a race no longer ends the race early.",
         "Version 5 - Setup now works when the hub's folder has a space in its name.",
         "Version 4 - Story mode no longer stops with a missing function error.",
         "Version 4 - Gamepads now use the GameCube's own button layout.",
@@ -1007,9 +1010,9 @@
         "Version 1 - Known problem: the machine has no glow on the boost pad or while boosting yet."
       ],
       "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GFZE01) first and then builds the game on your PC by itself. It downloads about 700 MB of tools, needs about 8 GB of free space while it works and takes several minutes. After that it starts straight away, and an update only builds what changed.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-5.zip",
-      "payloadSha256": "162d71fb52a77b1fb4a41625326084bf971df51564e0658be8f98e7355a46751",
-      "payloadBytes": 725204,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/fzgx-patch/FZeroGX-VR-6.zip",
+      "payloadSha256": "a5f4653b66b4146bf0132924a6b2ed704b8e35766c4ffc7c1029ddfafe859fef",
+      "payloadBytes": 726803,
       "status": "experimental"
     },
     {
