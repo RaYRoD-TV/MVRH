@@ -210,9 +210,10 @@
       "nintendo": true,
       "group": "N64",
       "status": "available",
-      "version": "4",
-      "whatsNew": "To Map and To Title no longer mark the mission cleared, the sky uses each level's own colours with full stars in space, and the VR menu is easier to read and use.",
+      "version": "5",
+      "whatsNew": "The sky now meets the ground the way the game draws it, with no grey band between the clouds and the ground.",
       "changelog": [
+        "Patch 5 - The sky meets the ground the way the game draws it: no grey band between the clouds and the ground on Katina, Zoness and the other planet levels.",
         "Patch 4 - To Map and To Title no longer mark the mission you left as cleared.",
         "Patch 4 - The sky now uses each level's own colours with no added clouds, and space levels have the game's full density of stars.",
         "Patch 4 - The chosen row in the VR menu is a bright bar, the D-pad works in it, and Resume, To Map and To Title sit at the top.",
@@ -241,9 +242,9 @@
         "$ROM",
         "starship.o2r"
       ],
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-4.zip",
-      "payloadSha256": "f919b24100dc1943ece23d1b4a90166c54119a68d6d4f6da6cebb9e3e1cc79ac",
-      "payloadBytes": 3842925
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/StarFox64-VR-5.zip",
+      "payloadSha256": "bb7adb11776e2154b9b89fb20933cc5f192c8076daf872d4355ad2108ed29a96",
+      "payloadBytes": 3843181
     },
     {
       "id": "mk64",
