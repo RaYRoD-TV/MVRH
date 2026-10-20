@@ -214,6 +214,7 @@
       "whatsNew": "The pause screen hint now has the VR options and the F1 settings note on separate lines.",
       "changelog": [
         "Patch 6 - The pause screen hint is two lines: R trigger for VR options, then F1 for the game's own settings.",
+        "Patch 5 - The sky meets the ground the way the game draws it: no grey band between the clouds and the ground on Katina, Zoness and the other planet levels.",
         "Patch 4 - To Map and To Title no longer mark the mission you left as cleared.",
         "Patch 4 - The sky now uses each level's own colours with no added clouds, and space levels have the game's full density of stars.",
         "Patch 4 - The chosen row in the VR menu is a bright bar, the D-pad works in it, and Resume, To Map and To Title sit at the top.",
