@@ -322,7 +322,7 @@
       "nintendo": true,
       "group": "N64",
       "status": "available",
-      "version": "9",
+      "version": "10",
       "installDir": "mvrh/games/SuperMario64",
       "patchDir": "launcher/SuperMario64",
       "officialHome": "https://github.com/coop-deluxe/sm64coopdx",
@@ -331,8 +331,10 @@
       "exeName": "sm64coopdx.exe",
       "patchFile": "sm64vr.patch",
       "upNext": "a major update to the whole coop dx port.",
-      "whatsNew": "Coins, bob-ombs and trees now stay solid and face you at any head angle, in play and on the pause screen.",
+      "whatsNew": "Starts in VR on Virtual Desktop and SteamVR even when another VR program is set as the default.",
       "changelog": [
+        "Patch 10 - Starts in VR on Virtual Desktop even when another VR program is the default.",
+        "Patch 10 - If the game starts flat, vr-log.txt beside it now says why.",
         "Patch 9 - Coins, bob-ombs and trees stay solid however far you turn your head.",
         "Patch 9 - The pause screen no longer flattens or hides those same objects.",
         "Patch 8 - Trees and signs stay put when you turn your head, with no stray white shapes.",
@@ -414,9 +416,9 @@
         "--skip-update-check"
       ],
       "launchNote": "This one's got its own updater. The hub starts it with that switched off so it can't swap the VR build back to the plain one. If you ever launch it straight from its folder, say no when it offers to update.",
-      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-9.zip",
-      "payloadSha256": "bdaf2c1d1d971c0ad3fa75d9af0bbc10b3752a6469052461f93416af14f1a792",
-      "payloadBytes": 3518375,
+      "payloadUrl": "https://rayrod-tv.github.io/MVRH/SuperMario64-VR-10.zip",
+      "payloadSha256": "50fdded2a9f7a5e7e1d1da1ac42f53c46fee32e6b6964fd6e9cec8465c2dcfeb",
+      "payloadBytes": 3694028,
       "questApkUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/sm64-quest/SuperMario64-VR-Quest.apk",
       "questApkSha256": "55a151059a8369aa42e670d22cdaac05e9a3ab72e0511d7c3d80bce17fcaa633",
       "questApkBytes": 99204624
