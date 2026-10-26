@@ -706,7 +706,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "35",
+      "version": "36",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -714,8 +714,10 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "The GBA is gripped in your hands, and they never pass through it.",
+      "whatsNew": "Bowser Castle's storm reaches the sky, and Lakitu waits for your splash.",
       "changelog": [
+        "Version 36 - Bowser Castle's storm now rises into a deep teal sky.",
+        "Version 36 - Fall into lava and Lakitu waits for the splash before he fishes you out.",
         "Version 35 - The GBA is gripped and held: palms beside its ends, thumbs on the keys.",
         "Version 35 - Your hands never pass through the console.",
         "Version 35 - Your thumbs and fingers press the console's own keys.",
@@ -948,9 +950,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-35.zip",
-      "payloadSha256": "717e1e8db890cd4002352788a3fc44cd890aadcdeabb96a8ec0062f7f8f21892",
-      "payloadBytes": 16658054,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-36.zip",
+      "payloadSha256": "e26b59b19cf5bffb75bbf21ed36f0897f1edd762ab3fe58defe62166ac0cab73",
+      "payloadBytes": 16657492,
       "status": "experimental"
     },
     {
