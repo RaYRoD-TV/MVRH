@@ -706,7 +706,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "38",
+      "version": "39",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -714,8 +714,10 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "Sinkholes open real holes now, and the road comes apart into its own pixels.",
+      "whatsNew": "Tornados are back to their dust and debris, and the road stays flat round a sinkhole.",
       "changelog": [
+        "Version 39 - Tornados throw up dust and debris round their foot again, as before patch 38.",
+        "Version 39 - The road round an open sinkhole stays flat: no grey blocks rise beside it.",
         "Version 38 - A sinkhole cracks the road, then the road dissolves into its own glowing pixels.",
         "Version 38 - A kart that reaches an open sinkhole falls in, and Lakitu fishes it out.",
         "Version 38 - A tornado tears up the course's own pixels and spins them up its funnel.",
@@ -958,9 +960,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-38.zip",
-      "payloadSha256": "42cb619b4f63c1c760b17c78c6c8619db07f7cac6859f571d3e3358c83b2585c",
-      "payloadBytes": 16664689,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-39.zip",
+      "payloadSha256": "0de14c86961ee2cb462c1539203ab8e3fed47be543c7aed06981e9fcfdd0cbcf",
+      "payloadBytes": 16664063,
       "status": "experimental"
     },
     {
