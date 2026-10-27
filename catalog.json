@@ -706,7 +706,7 @@
       "port": "Mario Kart: Super Circuit Recomp",
       "nintendo": true,
       "group": "GBA",
-      "version": "37",
+      "version": "38",
       "installDir": "mvrh/games/SuperCircuit",
       "patchDir": "launcher/SuperCircuit",
       "officialHome": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
@@ -714,8 +714,13 @@
       "officialZip": "MarioKartSuperCircuitRecomp-windows-x64-v0.0.3.zip",
       "exeName": "MarioKartSuperCircuitRecomp.exe",
       "patchFile": "mkscvr.patch",
-      "whatsNew": "The shells, the spiny shell and the banana on the road are new 3D models.",
+      "whatsNew": "Sinkholes open real holes now, and the road comes apart into its own pixels.",
       "changelog": [
+        "Version 38 - A sinkhole cracks the road, then the road dissolves into its own glowing pixels.",
+        "Version 38 - A kart that reaches an open sinkhole falls in, and Lakitu fishes it out.",
+        "Version 38 - A tornado tears up the course's own pixels and spins them up its funnel.",
+        "Version 38 - While a hand holds the GBA, its trigger presses the shoulder button under that finger.",
+        "Version 38 - With the GBA at rest, the triggers still work as A and B in the menus.",
         "Version 37 - Green and red shells are new 3D models: plated domes, cream rims and openings.",
         "Version 37 - The spiny shell has its wings and spikes, and bananas stand on three peel arms.",
         "Version 37 - The models studio shows the spiny shell among the pieces coming next.",
@@ -953,9 +958,9 @@
         "mario_kart_super_circuit_usa.gba"
       ],
       "launchNote": "Start your headset software first (Virtual Desktop, Link or SteamVR), or the game opens flat on your monitor. The hub asks for your own Mario Kart: Super Circuit (USA) ROM when you install. In a race, hold the right stick in for the VR menu, or pause and pull the right trigger.",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-37.zip",
-      "payloadSha256": "204c4c07b1d8a35341e668b389c698728cb904a34e71e4a10426e7be35c5185f",
-      "payloadBytes": 16657452,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/mksc-patch/SuperCircuit-VR-38.zip",
+      "payloadSha256": "42cb619b4f63c1c760b17c78c6c8619db07f7cac6859f571d3e3358c83b2585c",
+      "payloadBytes": 16664689,
       "status": "experimental"
     },
     {
