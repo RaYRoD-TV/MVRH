@@ -195,10 +195,10 @@
     "bytes": 8044989
   },
   "hub": {
-    "version": "1.0.35",
-    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.35/MultiverseVRHub.exe",
-    "sha256": "11be59652276b89deee7437769a376717b9b3c3c97e96645cf8463f27b592a6e",
-    "bytes": 5750272,
+    "version": "1.0.36",
+    "url": "https://github.com/RaYRoD-TV/MVRH/releases/download/hub-1.0.36/MultiverseVRHub.exe",
+    "sha256": "32c6ccad47319d86a15f3ce29eb264c96fa03d911bba12c61d2d0a630835fb92",
+    "bytes": 5760000,
     "page": "https://github.com/RaYRoD-TV/MVRH/releases/latest"
   },
   "held": [
