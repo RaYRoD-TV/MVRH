@@ -1099,8 +1099,8 @@
       ],
       "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GLME01) first and then builds the game on your PC by itself. It downloads about 700 MB of tools, needs about 8 GB of free space while it works and takes several minutes. After that it starts straight away in VR when a headset answers, or on your monitor without one (or with --flat).",
       "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/lm-patch/LuigisMansion-VR-1.zip",
-      "payloadSha256": "077a63c062d074f28df9b97485271eed7b22b1b5ab1e1e31af983829b2032168",
-      "payloadBytes": 984421,
+      "payloadSha256": "ba10c2482c164a6440499f9231073a031d87f4282d01c4e8fd066a31dcbe7339",
+      "payloadBytes": 985614,
       "status": "experimental"
     },
     {
