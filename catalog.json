@@ -1076,7 +1076,7 @@
       "port": "WiiCompiled",
       "nintendo": true,
       "group": "GAMECUBE",
-      "version": "5",
+      "version": "6",
       "installDir": "mvrh/games/LuigisMansion",
       "patchDir": "launcher/LuigisMansion",
       "officialHome": "https://github.com/patchzyy/Wiicompiled",
@@ -1084,8 +1084,11 @@
       "officialZip": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4.zip",
       "exeName": "Wiicompiled-a135beb201042b20f390c6695ca6b26768820fb4/Luigi's Mansion VR.exe",
       "patchFile": "lmvr.patch",
-      "whatsNew": "Fixes mirror reflections outside Third Person, adds seamless First Person doors, and adds a Ghost Combat toggle.",
+      "whatsNew": "Fixes the 2F Foyer chandelier, centers Chauncey's skybox, and tracks flashlight and vacuum aim to your crosshair.",
       "changelog": [
+        "Version 6 - Fixed Foyer chandelier and visible-room furniture vanishing on the 2F landing.",
+        "Version 6 - Centered Chauncey's dimension vortex and outdoor skyboxes on your view.",
+        "Version 6 - Tightened flashlight/vacuum crosshair aim and vacuum turning in ghost fights.",
         "Version 5 - Fixed mirror reflections outside Third Person and made Luigi appear in mirrors.",
         "Version 5 - Opening doors now stays seamlessly in First Person (configurable in Controls).",
         "Version 5 - Added Ghost Combat toggle in Controls (Third Person default or First Person).",
@@ -1116,9 +1119,9 @@
         "Version 1 - Sets itself up from your own USA disc (GLME01), with no game files."
       ],
       "launchNote": "First run only: a setup window opens, asks for your own USA disc image (game ID GLME01) first and then builds the game on your PC by itself. It downloads about 700 MB of tools, needs about 8 GB of free space while it works and takes several minutes. After that it starts straight away in VR when a headset answers, or on your monitor without one (or with --flat).",
-      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/lm-patch/LuigisMansion-VR-5.zip",
-      "payloadSha256": "bc1f9f80bf62df29e907f540b29bd49f205e313b457298048930303d78bcc083",
-      "payloadBytes": 997348,
+      "payloadUrl": "https://github.com/RaYRoD-TV/MVRH/releases/download/lm-patch/LuigisMansion-VR-6.zip",
+      "payloadSha256": "a9874cb4c5866a817fa9820a1b858ac480e10ca0bc057e58604dd6fcfb65628b",
+      "payloadBytes": 998756,
       "status": "experimental"
     },
     {
